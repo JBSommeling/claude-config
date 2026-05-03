@@ -16,33 +16,57 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
 
 ## Setup
 
-### 1. Global CLAUDE.md
+### 1. Install globally
 
-Copy `CLAUDE.md` to your Claude global config directory:
+Copy `CLAUDE.md` and the agents to your global Claude directory. This applies the routing rules to every project automatically.
 
 ```bash
+mkdir -p ~/.claude/agents
+
 cp CLAUDE.md ~/.claude/CLAUDE.md
+cp .claude/agents/reader.md ~/.claude/agents/reader.md
+cp .claude/agents/implementer.md ~/.claude/agents/implementer.md
 ```
 
-This applies the routing rules to every project automatically.
+### 2. Add project-specific context (per repo)
 
-### 2. Subagent files
-
-Copy the agent definitions to your Claude agents directory:
+The global CLAUDE.md handles routing. Each project only needs a minimal file with codebase-specific context.
 
 ```bash
-cp -r .claude/agents ~/.claude/agents
+mkdir -p .claude
+touch .claude/CLAUDE.md
 ```
 
-Or per-project by placing them in `.claude/agents/` in your repo root.
+Example project CLAUDE.md:
 
-### 3. Start Claude Code on Opus
+```markdown
+## Project context
+- Laravel 11, PHP 8.3
+- Tests use Pest
+- Main models in /app/Models
+```
+
+No need to repeat routing rules — they are inherited from the global file.
+
+### 3. Copy .claudeignore per project
+
+```bash
+cp .claudeignore /your/project/.claudeignore
+```
+
+### 4. Start Claude Code on Opus
 
 ```bash
 claude --model claude-opus-4-7
 ```
 
-The routing rules in `CLAUDE.md` will instruct Opus to delegate automatically.
+Verify the global and project files are both loaded:
+
+```
+/status
+```
+
+You should see both CLAUDE.md files listed and all agents available.
 
 ## How it works
 
