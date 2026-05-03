@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+vendor/
+.composer/
+
+# Build output
+dist/
+build/
+out/
+public/build/
+storage/framework/cache/
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.p12
+
+# Logs
+*.log
+logs/
+storage/logs/
+
+# Cache
+.cache/
+*.cache
+bootstrap/cache/
+.php-cs-fixer.cache
+
+# Test coverage & snapshots
+coverage/
+.nyc_output/
+__snapshots__/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Lock files (rarely useful for Claude to read)
+package-lock.json
+yarn.lock
+composer.lock
+go.sum
+
+# Binary & media
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.ico
+*.mp4
+*.mp3
+*.pdf
+*.zip
+*.tar.gz
+
+# Database
+*.sql
+*.sqlite
+*.db
