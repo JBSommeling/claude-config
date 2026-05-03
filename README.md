@@ -88,6 +88,20 @@ Opus (main session)
 | `reader` | Haiku | File reading, codebase search, summarization |
 | `implementer` | Sonnet | Writing code, fixing tests, refactoring |
 
+## Bonus: .claudeignore
+
+A universal `.claudeignore` is included. Copy it into any project to prevent Claude from reading files that waste tokens or should never be read — dependencies, build output, lock files, logs, secrets, and binaries.
+
+```bash
+cp .claudeignore /your/project/.claudeignore
+```
+
+Highlights:
+- `node_modules/` and `vendor/` — prevents accidental dependency reads
+- `package-lock.json`, `yarn.lock`, `composer.lock`, `go.sum` — lock files are huge and useless for Claude
+- `.env` and `*.key` — keeps secrets out of Claude's context
+- `storage/logs/` and `*.log` — log files are rarely what you want Claude reading
+
 ## Compatibility
 
 Works with any tech stack. The routing is based on task type, not language or framework. Tested with Laravel and Go projects but applies universally.
