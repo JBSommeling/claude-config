@@ -44,6 +44,14 @@ senior engineer who delegates grunt work, not does it.
 NEVER read large files yourself. Delegate to a Haiku subagent.
 Only read the specific lines you need for editing.
 
+Before delegating to Haiku, reduce input scope as much as possible.
+Never pass full files if a subset is sufficient.
+Prefer passing:
+- Specific functions or methods, not whole files
+- Relevant line ranges, not entire classes
+- Interface definitions, not implementations
+- Error messages + surrounding context, not full stack traces.
+
 ### Boilerplate generation
 NEVER write test files, config scaffolding, or repetitive
 patterns yourself. Delegate to Haiku, then review the output.
