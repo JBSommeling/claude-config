@@ -23,12 +23,13 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         implementer.md     # Sonnet — writing code and refactoring
     commands/
         tdd.md             # /tdd — activates TDD mode for the session
+        diagnose.md        # /diagnose — disciplined debugging loop
         zoom-out.md        # /zoom-out — maps modules and callers before acting
     skills/
         write-a-skill/
             SKILL.md       # How to create new skills
         diagnose/
-            SKILL.md       # Disciplined debugging loop
+            SKILL.md       # Disciplined debugging loop — only via /diagnose command
         tdd/
             SKILL.md       # Red-green-refactor workflow
         zoom-out/
@@ -93,9 +94,10 @@ Your prompt
 Opus (main session)
     │
     ├── Relevant skill? ────► Read SKILL.md first
-    │                          - diagnose for bugs
-    │                          - tdd via /tdd command
     │                          - write-a-skill for new skills
+    │                          - tdd via /tdd command
+    │                          - diagnose via /diagnose command
+    │                          - zoom-out via /zoom-out command
     │
     ├── I/O task? ──────────► Haiku subagent
     │                          - File reading
@@ -140,8 +142,8 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | Skill | Trigger | Purpose |
 |---|---|---|
 | `write-a-skill` | Automatic | Creating new agent skills with proper structure |
-| `diagnose` | Automatic | Disciplined debugging loop for hard bugs and performance regressions |
 | `tdd` | `/tdd` command | Red-green-refactor workflow for test-driven development |
+| `diagnose` | `/diagnose` command | Disciplined debugging loop for hard bugs and unknown causes |
 | `zoom-out` | `/zoom-out` command | High-level map of unfamiliar code — modules, callers, and dependencies |
 
 ## Included commands
@@ -149,6 +151,7 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | Command | Purpose |
 |---|---|
 | `/tdd` | Activates TDD mode — follows red-green-refactor for the session |
+| `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
 | `/zoom-out` | Maps modules, callers, and dependencies before acting in unfamiliar code |
 
 ## Bonus: .claudeignore
