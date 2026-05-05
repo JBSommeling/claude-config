@@ -82,6 +82,7 @@ When in doubt: delegate to Sonnet, review yourself.
 
 Before starting a task, check if a relevant skill applies.
 Read the full SKILL.md before proceeding.
+Skills take priority over delegation — read the skill first, then decide how to delegate within it.
 
 | Skill | Location | Use when |
 |---|---|---|
