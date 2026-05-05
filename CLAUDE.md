@@ -89,7 +89,6 @@ Skills take priority over delegation — read the skill first, then decide how t
 | write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
 | diagnose | ~/.claude/skills/diagnose/SKILL.md | Debugging bugs, diagnosing issues, performance regressions |
 | tdd | ~/.claude/skills/tdd/SKILL.md | Test-driven development, red-green-refactor, test-first development |
-| zoom-out | ~/.claude/skills/zoom-out/SKILL.md | User is unfamiliar with the code, or explicitly asks for broader context or a high-level map |
 
 ---
 
