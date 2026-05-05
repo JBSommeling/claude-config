@@ -87,3 +87,4 @@ Read the full SKILL.md before proceeding.
 |---|---|---|
 | write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
 | diagnose | ~/.claude/skills/diagnose/SKILL.md | Debugging bugs, diagnosing issues, performance regressions |
+| tdd | ~/.claude/skills/tdd/SKILL.md | Test-driven development, red-green-refactor, test-first development |
