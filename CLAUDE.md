@@ -75,3 +75,15 @@ Ask yourself before doing anything:
 3. Is this I/O, reading, or pattern work? → Haiku subagent
 
 When in doubt: delegate to Sonnet, review yourself.
+
+---
+
+## Skills
+
+Before starting a task, check if a relevant skill applies.
+Read the full SKILL.md before proceeding.
+
+| Skill | Location | Use when |
+|---|---|---|
+| write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
+| diagnose | ~/.claude/skills/diagnose/SKILL.md | Debugging bugs, diagnosing issues, performance regressions |
