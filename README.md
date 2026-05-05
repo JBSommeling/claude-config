@@ -164,7 +164,8 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 
 | Command | Purpose |
 |---|---|
-| `/tdd` | Activates TDD mode — Opus reads the TDD skill and follows red-green-refactor for the session |
+| `/tdd` | Activates TDD mode — follows red-green-refactor for the session |
+| `/zoom-out` | Maps modules, callers, and dependencies before acting in unfamiliar code |
 
 ## Bonus: .claudeignore
 
