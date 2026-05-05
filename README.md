@@ -30,6 +30,8 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
             SKILL.md       # Disciplined debugging loop
         tdd/
             SKILL.md       # Red-green-refactor workflow
+        zoom-out/
+            SKILL.md       # Code inspection on a higher level
 CLAUDE.md                  # Global routing rules and skill registry
 .claudeignore              # Universal ignore file for any project
 ```
@@ -55,6 +57,7 @@ cp .claude/commands/tdd.md ~/.claude/commands/tdd.md
 cp -r .claude/skills/write-a-skill ~/.claude/skills/write-a-skill
 cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
 cp -r .claude/skills/tdd ~/.claude/skills/tdd
+cp -r .claude/skills/zoom-out ~/.claude/skills/zoom-out
 ```
 
 ### 2. Add project-specific context (per repo) -- optional
@@ -155,6 +158,7 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | `write-a-skill` | Creating new agent skills with proper structure |
 | `diagnose` | Disciplined debugging loop for hard bugs and performance regressions |
 | `tdd` | Red-green-refactor workflow for test-driven development |
+| `zoom-out` | Get a high-level map of unfamiliar code — modules, callers, and how it fits together |
 
 ## Included commands
 
