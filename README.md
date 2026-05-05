@@ -23,6 +23,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         implementer.md     # Sonnet — writing code and refactoring
     commands/
         tdd.md             # /tdd — activates TDD mode for the session
+        zoom-out.md        # /zoom-out — maps modules and callers before acting
     skills/
         write-a-skill/
             SKILL.md       # How to create new skills
@@ -53,6 +54,7 @@ cp .claude/agents/reader.md ~/.claude/agents/reader.md
 cp .claude/agents/implementer.md ~/.claude/agents/implementer.md
 
 cp .claude/commands/tdd.md ~/.claude/commands/tdd.md
+cp .claude/commands/zoom-out.md ~/.claude/commands/zoom-out.md
 
 cp -r .claude/skills/write-a-skill ~/.claude/skills/write-a-skill
 cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
@@ -60,7 +62,7 @@ cp -r .claude/skills/tdd ~/.claude/skills/tdd
 cp -r .claude/skills/zoom-out ~/.claude/skills/zoom-out
 ```
 
-### 2. Add project-specific context (per repo) -- optional
+### 2. Add project-specific context (per repo) — optional
 
 The global CLAUDE.md handles routing. Each project only needs a minimal file with codebase-specific context.
 
@@ -111,6 +113,7 @@ Opus (main session)
     ├── Relevant skill? ────► Read SKILL.md first
     │                          - diagnose for bugs
     │                          - tdd via /tdd command
+    │                          - zoom-out for unfamiliar code
     │                          - write-a-skill for new skills
     │
     ├── I/O task? ──────────► Haiku subagent
