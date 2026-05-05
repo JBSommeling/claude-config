@@ -44,22 +44,7 @@ CLAUDE.md                  # Global routing rules and skill registry
 Copy everything to your global Claude directory. This applies the routing rules, agents, skills, and commands to every project automatically.
 
 ```bash
-mkdir -p ~/.claude/agents
-mkdir -p ~/.claude/commands
-mkdir -p ~/.claude/skills
-
-cp CLAUDE.md ~/.claude/CLAUDE.md
-
-cp .claude/agents/reader.md ~/.claude/agents/reader.md
-cp .claude/agents/implementer.md ~/.claude/agents/implementer.md
-
-cp .claude/commands/tdd.md ~/.claude/commands/tdd.md
-cp .claude/commands/zoom-out.md ~/.claude/commands/zoom-out.md
-
-cp -r .claude/skills/write-a-skill ~/.claude/skills/write-a-skill
-cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
-cp -r .claude/skills/tdd ~/.claude/skills/tdd
-cp -r .claude/skills/zoom-out ~/.claude/skills/zoom-out
+chmod +x install.sh && ./install.sh
 ```
 
 ### 2. Add project-specific context (per repo) — optional
