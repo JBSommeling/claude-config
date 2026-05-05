@@ -32,20 +32,23 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         tdd/
             SKILL.md       # Red-green-refactor workflow
         zoom-out/
-            SKILL.md       # Code inspection on a higher level
+            SKILL.md       # High-level code map — only via /zoom-out command
 CLAUDE.md                  # Global routing rules and skill registry
 .claudeignore              # Universal ignore file for any project
+install.sh                 # One-command installer
 ```
 
 ## Setup
 
-### 1. Install globally
-
-Copy everything to your global Claude directory. This applies the routing rules, agents, skills, and commands to every project automatically.
+### 1. Clone and install globally
 
 ```bash
+git clone https://github.com/JBSommeling/claude-config
+cd claude-config
 chmod +x install.sh && ./install.sh
 ```
+
+This copies everything to your global Claude directory and applies routing rules, agents, skills, and commands to every project automatically.
 
 ### 2. Add project-specific context (per repo) — optional
 
@@ -79,13 +82,7 @@ cp .claudeignore /your/project/.claudeignore
 claude --model claude-opus-4-7
 ```
 
-Verify the global and project files are both loaded:
-
-```
-/status
-```
-
-You should see both CLAUDE.md files listed and all agents, skills, and commands available.
+Verify setup with `/status` inside Claude Code. You should see both CLAUDE.md files listed and all agents, skills, and commands available.
 
 ## How it works
 
@@ -98,7 +95,6 @@ Opus (main session)
     ├── Relevant skill? ────► Read SKILL.md first
     │                          - diagnose for bugs
     │                          - tdd via /tdd command
-    │                          - zoom-out for unfamiliar code
     │                          - write-a-skill for new skills
     │
     ├── I/O task? ──────────► Haiku subagent
@@ -141,12 +137,12 @@ Opus (main session)
 
 Skills are loaded on demand — Opus reads only the relevant skill for the current task.
 
-| Skill | Purpose |
-|---|---|
-| `write-a-skill` | Creating new agent skills with proper structure |
-| `diagnose` | Disciplined debugging loop for hard bugs and performance regressions |
-| `tdd` | Red-green-refactor workflow for test-driven development |
-| `zoom-out` | Get a high-level map of unfamiliar code — modules, callers, and how it fits together |
+| Skill | Trigger | Purpose |
+|---|---|---|
+| `write-a-skill` | Automatic | Creating new agent skills with proper structure |
+| `diagnose` | Automatic | Disciplined debugging loop for hard bugs and performance regressions |
+| `tdd` | `/tdd` command | Red-green-refactor workflow for test-driven development |
+| `zoom-out` | `/zoom-out` command | High-level map of unfamiliar code — modules, callers, and dependencies |
 
 ## Included commands
 
