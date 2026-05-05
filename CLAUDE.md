@@ -87,7 +87,6 @@ Skills take priority over delegation — read the skill first, then decide how t
 | Skill | Location | Use when |
 |---|---|---|
 | write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
-| diagnose | ~/.claude/skills/diagnose/SKILL.md | Debugging bugs, diagnosing issues, performance regressions |
 | tdd | ~/.claude/skills/tdd/SKILL.md | Test-driven development, red-green-refactor, test-first development |
 
 ---
@@ -99,4 +98,6 @@ Custom slash commands available in any session.
 | Command | Purpose |
 |---|---|
 | `/tdd` | Activates TDD mode — follows red-green-refactor for the session |
+| `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
 | `/zoom-out` | Maps modules, callers, and dependencies before acting |
+
