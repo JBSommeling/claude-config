@@ -1,6 +1,6 @@
 # claude-code-model-routing
 
-A global `CLAUDE.md` configuration that routes tasks to the right Claude model automatically — Opus for reasoning, Sonnet for implementation, Haiku for I/O.
+A global `CLAUDE.md` configuration that routes tasks to the right Claude model automatically — Opus for reasoning, Sonnet for implementation, Haiku for I/O. Includes subagent definitions, skills, and custom slash commands.
 
 ## Why
 
@@ -14,21 +14,50 @@ This configuration turns Claude Code into a self-routing system:
 
 Each subagent runs in its own context window, so heavy I/O work never pollutes your main session. This stretches your weekly usage limit significantly.
 
+## Repository structure
+
+```
+.claude/
+    agents/
+        reader.md          # Haiku — file reading and codebase search
+        implementer.md     # Sonnet — writing code and refactoring
+    commands/
+        tdd.md             # /tdd — activates TDD mode for the session
+    skills/
+        write-a-skill/
+            SKILL.md       # How to create new skills
+        diagnose/
+            SKILL.md       # Disciplined debugging loop
+        tdd/
+            SKILL.md       # Red-green-refactor workflow
+CLAUDE.md                  # Global routing rules and skill registry
+.claudeignore              # Universal ignore file for any project
+```
+
 ## Setup
 
 ### 1. Install globally
 
-Copy `CLAUDE.md` and the agents to your global Claude directory. This applies the routing rules to every project automatically.
+Copy everything to your global Claude directory. This applies the routing rules, agents, skills, and commands to every project automatically.
 
 ```bash
 mkdir -p ~/.claude/agents
+mkdir -p ~/.claude/commands
+mkdir -p ~/.claude/skills
 
 cp CLAUDE.md ~/.claude/CLAUDE.md
+
 cp .claude/agents/reader.md ~/.claude/agents/reader.md
 cp .claude/agents/implementer.md ~/.claude/agents/implementer.md
+
+cp .claude/commands/tdd.md ~/.claude/commands/tdd.md
+
+cp -r .claude/skills/write-a-skill ~/.claude/skills/write-a-skill
+cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
+cp -r .claude/skills/tdd ~/.claude/skills/tdd
 ```
 
-### 2. Add project-specific context (per repo)
+### 2. Add project-specific context (per repo) -- optional
 
 The global CLAUDE.md handles routing. Each project only needs a minimal file with codebase-specific context.
 
@@ -66,7 +95,7 @@ Verify the global and project files are both loaded:
 /status
 ```
 
-You should see both CLAUDE.md files listed and all agents available.
+You should see both CLAUDE.md files listed and all agents, skills, and commands available.
 
 ## How it works
 
@@ -75,6 +104,11 @@ Your prompt
     │
     ▼
 Opus (main session)
+    │
+    ├── Relevant skill? ────► Read SKILL.md first
+    │                          - diagnose for bugs
+    │                          - tdd via /tdd command
+    │                          - write-a-skill for new skills
     │
     ├── I/O task? ──────────► Haiku subagent
     │                          - File reading
@@ -111,6 +145,22 @@ Opus (main session)
 |---|---|---|
 | `reader` | Haiku | File reading, codebase search, summarization |
 | `implementer` | Sonnet | Writing code, fixing tests, refactoring |
+
+## Included skills
+
+Skills are loaded on demand — Opus reads only the relevant skill for the current task.
+
+| Skill | Purpose |
+|---|---|
+| `write-a-skill` | Creating new agent skills with proper structure |
+| `diagnose` | Disciplined debugging loop for hard bugs and performance regressions |
+| `tdd` | Red-green-refactor workflow for test-driven development |
+
+## Included commands
+
+| Command | Purpose |
+|---|---|
+| `/tdd` | Activates TDD mode — Opus reads the TDD skill and follows red-green-refactor for the session |
 
 ## Bonus: .claudeignore
 
