@@ -20,6 +20,7 @@ echo "✓ Agents installed"
 
 # Commands
 cp .claude/commands/tdd.md ~/.claude/commands/tdd.md
+cp .claude/commands/diagnose.md ~/.claude/commands/diagnose.md
 cp .claude/commands/zoom-out.md ~/.claude/commands/zoom-out.md
 echo "✓ Commands installed"
 
