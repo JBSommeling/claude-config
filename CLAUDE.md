@@ -88,4 +88,15 @@ Read the full SKILL.md before proceeding.
 | write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
 | diagnose | ~/.claude/skills/diagnose/SKILL.md | Debugging bugs, diagnosing issues, performance regressions |
 | tdd | ~/.claude/skills/tdd/SKILL.md | Test-driven development, red-green-refactor, test-first development |
-| zoom-out | ~/.claude/skills/zoom-out/SKILL.md | Understanding unfamiliar code, getting broader context, mapping modules and callers |
+| zoom-out | ~/.claude/skills/zoom-out/SKILL.md | User is unfamiliar with the code, or explicitly asks for broader context or a high-level map |
+
+---
+
+## Commands
+
+Custom slash commands available in any session.
+
+| Command | Purpose |
+|---|---|
+| `/tdd` | Activates TDD mode — follows red-green-refactor for the session |
+| `/zoom-out` | Maps modules, callers, and dependencies before acting |
