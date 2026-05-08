@@ -101,3 +101,23 @@ Custom slash commands available in any session.
 | `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
 | `/zoom-out` | Maps modules, callers, and dependencies before acting |
 
+---
+
+## Routing preflight (mandatory)
+
+Before every Write, Edit, or Read tool call, output one sentence in the form:
+`Routing: <Haiku|Sonnet|Opus> — <reason>`. No tool call may be issued without
+this sentence immediately preceding it. If the routing is Opus, the reason
+must explain why neither Haiku nor Sonnet fits.
+
+---
+
+## Files Opus must never write or edit directly (Haiku-only)
+
+Makefile, `*.toml`, `*.yaml`/`*.yml`, `*.json` (any config), `.gitignore`,
+`.air.toml`, `Cargo.toml`, `package.json`, `pnpm-lock.yaml`, `tsconfig*.json`,
+`vite.config.*`, `tailwind.config.*`, `postcss.config.*`, `.eslintrc.*`,
+`.prettierrc.*`. Boilerplate Go/Rust/TS scaffolding (empty structs, default
+`main.go`, default `lib.rs`) is also Haiku-only. No exceptions for "it's only
+a few lines."
+
