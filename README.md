@@ -154,6 +154,7 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | `/tdd` | Activates TDD mode — follows red-green-refactor for the session |
 | `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
 | `/zoom-out` | Maps modules, callers, and dependencies before acting in unfamiliar code |
+| `/request-code-review` | Dispatches code reviewer subagent to catch issues before merge |
 
 ## Bonus: .claudeignore
 
