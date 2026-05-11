@@ -98,6 +98,7 @@ Opus (main session)
     │                          - tdd via /tdd command
     │                          - diagnose via /diagnose command
     │                          - zoom-out via /zoom-out command
+    │                          - request-code-review via /request-code-review command
     │
     ├── I/O task? ──────────► Haiku subagent
     │                          - File reading
