@@ -30,6 +30,7 @@ cp -r .claude/skills/write-a-skill ~/.claude/skills/write-a-skill
 cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
 cp -r .claude/skills/tdd ~/.claude/skills/tdd
 cp -r .claude/skills/zoom-out ~/.claude/skills/zoom-out
+cp -r .claude/skills/request-code-review ~/.claude/skills/request-code-review
 echo "✓ Skills installed"
 
 # Hooks

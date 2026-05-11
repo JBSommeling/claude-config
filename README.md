@@ -145,6 +145,7 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | `tdd` | `/tdd` command | Red-green-refactor workflow for test-driven development |
 | `diagnose` | `/diagnose` command | Disciplined debugging loop for hard bugs and unknown causes |
 | `zoom-out` | `/zoom-out` command | High-level map of unfamiliar code — modules, callers, and dependencies |
+| `request-code-review` | `/request-code-review` command | Code review dispatch before merging or after major features |
 
 ## Included commands
 

@@ -88,6 +88,7 @@ Skills take priority over delegation — read the skill first, then decide how t
 |---|---|---|
 | write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
 | tdd | ~/.claude/skills/tdd/SKILL.md | Test-driven development, red-green-refactor, test-first development |
+| request-code-review | ~/.claude/skills/request-code-review/SKILL.md | Requesting code review before merging or after completing major features |
 
 ---
 
