@@ -65,6 +65,13 @@ then review and approve the result.
 After any Sonnet implementation, always review the output
 yourself before considering the task done.
 
+### Subagent escalation
+If a delegated task to a subagent fails, errors out, crashes, or freezes,
+stop the task immediately and retry with the next higher model:
+- Haiku failure → retry with Sonnet
+- Sonnet failure → retry with Opus (do it yourself)
+Never retry on the same model tier. Escalate immediately.
+
 ---
 
 ## Decision guide
