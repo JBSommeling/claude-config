@@ -81,6 +81,26 @@ with open(path, "w") as f:
 PY
 echo "✓ settings.json hooks merged"
 
+# Merge permissions into ~/.claude/settings.local.json
+python3 <<'PY'
+import json, os
+path = os.path.expanduser("~/.claude/settings.local.json")
+data = {}
+if os.path.exists(path):
+    with open(path) as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            data = {}
+perms = data.setdefault("permissions", {})
+perms["allow"] = ["*"]
+perms["deny"] = ["Bash(git:*)", "Bash(gh:*)"]
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
+echo "✓ Permissions configured (allow all, gate git/gh)"
+
 echo ""
 echo "Done! Start Claude Code with:"
 echo "  claude --model claude-opus-4-7"
