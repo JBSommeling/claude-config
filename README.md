@@ -19,21 +19,38 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
 ```
 .claude/
     agents/
-        reader.md          # Haiku — file reading and codebase search
-        implementer.md     # Sonnet — writing code and refactoring
+        reader.md              # Haiku — file reading and codebase search
+        implementer.md         # Sonnet — writing code and refactoring
+        code-reviewer.md       # Persona — code review dispatch
+        security-auditor.md    # Persona — security review dispatch
+        test-engineer.md       # Persona — test writing dispatch
     commands/
-        tdd.md             # /tdd — activates TDD mode for the session
-        diagnose.md        # /diagnose — disciplined debugging loop
-        zoom-out.md        # /zoom-out — maps modules and callers before acting
+        build.md
+        code-simplify.md
+        diagnose.md
+        full-pipeline.md
+        plan.md
+        review.md
+        ship.md
+        spec.md
+        tdd.md
+        test.md
+        zoom-out.md
     skills/
         write-a-skill/
-            SKILL.md       # How to create new skills
         diagnose/
-            SKILL.md       # Disciplined debugging loop — only via /diagnose command
         tdd/
-            SKILL.md       # Red-green-refactor workflow
         zoom-out/
-            SKILL.md       # High-level code map — only via /zoom-out command
+        code-review/
+        idea-refine/
+        planning-and-task-breakdown/
+        spec-driven-development/
+        code-simplification/
+        security-and-hardening/
+        incremental-implementation/
+hooks/
+    block-config-writes.sh
+    block-large-reads.sh
 CLAUDE.md                  # Global routing rules and skill registry
 .claudeignore              # Universal ignore file for any project
 install.sh                 # One-command installer
@@ -94,26 +111,23 @@ Your prompt
 Opus (main session)
     │
     ├── Relevant skill? ────► Read SKILL.md first
-    │                          - write-a-skill for new skills
-    │                          - tdd via /tdd command
-    │                          - diagnose via /diagnose command
-    │                          - zoom-out via /zoom-out command
-    │                          - request-code-review via /request-code-review command
-    │                          - idea-refine via /idea-refine command
-    │                          - planning-and-task-breakdown via /planning-and-task-breakdown command
-    │                          - spec-driven-development via /spec-driven-development command
+    │                          Check ~/.claude/skills/ for all available skills
     │
-    ├── I/O task? ──────────► Haiku subagent
+    ├── I/O task? ──────────► Haiku subagent (reader)
     │                          - File reading
     │                          - Boilerplate generation
     │                          - Codebase search
     │                          - Documentation
     │
-    ├── Code task? ─────────► Sonnet subagent
+    ├── Code task? ─────────► Sonnet subagent (implementer)
     │                          - Implementation
     │                          - Test writing
     │                          - Refactoring
-    │                          - Code review
+    │
+    ├── Review task? ───────► Persona subagent
+    │                          - code-reviewer: catches issues before merge
+    │                          - security-auditor: flags vulnerabilities
+    │                          - test-engineer: writes and improves tests
     │
     └── Reasoning task? ────► Opus (stays local)
                                - Architecture decisions
@@ -121,6 +135,16 @@ Opus (main session)
                                - Security review
                                - Planning
 ```
+
+## Development pipeline
+
+`/full-pipeline` orchestrates the complete workflow:
+
+```
+/spec → /plan → /build (loop) → /validate → /review → /ship
+```
+
+Checkpoints after spec and plan for approval. Build, validate, review, and ship run automatically. Individual commands work standalone too.
 
 ## Key rules
 
@@ -138,33 +162,21 @@ Opus (main session)
 |---|---|---|
 | `reader` | Haiku | File reading, codebase search, summarization |
 | `implementer` | Sonnet | Writing code, fixing tests, refactoring |
+| `code-reviewer` | Persona template | Code review dispatch — used by commands like /ship and /review |
+| `security-auditor` | Persona template | Security review dispatch |
+| `test-engineer` | Persona template | Test writing and coverage dispatch |
 
-## Included skills
+## Skills and commands
 
-Skills are loaded on demand — Opus reads only the relevant skill for the current task.
+Skills and commands are auto-discovered from `~/.claude/skills/` and `~/.claude/commands/`. Check those directories for the full list of installed items.
 
-| Skill | Trigger | Purpose |
-|---|---|---|
-| `write-a-skill` | Automatic | Creating new agent skills with proper structure |
-| `tdd` | `/tdd` command | Red-green-refactor workflow for test-driven development |
-| `diagnose` | `/diagnose` command | Disciplined debugging loop for hard bugs and unknown causes |
-| `zoom-out` | `/zoom-out` command | High-level map of unfamiliar code — modules, callers, and dependencies |
-| `request-code-review` | `/request-code-review` command | Code review dispatch before merging or after major features |
-| `idea-refine` | `/idea-refine` or "ideate" | Structured divergent/convergent thinking to refine raw ideas into actionable concepts |
-| `planning-and-task-breakdown` | Automatic or `/planning-and-task-breakdown` | Breaks work into small, ordered, verifiable tasks with dependency graphs |
-| `spec-driven-development` | `/spec-driven-development` or automatic for new projects | Specification-first development — write requirements before code in four gated phases |
+Key workflows:
 
-## Included commands
-
-| Command | Purpose |
-|---|---|
-| `/tdd` | Activates TDD mode — follows red-green-refactor for the session |
-| `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
-| `/zoom-out` | Maps modules, callers, and dependencies before acting in unfamiliar code |
-| `/request-code-review` | Dispatches code reviewer subagent to catch issues before merge |
-| `/idea-refine` | Refines raw ideas into actionable concepts through structured ideation |
-| `/planning-and-task-breakdown` | Breaks work into ordered tasks with acceptance criteria and verification steps |
-| `/spec-driven-development` | Specification-first workflow — spec, plan, tasks, implement |
+- **Spec-first development** — `/spec` → `/plan` → `/build` → `/validate` → `/review` → `/ship`, or run `/full-pipeline` to orchestrate the whole sequence
+- **Test-driven development** — `/test` activates red-green-refactor for the session
+- **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
+- **Code quality** — `/review`, `/code-simplify`, and the `code-review` skill
+- **Security** — `/review` with the `security-and-hardening` skill and security-auditor agent
 
 ## Bonus: .claudeignore
 

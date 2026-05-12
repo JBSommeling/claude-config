@@ -57,3 +57,9 @@ The SDK approach means:
 - No conditional logic in test setup
 - Easier to see which endpoints a test exercises
 - Type safety per endpoint
+
+## Interface Design for Testability
+
+1. **Accept dependencies, don't create them** — dependency injection
+2. **Return results, don't produce side effects** — pure functions are trivially testable
+3. **Small surface area** — fewer methods = fewer tests needed, fewer params = simpler setup

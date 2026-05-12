@@ -15,26 +15,17 @@ cp CLAUDE.md ~/.claude/CLAUDE.md
 echo "✓ CLAUDE.md installed"
 
 # Agents
-cp .claude/agents/reader.md ~/.claude/agents/reader.md
-cp .claude/agents/implementer.md ~/.claude/agents/implementer.md
+cp .claude/agents/*.md ~/.claude/agents/
 echo "✓ Agents installed"
 
 # Commands
-cp .claude/commands/tdd.md ~/.claude/commands/tdd.md
-cp .claude/commands/diagnose.md ~/.claude/commands/diagnose.md
-cp .claude/commands/zoom-out.md ~/.claude/commands/zoom-out.md
-cp .claude/commands/request-code-review.md ~/.claude/commands/request-code-review.md
+cp .claude/commands/*.md ~/.claude/commands/
 echo "✓ Commands installed"
 
 # Skills
-cp -r .claude/skills/write-a-skill ~/.claude/skills/write-a-skill
-cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
-cp -r .claude/skills/tdd ~/.claude/skills/tdd
-cp -r .claude/skills/zoom-out ~/.claude/skills/zoom-out
-cp -r .claude/skills/request-code-review ~/.claude/skills/request-code-review
-cp -r .claude/skills/idea-refine ~/.claude/skills/idea-refine
-cp -r .claude/skills/planning-and-task-breakdown ~/.claude/skills/planning-and-task-breakdown
-cp -r .claude/skills/spec-driven-development ~/.claude/skills/spec-driven-development
+for dir in .claude/skills/*/; do
+    cp -r "$dir" ~/.claude/skills/
+done
 echo "✓ Skills installed"
 
 # Hooks

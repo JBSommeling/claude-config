@@ -107,3 +107,52 @@ After all tests pass, look for [refactor candidates](refactoring.md):
 [ ] Code is minimal for this test
 [ ] No speculative features added
 ```
+
+## The Prove-It Pattern (Bug Fixes)
+
+When a bug is reported, **do not start by trying to fix it.** Start by writing a test that reproduces it.
+
+```
+Bug report arrives
+  → Write a test that demonstrates the bug
+  → Test FAILS (confirms bug exists)
+  → Implement the fix
+  → Test PASSES (proves fix works)
+  → Run full test suite (no regressions)
+```
+
+The reproduction test is the deliverable. Without it, the same bug will return.
+
+## Test Anti-Patterns
+
+| Anti-Pattern | Problem | Fix |
+|---|---|---|
+| Testing implementation details | Breaks on refactor even if behavior unchanged | Test inputs and outputs only |
+| Flaky tests (timing, order-dependent) | Erodes trust in suite | Deterministic assertions, isolated state |
+| Testing framework code | Wastes time on third-party behavior | Only test YOUR code |
+| Snapshot abuse | Large snapshots nobody reviews | Use sparingly, review every change |
+| No test isolation | Pass individually, fail together | Each test owns its setup/teardown |
+| Mocking everything | Tests pass, production breaks | Real implementations > fakes > stubs > mocks |
+
+## Red Flags
+
+- Writing code without corresponding tests
+- Tests that pass on first run (may not test what you think)
+- "All tests pass" but no tests were actually run
+- Bug fixes without reproduction tests
+- Test names that don't describe expected behavior
+- Skipping tests to make suite pass
+- Running same test command twice without code changes in between
+
+## Verification
+
+After completing any implementation:
+
+- [ ] Every new behavior has a corresponding test
+- [ ] All tests pass
+- [ ] Bug fixes include a reproduction test that failed before the fix
+- [ ] Test names describe the behavior being verified
+- [ ] No tests were skipped or disabled
+- [ ] Coverage hasn't decreased (if tracked)
+
+Don't re-run tests on unchanged code — adds no confidence.
