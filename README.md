@@ -99,6 +99,9 @@ Opus (main session)
     │                          - diagnose via /diagnose command
     │                          - zoom-out via /zoom-out command
     │                          - request-code-review via /request-code-review command
+    │                          - idea-refine via /idea-refine command
+    │                          - planning-and-task-breakdown via /planning-and-task-breakdown command
+    │                          - spec-driven-development via /spec-driven-development command
     │
     ├── I/O task? ──────────► Haiku subagent
     │                          - File reading
@@ -147,6 +150,9 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | `diagnose` | `/diagnose` command | Disciplined debugging loop for hard bugs and unknown causes |
 | `zoom-out` | `/zoom-out` command | High-level map of unfamiliar code — modules, callers, and dependencies |
 | `request-code-review` | `/request-code-review` command | Code review dispatch before merging or after major features |
+| `idea-refine` | `/idea-refine` or "ideate" | Structured divergent/convergent thinking to refine raw ideas into actionable concepts |
+| `planning-and-task-breakdown` | Automatic or `/planning-and-task-breakdown` | Breaks work into small, ordered, verifiable tasks with dependency graphs |
+| `spec-driven-development` | `/spec-driven-development` or automatic for new projects | Specification-first development — write requirements before code in four gated phases |
 
 ## Included commands
 
@@ -156,6 +162,9 @@ Skills are loaded on demand — Opus reads only the relevant skill for the curre
 | `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
 | `/zoom-out` | Maps modules, callers, and dependencies before acting in unfamiliar code |
 | `/request-code-review` | Dispatches code reviewer subagent to catch issues before merge |
+| `/idea-refine` | Refines raw ideas into actionable concepts through structured ideation |
+| `/planning-and-task-breakdown` | Breaks work into ordered tasks with acceptance criteria and verification steps |
+| `/spec-driven-development` | Specification-first workflow — spec, plan, tasks, implement |
 
 ## Bonus: .claudeignore
 

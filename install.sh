@@ -32,6 +32,9 @@ cp -r .claude/skills/diagnose ~/.claude/skills/diagnose
 cp -r .claude/skills/tdd ~/.claude/skills/tdd
 cp -r .claude/skills/zoom-out ~/.claude/skills/zoom-out
 cp -r .claude/skills/request-code-review ~/.claude/skills/request-code-review
+cp -r .claude/skills/idea-refine ~/.claude/skills/idea-refine
+cp -r .claude/skills/planning-and-task-breakdown ~/.claude/skills/planning-and-task-breakdown
+cp -r .claude/skills/spec-driven-development ~/.claude/skills/spec-driven-development
 echo "✓ Skills installed"
 
 # Hooks

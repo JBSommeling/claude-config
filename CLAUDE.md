@@ -96,6 +96,9 @@ Skills take priority over delegation — read the skill first, then decide how t
 | write-a-skill | ~/.claude/skills/write-a-skill/SKILL.md | Creating a new agent skill |
 | tdd | ~/.claude/skills/tdd/SKILL.md | Test-driven development, red-green-refactor, test-first development |
 | request-code-review | ~/.claude/skills/request-code-review/SKILL.md | Requesting code review before merging or after completing major features |
+| idea-refine | ~/.claude/skills/idea-refine/SKILL.md | Refining ideas through structured divergent and convergent thinking |
+| planning-and-task-breakdown | ~/.claude/skills/planning-and-task-breakdown/SKILL.md | Breaking work into ordered, verifiable tasks with dependencies |
+| spec-driven-development | ~/.claude/skills/spec-driven-development/SKILL.md | Writing specifications before code — requirements, plan, tasks, then implement |
 
 ---
 
@@ -109,6 +112,9 @@ Custom slash commands available in any session.
 | `/diagnose` | Disciplined debugging loop — use when cause is unknown or bug is hard to reproduce |
 | `/zoom-out` | Maps modules, callers, and dependencies before acting |
 | `/request-code-review` | Dispatches code reviewer subagent to catch issues before merge |
+| `/idea-refine` | Refines raw ideas into actionable concepts through structured ideation |
+| `/planning-and-task-breakdown` | Breaks work into ordered tasks with acceptance criteria |
+| `/spec-driven-development` | Specification-first workflow — spec, plan, tasks, implement |
 
 ---
 
