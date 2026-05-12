@@ -1,10 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "*"
+      "*",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(git show *)"
     ],
     "deny": [
-      "Bash(git:*)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
       "Bash(gh:*)"
     ]
   }
