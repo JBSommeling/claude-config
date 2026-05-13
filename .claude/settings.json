@@ -9,8 +9,7 @@
     ],
     "deny": [
       "Bash(git push *)",
-      "Bash(git commit *)",
-      "Bash(gh:*)"
+      "Bash(git commit *)"
     ]
   }
 }
