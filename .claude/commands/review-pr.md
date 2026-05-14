@@ -89,10 +89,10 @@ Drop any finding whose path:line is not in the valid set. Log dropped findings a
 
 Use the GitHub API to post a review with inline comments. ALWAYS use `line` + `side` parameters, NEVER use `position`.
 
+Write the JSON payload to a temp file, then post it:
+
 ```bash
-gh api repos/{owner}/{repo}/pulls/{number}/reviews \
-  -X POST \
-  --input <(cat <<'PAYLOAD'
+cat > /tmp/review-payload.json <<'EOF'
 {
   "commit_id": "<COMMIT_SHA>",
   "event": "COMMENT",
@@ -106,8 +106,12 @@ gh api repos/{owner}/{repo}/pulls/{number}/reviews \
     }
   ]
 }
-PAYLOAD
-)
+EOF
+
+gh api repos/{owner}/{repo}/pulls/{number}/reviews \
+  -X POST --input /tmp/review-payload.json
+
+rm /tmp/review-payload.json
 ```
 
 Format the review body as:

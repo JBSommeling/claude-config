@@ -22,7 +22,7 @@ You are running on Opus. You MUST delegate to subagents for all work that does n
 - Refactoring with clear instructions
 - Writing tests and test coverage analysis
 
-### Opus subagents — MUST delegate
+### Opus subagents — SHOULD delegate unless context is already loaded
 
 - Code reviews (use code-reviewer agent)
 - Security audits (use security-auditor agent)
@@ -53,7 +53,7 @@ If a delegated task fails or freezes, retry with next higher model immediately:
 
 ## Git Safety
 
-NEVER execute git write operations without explicit user approval. This includes: `commit`, `push`, `branch`, `checkout -b`, `merge`, `rebase`, `reset`, `tag`, and `gh pr create`.
+NEVER execute git write operations without explicit user approval. This includes: `commit`, `push`, `branch`, `checkout -b`, `merge`, `rebase`, `reset`, `cherry-pick`, `revert`, `stash drop`, `tag`, and `gh pr create`.
 
 Before any git write operation:
 1. State exactly what you will run
