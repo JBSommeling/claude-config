@@ -6,10 +6,6 @@
       "Bash(git log *)",
       "Bash(git branch *)",
       "Bash(git show *)"
-    ],
-    "deny": [
-      "Bash(git push *)",
-      "Bash(git commit *)"
     ]
   }
 }
