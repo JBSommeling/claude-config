@@ -50,8 +50,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         security-and-hardening/
         incremental-implementation/
 hooks/
-    block-config-writes.sh
-    block-large-reads.sh
+    enforce-delegation.sh  # PreToolUse hook — forces Edit/Write to go through a subagent
 CLAUDE.md                  # Global routing rules and skill registry
 .claudeignore              # Universal ignore file for any project
 install.sh                 # One-command installer
@@ -148,6 +147,8 @@ Opus (main session)
 Checkpoints after spec and plan for approval. Build, validate, review, and ship run automatically. Individual commands work standalone too.
 
 ## Key rules
+
+**Delegation enforcement** — `Edit`, `Write`, `MultiEdit`, and `NotebookEdit` from the main Opus session are blocked by a `PreToolUse` hook (`hooks/enforce-delegation.sh`). Edits must go through the `implementer` subagent (Sonnet). Subagent calls pass through; memory writes under `~/.claude/projects/*/memory/` are exempt. Set `CLAUDE_BYPASS_DELEGATION=1` to disable the hook for a session when the overhead is clearly not worth it.
 
 **File reading** — Opus never reads large files directly. It delegates to Haiku, and only passes the relevant subset — specific functions, line ranges, or interface definitions — never full files when a subset is sufficient.
 

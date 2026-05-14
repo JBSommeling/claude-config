@@ -8,6 +8,7 @@ echo "Installing claude-config..."
 mkdir -p ~/.claude/agents
 mkdir -p ~/.claude/commands
 mkdir -p ~/.claude/skills
+mkdir -p ~/.claude/hooks
 
 # CLAUDE.md
 cp CLAUDE.md ~/.claude/CLAUDE.md
@@ -27,8 +28,14 @@ for dir in .claude/skills/*/; do
 done
 echo "✓ Skills installed"
 
-# Settings
-cp .claude/settings.json ~/.claude/settings.json
+# Hooks
+cp hooks/*.sh ~/.claude/hooks/
+chmod +x ~/.claude/hooks/*.sh
+echo "✓ Hooks installed"
+
+# Settings — expand $HOME so the hook path is absolute regardless of whether
+# Claude Code does shell expansion in hook command strings.
+sed "s|\$HOME|$HOME|g" .claude/settings.json > ~/.claude/settings.json
 echo "✓ Settings installed"
 
 echo ""

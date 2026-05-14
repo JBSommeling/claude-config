@@ -39,6 +39,8 @@ You are running on Opus. You MUST delegate to subagents for all work that does n
 
 If a task fits a subagent category above, delegate it. Do NOT do it inline to save time — delegate to save tokens. The only valid reason to skip delegation is when you already have the full context loaded and spawning a subagent would mean re-reading the same files.
 
+**Enforcement.** A `PreToolUse` hook (`~/.claude/hooks/enforce-delegation.sh`) blocks `Edit`, `Write`, `MultiEdit`, and `NotebookEdit` when called from the main Opus session. Subagent calls pass through (the hook detects them via the `agent_type` field). Memory writes under `~/.claude/projects/*/memory/` are also allowed. To bypass for a single shell session, start Claude with `CLAUDE_BYPASS_DELEGATION=1 claude ...` — use sparingly, and only when the edit is genuinely too trivial to delegate.
+
 Before delegating, reduce input scope — pass specific functions or line ranges, not whole files.
 
 After any Sonnet implementation, review the output yourself before considering the task done.
