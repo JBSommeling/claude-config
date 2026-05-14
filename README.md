@@ -31,6 +31,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         full-pipeline.md
         plan.md
         review.md
+        review-pr.md
         ship.md
         spec.md
         tdd.md
@@ -156,15 +157,17 @@ Checkpoints after spec and plan for approval. Build, validate, review, and ship 
 
 **Code review** — After every Sonnet implementation, Opus reviews before the task is considered done.
 
+**Git safety** — All git write operations (commit, push, branch creation, merge, rebase, reset, tag, PR creation) require explicit user approval. Read-only git operations run freely.
+
 ## Included agents
 
 | Agent | Model | Purpose |
 |---|---|---|
 | `reader` | Haiku | File reading, codebase search, summarization |
 | `implementer` | Sonnet | Writing code, fixing tests, refactoring |
-| `code-reviewer` | Persona template | Code review dispatch — used by commands like /ship and /review |
-| `security-auditor` | Persona template | Security review dispatch |
-| `test-engineer` | Persona template | Test writing and coverage dispatch |
+| `code-reviewer` | Opus | Code review dispatch — used by /review-pr, /ship, and /review |
+| `security-auditor` | Opus | Security review dispatch |
+| `test-engineer` | Sonnet | Test writing and coverage dispatch |
 
 ## Skills and commands
 
@@ -175,7 +178,7 @@ Key workflows:
 - **Spec-first development** — `/spec` → `/plan` → `/build` → `/validate` → `/review` → `/ship`, or run `/full-pipeline` to orchestrate the whole sequence
 - **Test-driven development** — `/test` activates red-green-refactor for the session
 - **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
-- **Code quality** — `/review`, `/code-simplify`, and the `code-review` skill
+- **Code quality** — `/review`, `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
 - **Security** — `/review` with the `security-and-hardening` skill and security-auditor agent
 
 ## Bonus: .claudeignore
