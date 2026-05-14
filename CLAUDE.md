@@ -51,6 +51,21 @@ If a delegated task fails or freezes, retry with next higher model immediately:
 
 ---
 
+## Git Safety
+
+NEVER execute git write operations without explicit user approval. This includes: `commit`, `push`, `branch`, `checkout -b`, `merge`, `rebase`, `reset`, `tag`, and `gh pr create`.
+
+Before any git write operation:
+1. State exactly what you will run
+2. Wait for explicit approval
+3. Only then execute
+
+This applies even when a skill or command instructs you to commit. The commit step becomes: describe the commit, ask for approval, then commit.
+
+Read-only git operations (`status`, `log`, `diff`, `show`, `branch -v`) do not require approval.
+
+---
+
 ## Skills & Commands
 
 Before starting a task, check if a relevant skill applies.
