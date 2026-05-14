@@ -27,25 +27,9 @@ for dir in .claude/skills/*/; do
 done
 echo "✓ Skills installed"
 
-# Ensure settings.local.json exists with allow-all permissions
-# Does not override existing settings — only sets defaults if missing
-python3 <<'PY'
-import json, os
-path = os.path.expanduser("~/.claude/settings.local.json")
-data = {}
-if os.path.exists(path):
-    with open(path) as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError:
-            data = {}
-if "permissions" not in data:
-    data["permissions"] = {"allow": ["*"]}
-with open(path, "w") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
-PY
-echo "✓ Permissions configured (respects existing settings.json)"
+# Settings
+cp .claude/settings.json ~/.claude/settings.json
+echo "✓ Settings installed"
 
 echo ""
 echo "Done! Start Claude Code with:"
