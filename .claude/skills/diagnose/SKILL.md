@@ -37,6 +37,7 @@ Treat the loop as a product. Once you have _a_ loop, ask:
 - Can I make it faster? (Cache setup, skip unrelated init, narrow the test scope.)
 - Can I make the signal sharper? (Assert on the specific symptom, not "didn't crash".)
 - Can I make it more deterministic? (Pin time, seed RNG, isolate filesystem, freeze network.)
+- Does it exercise the broken stage, or does the setup short-circuit it? (A test that pre-populates state which production has to compute jumps over the bug zone — drive the system the way users do.)
 
 A 30-second flaky loop is barely better than no loop. A 2-second deterministic loop is a debugging superpower.
 
@@ -68,15 +69,21 @@ Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothes
 
 Each hypothesis must be **falsifiable**: state the prediction it makes.
 
+**Decompose the failure first.** Before listing hypotheses, write the *stages of the failing flow* end-to-end. For "click does nothing", that's: button rendered → modal mounts → step transitions → action invoked → response surfaces. For each stage, ask: "what could make *this stage* produce the observed symptom?" Your hypotheses must sample multiple stages. **If your list clusters at one stage, you are under-sampling — go back and add hypotheses at the others.** A common failure mode is listing five variants of "what server state breaks the action" while never asking "is the button even visible?" or "does step N transition?"
+
 > Format: "If <X> is the cause, then <changing Y> will make the bug disappear / <changing Z> will make it worse."
 
 If you cannot state the prediction, the hypothesis is a vibe — discard or sharpen it.
+
+**Cheap-to-test hypotheses must be tested, not argued about.** If verifying a hypothesis takes one grep, one breakpoint, or one assertion, run that check before dismissing it. Reasoning about framework internals ("Livewire 3 probably catches render exceptions, so this can't be it") is how easy bugs become hard. The cost of being wrong about a framework's behavior exceeds the cost of testing once.
 
 **Show the ranked list to the user before testing.** They often have domain knowledge that re-ranks instantly ("we just deployed a change to #3"), or know hypotheses they've already ruled out. Cheap checkpoint, big time saver. Don't block on it — proceed with your ranking if the user is AFK.
 
 ## Phase 4 — Instrument
 
 Each probe must map to a specific prediction from Phase 3. **Change one variable at a time.**
+
+**Verify elimination claims from subagents.** If a delegated test eliminates a hypothesis, open the test code and check the assertion actually matches the claim before crossing it off. Subagent reports describe intent, not what the code asserts — a false elimination can rule out the real bug for hours.
 
 Tool preference:
 
