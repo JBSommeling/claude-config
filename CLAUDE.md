@@ -66,6 +66,8 @@ This applies even when a skill or command instructs you to commit. The commit st
 
 Read-only git operations (`status`, `log`, `diff`, `show`, `branch -v`) do not require approval.
 
+A `PreToolUse` hook (`~/.claude/hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repository's default branch. To bypass for a single session, set `CLAUDE_BYPASS_PUSH_GUARD=1`.
+
 ---
 
 ## Skills & Commands
@@ -80,3 +82,5 @@ Available commands: check `~/.claude/commands/`
 ### Full pipeline
 
 `/full-pipeline` runs: `/spec` → `/plan` → `/build` (loop) → `/validate` → `/review` → `/ship`. Checkpoints after spec and plan, then automatic.
+
+`/full-pipeline-cycle` is a variant where Phase 5 runs `/review-cycle` (auto-fix loop, capped at 5 iterations), opens a PR with any residual findings posted as inline comments, and Phase 6 judges via three parallel subagents. One approval gate before push/PR.

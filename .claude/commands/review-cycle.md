@@ -1,8 +1,12 @@
 ---
-description: Loop /review → fix findings until all five axes are green, then offer commit & push
+description: Loop /review → fix findings until all five axes are green (or cap reached). Emits structured residuals.
 ---
 
-Run the five-axis code review on the current changes, then fix findings and re-review in a loop until the review comes back clean.
+Run the five-axis code review on the current changes, then fix findings and re-review in a loop until clean or a safety cap is hit. This command **does not commit, push, or open PRs** — it only converges the review loop. The caller decides what to do with the result.
+
+## Arguments
+
+`$ARGUMENTS` may include `cap=N` to override the default iteration cap (default: 5).
 
 ## Loop
 
@@ -21,23 +25,30 @@ Repeat until exit condition:
 
 3. **Fix** — Delegate the fixes to the `implementer` subagent (Sonnet). Pass only the specific findings (file, line, recommendation) — do not pass whole files. After implementer returns, briefly verify the diff yourself before re-reviewing.
 
-4. **Safety cap** — If the loop has run 5 iterations without converging, stop and summarize the remaining findings for the user to decide.
+4. **Safety cap** — If the loop has run `cap` iterations (default 5) without converging, stop.
 
-## After the loop
+## Output
 
-Summarize:
+After the loop, summarize for the user first:
 - Iterations run
-- Findings fixed per axis
-- Any residual Suggestions left unaddressed
+- Convergence status (converged / capped)
+- Residual count (Critical + Important)
 
-Then propose the full ship sequence to the user — commit, push, open PR, run `/review-pr` on it. Per global git-safety rules, all four are write operations and require explicit approval. State exactly what will run before waiting:
+Then, **only if residuals are non-empty**, emit a structured residuals block for programmatic callers. Convergence (zero residuals) should produce a clean summary with no JSON dump.
 
-- `git add` (list specific files, not `.` or `-A`)
-- `git commit -m "<proposed message>"`
-- `git push` (and `--set-upstream origin <branch>` if the branch has no upstream)
-- `gh pr create --title "<title>" --body "<body>"` against the project's main branch
-- `/review-pr <new PR number>`
+```
+<review-cycle-residuals>
+[
+  {
+    "severity": "Critical | Important",
+    "axis": "correctness | readability | architecture | security | performance",
+    "path": "relative/file/path",
+    "line": <int>,
+    "side": "RIGHT",
+    "body": "Finding description and fix recommendation"
+  }
+]
+</review-cycle-residuals>
+```
 
-If approval for commit/push was already granted earlier in the session for these changes, skip re-asking for those two — but always ask before `gh pr create` and `/review-pr`, since PRs are visible to others.
-
-After `gh pr create` returns the PR URL, extract the PR number and invoke `/review-pr <number>`. That command will post inline findings on GitHub. Report the PR URL and the review URL back to the user.
+Line numbers must be diff-validated (right-side line in the new file version). The block, when emitted, must be readable verbatim by the caller — do not paraphrase or drop fields. Do not propose commits or PRs — that is the caller's decision.

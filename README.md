@@ -29,6 +29,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         code-simplify.md
         diagnose.md
         full-pipeline.md
+        full-pipeline-cycle.md
         plan.md
         review.md
         review-cycle.md
@@ -51,7 +52,8 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         security-and-hardening/
         incremental-implementation/
 hooks/
-    enforce-delegation.sh  # PreToolUse hook — forces Edit/Write to go through a subagent
+    enforce-delegation.sh             # PreToolUse hook — forces Edit/Write to go through a subagent
+    block-push-to-default-branch.sh   # PreToolUse hook — blocks git push to the default branch
 CLAUDE.md                  # Global routing rules and skill registry
 .claudeignore              # Universal ignore file for any project
 install.sh                 # One-command installer
@@ -151,6 +153,8 @@ Checkpoints after spec and plan for approval. Build, validate, review, and ship 
 
 **Delegation enforcement** — `Edit`, `Write`, `MultiEdit`, and `NotebookEdit` from the main Opus session are blocked by a `PreToolUse` hook (`hooks/enforce-delegation.sh`). Edits must go through the `implementer` subagent (Sonnet). Subagent calls pass through; memory writes under `~/.claude/projects/*/memory/` are exempt. Set `CLAUDE_BYPASS_DELEGATION=1` to disable the hook for a session when the overhead is clearly not worth it.
 
+**Default-branch push protection** — A `PreToolUse` hook (`hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repo default branch (e.g. `main`). Determines the default via `gh repo view`, then `origin/HEAD`, then conventional names; fails closed if it can't resolve. Set `CLAUDE_BYPASS_PUSH_GUARD=1` to disable for a session.
+
 **File reading** — Opus never reads large files directly. It delegates to Haiku, and only passes the relevant subset — specific functions, line ranges, or interface definitions — never full files when a subset is sufficient.
 
 **Boilerplate** — Tests, config files, fixtures, and repetitive patterns go to Haiku. Opus reviews the output.
@@ -178,9 +182,10 @@ Skills and commands are auto-discovered from `~/.claude/skills/` and `~/.claude/
 Key workflows:
 
 - **Spec-first development** — `/spec` → `/plan` → `/build` → `/validate` → `/review` → `/ship`, or run `/full-pipeline` to orchestrate the whole sequence
+- **Spec-first with auto-fix** — `/full-pipeline-cycle` is the same pipeline but Phase 5 runs `/review-cycle` (auto-fix loop, capped at 5 iterations), then opens a PR with residual findings posted as inline comments, and Phase 6 judges via three parallel subagents (code-reviewer, security-auditor, test-engineer)
 - **Test-driven development** — `/test` activates red-green-refactor for the session
 - **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
-- **Code quality** — `/review`, `/review-cycle` (auto-loops review + fix until five axes are green, then commits / pushes / opens PR / runs `/review-pr`), `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
+- **Code quality** — `/review`, `/review-cycle` (auto-loops review + fix until five axes are green or a cap is reached; emits structured residuals, does not commit or push), `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
 - **Security** — `/review` with the `security-and-hardening` skill and security-auditor agent
 
 ## Bonus: .claudeignore
