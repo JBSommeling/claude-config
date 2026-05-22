@@ -31,6 +31,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         full-pipeline.md
         plan.md
         review.md
+        review-cycle.md
         review-pr.md
         ship.md
         spec.md
@@ -179,7 +180,7 @@ Key workflows:
 - **Spec-first development** — `/spec` → `/plan` → `/build` → `/validate` → `/review` → `/ship`, or run `/full-pipeline` to orchestrate the whole sequence
 - **Test-driven development** — `/test` activates red-green-refactor for the session
 - **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
-- **Code quality** — `/review`, `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
+- **Code quality** — `/review`, `/review-cycle` (auto-loops review + fix until five axes are green, then commits / pushes / opens PR / runs `/review-pr`), `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
 - **Security** — `/review` with the `security-and-hardening` skill and security-auditor agent
 
 ## Bonus: .claudeignore
