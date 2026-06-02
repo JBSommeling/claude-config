@@ -31,6 +31,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         full-pipeline.md
         full-pipeline-cycle.md
         grill.md
+        improve-architecture.md
         manual-test-plan.md
         plan.md
         review.md
@@ -45,6 +46,8 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         write-a-skill/
         diagnose/
         grill-with-docs/
+        improve-codebase-architecture/
+        manual-test-plan/
         tdd/
         zoom-out/
         code-review/
@@ -189,6 +192,7 @@ Key workflows:
 - **Test-driven development** — `/test` activates red-green-refactor for the session
 - **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
 - **Domain grilling** — `/grill` stress-tests a plan against the project's domain model, sharpens terminology in CONTEXT.md, and creates ADRs as decisions crystallise
+- **Architecture improvement** — `/improve-architecture` surfaces shallow modules and deepening opportunities, presents candidates as an HTML report with before/after diagrams, and drops into a grilling loop on the candidate you pick — informed by `CONTEXT.md` and `docs/adr/`
 - **Code quality** — `/review`, `/review-cycle` (auto-loops review + fix until five axes are green or a cap is reached; emits structured residuals, does not commit or push), `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
 - **Security** — `/review` with the `security-and-hardening` skill and security-auditor agent
 
