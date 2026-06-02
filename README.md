@@ -30,6 +30,8 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         diagnose.md
         full-pipeline.md
         full-pipeline-cycle.md
+        grill.md
+        manual-test-plan.md
         plan.md
         review.md
         review-cycle.md
@@ -42,6 +44,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
     skills/
         write-a-skill/
         diagnose/
+        grill-with-docs/
         tdd/
         zoom-out/
         code-review/
@@ -185,6 +188,7 @@ Key workflows:
 - **Spec-first with auto-fix** — `/full-pipeline-cycle` is the same pipeline but Phase 5 runs `/review-cycle` (auto-fix loop, capped at 5 iterations), then opens a PR with residual findings posted as inline comments, and Phase 6 judges via three parallel subagents (code-reviewer, security-auditor, test-engineer)
 - **Test-driven development** — `/test` activates red-green-refactor for the session
 - **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
+- **Domain grilling** — `/grill` stress-tests a plan against the project's domain model, sharpens terminology in CONTEXT.md, and creates ADRs as decisions crystallise
 - **Code quality** — `/review`, `/review-cycle` (auto-loops review + fix until five axes are green or a cap is reached; emits structured residuals, does not commit or push), `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill
 - **Security** — `/review` with the `security-and-hardening` skill and security-auditor agent
 
