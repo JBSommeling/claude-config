@@ -58,7 +58,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         security-and-hardening/
         incremental-implementation/
 hooks/
-    enforce-delegation.sh             # PreToolUse hook — forces Edit/Write to go through a subagent
+    enforce-delegation.sh             # PreToolUse hook — forces Edit/Write AND file-writing Bash through a subagent
     block-push-to-default-branch.sh   # PreToolUse hook — blocks git push to the default branch
 CLAUDE.md                  # Global routing rules and skill registry
 .claudeignore              # Universal ignore file for any project
@@ -157,7 +157,7 @@ Checkpoints after spec and plan for approval. Build, validate, review, and ship 
 
 ## Key rules
 
-**Delegation enforcement** — `Edit`, `Write`, `MultiEdit`, and `NotebookEdit` from the main Opus session are blocked by a `PreToolUse` hook (`hooks/enforce-delegation.sh`). Edits must go through the `implementer` subagent (Sonnet). Subagent calls pass through; memory writes under `~/.claude/projects/*/memory/` are exempt. Set `CLAUDE_BYPASS_DELEGATION=1` to disable the hook for a session when the overhead is clearly not worth it.
+**Delegation enforcement** — `Edit`, `Write`, `MultiEdit`, and `NotebookEdit` from the main Opus session are blocked by a `PreToolUse` hook (`hooks/enforce-delegation.sh`), and so are `Bash` commands that write files — output redirections (`>`/`>>`) to non-temp paths, in-place editors (`sed -i`, `perl -i`, `gawk -i inplace`), `tee`, `dd of=`, heredocs into files, and inline interpreter writes (`python -c`, `node -e`, etc.). This closes the loophole where a blocked agent falls back to Bash to author files. Edits must go through the `implementer` subagent (Sonnet). Subagent calls pass through; memory writes under `~/.claude/projects/*/memory/` and redirections to temp paths (`/tmp`, `/var/folders`) are exempt. Set `CLAUDE_BYPASS_DELEGATION=1` to disable the hook for a session when the overhead is clearly not worth it.
 
 **Default-branch push protection** — A `PreToolUse` hook (`hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repo default branch (e.g. `main`). Determines the default via `gh repo view`, then `origin/HEAD`, then conventional names; fails closed if it can't resolve. Set `CLAUDE_BYPASS_PUSH_GUARD=1` to disable for a session.
 

@@ -25,6 +25,10 @@
           {
             "type": "command",
             "command": "$HOME/.claude/hooks/block-push-to-default-branch.sh"
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/enforce-delegation.sh"
           }
         ]
       }
