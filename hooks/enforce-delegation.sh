@@ -12,7 +12,7 @@
 #      heredocs into files, and inline interpreter writes (python/node/etc.).
 #      This is the path agents slip to once vector 1 is denied.
 #
-# Subagent calls carry an `agent_type` field and pass through. Memory writes
+# Subagent calls carry `agent_id`/`agent_type` fields and pass through. Memory writes
 # from the main session and redirections to temp paths are allowed. A
 # CLAUDE_BYPASS_DELEGATION=1 env var provides a manual escape hatch.
 
@@ -26,9 +26,13 @@ if [ "${CLAUDE_BYPASS_DELEGATION:-0}" = "1" ]; then
   exit 0
 fi
 
-# Subagent calls include agent_type; allow them through.
+# Subagent calls carry agent_id (the canonical distinguisher per the Claude
+# Code hooks docs) and agent_type; allow them through. Match on either so a
+# subagent is detected even if a given version or invocation path populates
+# only one of the two fields.
+AGENT_ID=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty')
 AGENT_TYPE=$(printf '%s' "$INPUT" | jq -r '.agent_type // empty')
-if [ -n "$AGENT_TYPE" ]; then
+if [ -n "$AGENT_ID" ] || [ -n "$AGENT_TYPE" ]; then
   exit 0
 fi
 
