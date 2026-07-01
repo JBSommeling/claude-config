@@ -55,18 +55,7 @@ If a delegated task fails or freezes, retry with next higher model immediately:
 
 ## Git Safety
 
-NEVER execute git write operations without explicit user approval. This includes: `commit`, `push`, `branch`, `checkout -b`, `merge`, `rebase`, `reset`, `cherry-pick`, `revert`, `stash drop`, `tag`, and `gh pr create`.
-
-Before any git write operation:
-1. State exactly what you will run
-2. Wait for explicit approval
-3. Only then execute
-
-This applies even when a skill or command instructs you to commit. The commit step becomes: describe the commit, ask for approval, then commit.
-
-Read-only git operations (`status`, `log`, `diff`, `show`, `branch -v`) do not require approval.
-
-A `PreToolUse` hook (`~/.claude/hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repository's default branch. To bypass for a single session, set `CLAUDE_BYPASS_PUSH_GUARD=1`.
+A `PreToolUse` hook (`~/.claude/hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repository's default branch. This hook is the sole guardrail. To bypass for a single session, set `CLAUDE_BYPASS_PUSH_GUARD=1`.
 
 ---
 
