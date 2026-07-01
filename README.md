@@ -28,6 +28,8 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
         build.md
         code-simplify.md
         diagnose.md
+        diagnose-fix.md
+        diagnose-full-pipeline-cycle.md
         full-pipeline.md
         full-pipeline-cycle.md
         grill.md
@@ -153,7 +155,7 @@ Opus (main session)
 /spec → /plan → /build (loop) → /validate → /review → /ship
 ```
 
-Checkpoints after spec and plan for approval. Build, validate, review, and ship run automatically. Individual commands work standalone too.
+Checkpoints after spec and plan for approval; the approved spec and plan are saved to `~/Desktop/<feature-slug>/`. Build, validate, review, and ship run automatically. Individual commands work standalone too.
 
 ## Key rules
 
@@ -188,9 +190,9 @@ Skills and commands are auto-discovered from `~/.claude/skills/` and `~/.claude/
 Key workflows:
 
 - **Spec-first development** — `/spec` → `/plan` → `/build` → `/validate` → `/review` → `/ship`, or run `/full-pipeline` to orchestrate the whole sequence
-- **Spec-first with auto-fix** — `/full-pipeline-cycle` is the same pipeline but Phase 5 runs `/review-cycle` (auto-fix loop, capped at 5 iterations), then opens a PR with residual findings posted as inline comments, and Phase 6 judges via three parallel subagents (code-reviewer, security-auditor, test-engineer)
+- **Spec-first with auto-fix** — `/full-pipeline-cycle` is the same pipeline but Phase 5 runs `/review-cycle` (auto-fix loop, capped at 5 iterations), then opens a PR with residual findings posted as inline comments, and Phase 6 judges via three parallel subagents (code-reviewer, security-auditor, test-engineer). Spec and plan checkpoints only; everything after the plan runs automatically
 - **Test-driven development** — `/test` activates red-green-refactor for the session
-- **Debugging** — `/diagnose` for disciplined debugging when the cause is unknown
+- **Debugging** — `/diagnose` runs the disciplined diagnosis loop to find the root cause without fixing it; `/diagnose-fix` diagnoses and applies the fix with a regression test; `/diagnose-full-pipeline-cycle` diagnoses, then drives the fix through the full converging pipeline to an open PR
 - **Domain grilling** — `/grill` stress-tests a plan against the project's domain model, sharpens terminology in CONTEXT.md, and creates ADRs as decisions crystallise
 - **Architecture improvement** — `/improve-architecture` surfaces shallow modules and deepening opportunities, presents candidates as an HTML report with before/after diagrams, and drops into a grilling loop on the candidate you pick — informed by `CONTEXT.md` and `docs/adr/`
 - **Code quality** — `/review`, `/review-cycle` (auto-loops review + fix until five axes are green or a cap is reached; emits structured residuals, does not commit or push), `/review-pr` (posts inline comments on GitHub), `/code-simplify`, and the `code-review` skill

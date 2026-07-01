@@ -1,4 +1,5 @@
 {
+  "skipWorkflowUsageWarning": true,
   "permissions": {
     "allow": [
       "Bash(git diff *)",
