@@ -43,7 +43,7 @@ If any step fails, fix the issue and re-run validation until everything passes. 
 
 Do not proceed to review until validation is fully green.
 
-## Phase 5 — Converge (automatic, with one approval gate)
+## Phase 5 — Converge (automatic)
 
 ### Step 0 — Branch safety precheck
 
@@ -54,7 +54,7 @@ default_branch=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 ```
 
-If `current_branch == default_branch`, stop the pipeline and tell the user: the pipeline refuses to push and open a PR from the default branch into itself. Offer to create a feature branch (`git checkout -b <suggested-name>` based on the spec) and resume Phase 5 from Step 1 on the new branch. Do not auto-create the branch without confirmation.
+If `current_branch == default_branch`, automatically create a feature branch (`git checkout -b <suggested-name>`, deriving the name from the Phase 1 spec) and continue Phase 5 on the new branch. Do not push a PR from the default branch into itself.
 
 **Fail-closed.** If `gh repo view` errors (not authenticated, no remote, no GitHub repo) or returns an empty default branch, treat that as unsafe and stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push-to-default-branch.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
 
@@ -76,26 +76,23 @@ fi
 
 This maintains the invariant — like Phases 3 and 4 — that every step ends with a clean tree. After Step 1b, no further commits happen in Phase 5.
 
-### Step 2 — Approval gate
+### Step 2 — Report and prepare PR
 
-Parse the residuals block if present (it is only emitted when residuals are non-empty; absence means converged with zero residuals). Present to the user:
+Parse the residuals block if present (it is only emitted when residuals are non-empty; absence means converged with zero residuals). Present to the user as a report (do not pause or wait for input):
 - Iterations run, convergence status (converged / capped)
 - Residuals list (if any) — these will be posted as PR comments
-- Proposed PR title (derived from the Phase 1 spec — describes the feature, not just the last commit)
-- Proposed PR body (derived from the spec + the accumulated commit log since the branch diverged from the default branch)
+- PR title (derived from the Phase 1 spec — describes the feature, not just the last commit)
+- PR body (derived from the spec + the accumulated commit log since the branch diverged from the default branch)
 - Target branch (always the repo default branch)
 
-Ask once: "Push and open PR?"
-
-- User rejects → stop. Nothing pushed. Report findings.
-- User approves → continue to Step 3.
+Then continue directly to Step 3 without waiting for approval.
 
 ### Step 3 — Push and open PR
 
 Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits, Phase 5 Step 1b review-fix commit). Step 3 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
-2. `gh pr create --title "<approved title>" --body "<approved body>"`
+2. `gh pr create --title "<derived title>" --body "<derived body>"`
 3. Capture the PR number and URL for Phase 6.
 
 Do not run `git add` or `git commit` here — the tree must already be clean.
@@ -130,7 +127,7 @@ Present the final ship decision and PR URL to the user. Do not auto-merge — me
 
 1. Always run phases in order: spec → plan → build → validate → converge → judge.
 2. Checkpoint phases (spec, plan) require explicit user approval before continuing.
-3. Phase 5 has one approval gate before push/PR. All other automatic phases run without pausing.
+3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and PR creation.
 4. If the user provides a spec or plan upfront, skip to the appropriate phase.
 5. Commit after each task in the build phase, not at the end.
 6. Phase 6 never auto-merges. The PR stays open for human review and merge.
