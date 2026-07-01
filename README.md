@@ -169,7 +169,7 @@ Checkpoints after spec and plan for approval. Build, validate, review, and ship 
 
 **Code review** — After every Sonnet implementation, Opus reviews before the task is considered done.
 
-**Git safety** — All git write operations (commit, push, branch creation, merge, rebase, reset, tag, PR creation) require explicit user approval. Read-only git operations run freely.
+**Git safety** — Git write operations (commit, push, branch, merge, rebase, etc.) run without requiring approval. The only guardrail is the default-branch push hook above, which blocks `git push` to the repo default branch. Note: `/full-pipeline` and `/full-pipeline-cycle` still checkpoint for approval after the spec and plan phases; everything after runs automatically.
 
 ## Included agents
 
