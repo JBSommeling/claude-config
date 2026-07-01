@@ -9,6 +9,15 @@ A discipline for hard bugs. Skip phases only when explicitly justified.
 
 When exploring the codebase, use the project's domain glossary to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
 
+## Modes
+
+Two entry points set how far this skill runs:
+
+- **`/diagnose` — diagnose-only.** Run Phases 1–4 and 6; skip Phase 5. Confirm the root cause and report the diagnosis (root cause, the evidence that proves it, the hypothesis that held) — no fix, no regression test, no code changes. Phase 6 (Cleanup + post-mortem) runs automatically; the fix-verification items are N/A since no fix was applied.
+- **`/diagnose-fix` — diagnose and fix.** Run all six phases, including Phase 5.
+
+If the skill is triggered without either command, infer from the request: run Phase 5 only if the user clearly wants the bug fixed; otherwise stop after diagnosis.
+
 ## Phase 1 — Build a feedback loop
 
 **This is the skill.** Everything else is mechanical. If you have a fast, deterministic, agent-runnable pass/fail signal for the bug, you will find the cause — bisection, hypothesis-testing, and instrumentation all just consume that signal. If you don't have one, no amount of staring at code will save you.
@@ -96,6 +105,8 @@ Tool preference:
 **Perf branch.** For performance regressions, logs are usually wrong. Instead: establish a baseline measurement (timing harness, `performance.now()`, profiler, query plan), then bisect. Measure first, fix second.
 
 ## Phase 5 — Fix + regression test
+
+> **Fix mode only.** In diagnose-only mode (invoked via `/diagnose`), skip this phase entirely — report the diagnosis and proceed to cleanup. See the Modes section above.
 
 Write the regression test **before the fix** — but only if there is a **correct seam** for it.
 
