@@ -22,9 +22,11 @@ echo "✓ Agents installed"
 cp .claude/commands/*.md ~/.claude/commands/
 echo "✓ Commands installed"
 
-# Skills
+# Skills — strip the glob's trailing slash so cp copies each skill DIRECTORY
+# into ~/.claude/skills/ (with a trailing slash, BSD cp copies the contents
+# and dumps SKILL.md as a stray file instead of updating the subdirectory).
 for dir in .claude/skills/*/; do
-    cp -r "$dir" ~/.claude/skills/
+    cp -r "${dir%/}" ~/.claude/skills/
 done
 echo "✓ Skills installed"
 
