@@ -25,6 +25,7 @@ echo "✓ Commands installed"
 # Skills — strip the glob's trailing slash so cp copies each skill DIRECTORY
 # into ~/.claude/skills/ (with a trailing slash, BSD cp copies the contents
 # and dumps SKILL.md as a stray file instead of updating the subdirectory).
+rm -f ~/.claude/skills/SKILL.md
 for dir in .claude/skills/*/; do
     cp -r "${dir%/}" ~/.claude/skills/
 done
