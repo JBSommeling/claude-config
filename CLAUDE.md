@@ -22,6 +22,8 @@ You are running on Opus. You MUST delegate to subagents for all work that does n
 - Refactoring with clear instructions
 - Writing tests and test coverage analysis
 
+**Model pinning.** The Sonnet tier is pinned to `claude-sonnet-4-6` (see the `implementer` and `test-engineer` definitions in `.claude/agents/`), not the bare `sonnet` alias. The alias now resolves to Sonnet 5, whose new tokenizer (~30% more tokens for the same text) and adaptive-thinking-on-by-default increase token spend for implementation work; pinning to 4.6 restores the cheaper behavior. Opus and Haiku tiers are unaffected.
+
 ### Opus subagents — SHOULD delegate unless context is already loaded
 
 - Code reviews (use code-reviewer agent)
