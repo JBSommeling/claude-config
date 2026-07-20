@@ -12,7 +12,7 @@ Pick the next pending task from the plan. For each task:
 4. Implement the minimum code to pass the test (GREEN)
 5. Run the full test suite to check for regressions
 6. Run the build to verify compilation
-7. Commit with a descriptive message
+7. Orchestrator commits directly inline via `git add` / `git commit` (Bash) after reviewing the diff — do not spawn a subagent solely to commit
 8. Mark the task complete and move to the next one
 
 If any step fails, follow the diagnose skill.

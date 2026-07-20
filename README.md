@@ -20,6 +20,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes y
 .claude/
     agents/
         reader.md              # Haiku — file reading and codebase search
+        Explore.md             # Haiku — read-only broad codebase search / fan-out
         implementer.md         # Sonnet — writing code and refactoring
         code-reviewer.md       # Persona — code review dispatch
         security-auditor.md    # Persona — security review dispatch
@@ -178,12 +179,13 @@ Checkpoints after spec and plan for approval; the approved spec and plan are sav
 | Agent | Model | Purpose |
 |---|---|---|
 | `reader` | Haiku | File reading, codebase search, summarization |
+| `Explore` | Haiku | Read-only broad codebase search / fan-out (built-in agent, now pinned) |
 | `implementer` | Sonnet | Writing code, fixing tests, refactoring |
 | `code-reviewer` | Opus | Code review dispatch — used by /review-pr, /ship, and /review |
 | `security-auditor` | Opus | Security review dispatch |
 | `test-engineer` | Sonnet | Test writing and coverage dispatch |
 
-> **Model pinning:** The Sonnet tier is pinned to `claude-sonnet-4-6` (in the `implementer` and `test-engineer` agent definitions), not the bare `sonnet` alias — which now resolves to Sonnet 5. Sonnet 5's new tokenizer (~30% more tokens for the same text) and adaptive-thinking-on-by-default raise token spend, so implementation work is pinned to the previous Sonnet iteration. Opus and Haiku are unaffected.
+> **Model pinning:** The Sonnet tier is pinned to `claude-sonnet-4-6` (in the `implementer` and `test-engineer` agent definitions), not the bare `sonnet` alias — which now resolves to Sonnet 5. Sonnet 5's new tokenizer (~30% more tokens for the same text) and adaptive-thinking-on-by-default raise token spend, so implementation work is pinned to the previous Sonnet iteration. Opus and Haiku are unaffected. The built-in `Explore` agent is also pinned — to `haiku` — via a local `.claude/agents/Explore.md` definition; previously it inherited the uncontrolled harness-default search tier.
 
 ## Skills and commands
 

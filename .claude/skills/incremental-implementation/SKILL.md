@@ -10,7 +10,7 @@ Build in thin vertical slices — implement one piece, test it, verify it, commi
 ## The Increment Cycle
 
 ```
-Implement → Test → Verify → Commit → Next slice
+Implement → Test → Verify → Commit (orchestrator, inline) → Next slice
 ```
 
 For each slice:
@@ -49,7 +49,7 @@ After each increment:
 - [ ] All existing tests still pass
 - [ ] The build succeeds
 - [ ] The new functionality works as expected
-- [ ] The change is committed with a descriptive message
+- [ ] The orchestrator has committed the change directly inline (`git add` / `git commit`) with a descriptive message — no subagent spawned solely to commit
 
 ## Red Flags
 

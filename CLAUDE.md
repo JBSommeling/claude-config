@@ -22,7 +22,7 @@ You are running on Opus. You MUST delegate to subagents for all work that does n
 - Refactoring with clear instructions
 - Writing tests and test coverage analysis
 
-**Model pinning.** The Sonnet tier is pinned to `claude-sonnet-4-6` (see the `implementer` and `test-engineer` definitions in `.claude/agents/`), not the bare `sonnet` alias. The alias now resolves to Sonnet 5, whose new tokenizer (~30% more tokens for the same text) and adaptive-thinking-on-by-default increase token spend for implementation work; pinning to 4.6 restores the cheaper behavior. Opus and Haiku tiers are unaffected.
+**Model pinning.** The Sonnet tier is pinned to `claude-sonnet-4-6` (see the `implementer` and `test-engineer` definitions in `.claude/agents/`), not the bare `sonnet` alias. The alias now resolves to Sonnet 5, whose new tokenizer (~30% more tokens for the same text) and adaptive-thinking-on-by-default increase token spend for implementation work; pinning to 4.6 restores the cheaper behavior. Opus and Haiku tiers are unaffected. The built-in `Explore` agent is also pinned — to `haiku` — via a local `.claude/agents/Explore.md` definition, so search fan-out no longer runs on the uncontrolled harness-default search tier.
 
 ### Opus subagents — SHOULD delegate unless context is already loaded
 
@@ -58,6 +58,8 @@ If a delegated task fails or freezes, retry with next higher model immediately:
 ## Git Safety
 
 A `PreToolUse` hook (`~/.claude/hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repository's default branch. This hook is the sole guardrail. To bypass for a single session, set `CLAUDE_BYPASS_PUSH_GUARD=1`.
+
+**Commits.** The orchestrator commits directly, inline, via `git add` / `git commit` after reviewing the implementer's diff. Never spawn a subagent whose sole purpose is to run a commit — delegating a commit-only task wastes a full context-load for a one-line command.
 
 ---
 

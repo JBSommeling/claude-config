@@ -29,7 +29,7 @@ Invoke the incremental-implementation and tdd skills. For each task in the appro
 3. Implement minimum code to pass (GREEN)
 4. Refactor if needed
 5. Run full test suite — verify no regressions
-6. Commit with descriptive message
+6. Orchestrator commits directly inline via `git add` / `git commit` (Bash) after reviewing the diff — do not spawn a subagent solely to commit
 7. Move to next task
 
 If any task fails, follow debugging-and-error-recovery. Do not stop the pipeline — fix and continue.
@@ -43,7 +43,7 @@ After all tasks are built, run a full validation pass:
 3. Run linter/formatter if configured in the project
 4. Check for type errors if the project uses a type system
 
-If any step fails, fix the issue and re-run validation until everything passes. Commit fixes separately with clear messages.
+If any step fails, fix the issue and re-run validation until everything passes. Orchestrator commits each fix directly inline via `git add` / `git commit` (Bash) — separate commit per fix, do not spawn a subagent solely to commit.
 
 Do not proceed to review until validation is fully green.
 
