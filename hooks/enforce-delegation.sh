@@ -73,6 +73,14 @@ if [ "$TOOL_NAME" = "Bash" ]; then
 
   # Output redirection into a non-temporary path (also catches heredocs into
   # files). Temp paths and the standard devices are exempt.
+  #
+  # Strip escaped quotes then quoted spans first: a '>' inside a string
+  # literal (e.g. a commit message with an email <addr>, a markdown quote,
+  # or an escaped \"...\" example) is not a real shell redirection. Real
+  # output redirects sit outside quotes, so removing the (possibly
+  # escaped) quoted content avoids false-positives without weakening the
+  # check — e.g. `echo "code" > file.py` still leaves `> file.py` exposed.
+  SCAN=$(printf '%s' "$CMD" | sed 's/\\"//g' | sed "s/'[^']*'//g" | sed 's/"[^"]*"//g')
   while IFS= read -r target; do
     [ -z "$target" ] && continue
     case "$target" in
@@ -80,7 +88,7 @@ if [ "$TOOL_NAME" = "Bash" ]; then
       /tmp/*|/var/tmp/*|/private/tmp/*|/var/folders/*) continue ;;
       *) deny "Blocked: this Bash command redirects output into a file ($target). $SUFFIX" ;;
     esac
-  done < <(printf '%s' "$CMD" | grep -oE '>>?[[:space:]]*[^[:space:]<>&|;)]+' | sed -E 's/^>>?[[:space:]]*//')
+  done < <(printf '%s' "$SCAN" | grep -oE '>>?[[:space:]]*[^[:space:]<>&|;)]+' | sed -E 's/^>>?[[:space:]]*//')
 
   exit 0
 fi
