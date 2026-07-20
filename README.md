@@ -183,6 +183,8 @@ Checkpoints after spec and plan for approval; the approved spec and plan are sav
 | `security-auditor` | Opus | Security review dispatch |
 | `test-engineer` | Sonnet | Test writing and coverage dispatch |
 
+> **Model pinning:** The Sonnet tier is pinned to `claude-sonnet-4-6` (in the `implementer` and `test-engineer` agent definitions), not the bare `sonnet` alias — which now resolves to Sonnet 5. Sonnet 5's new tokenizer (~30% more tokens for the same text) and adaptive-thinking-on-by-default raise token spend, so implementation work is pinned to the previous Sonnet iteration. Opus and Haiku are unaffected.
+
 ## Skills and commands
 
 Skills and commands are auto-discovered from `~/.claude/skills/` and `~/.claude/commands/`. Check those directories for the full list of installed items.
