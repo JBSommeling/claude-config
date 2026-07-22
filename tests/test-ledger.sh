@@ -230,13 +230,15 @@ run_hook "$LEDGER_RECORD" "$EDIT_PAYLOAD" > /dev/null
 ledger_dir="${TEST_TMPDIR}/codex-delegation-ledger"
 
 # The escaped path would be: $ledger_dir/../../../tmp/escape.jsonl
-# Resolve it to check if it exists outside the ledger dir.
-escaped_resolved="${TEST_TMPDIR}/escape.jsonl"
+# Compute the ACTUAL normalised traversal target so the negative check
+# catches a real escape rather than checking a path the file never lands at.
+escaped_resolved=$(python3 -c "import os,sys; print(os.path.normpath(sys.argv[1]))" \
+  "${ledger_dir}/../../../tmp/escape.jsonl")
 if [ -f "$escaped_resolved" ]; then
   echo "  FAIL: path traversal succeeded — file exists at $escaped_resolved"
   scenario_ok=false
 else
-  echo "  ok: no path traversal (file not found outside ledger dir)"
+  echo "  ok: no path traversal (file not found outside ledger dir at $escaped_resolved)"
 fi
 
 # The sanitized session_id replaces / and . with _: "______tmp_escape"

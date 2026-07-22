@@ -559,6 +559,64 @@ else
 fi
 
 # --------------------------------------------------------------------------
+# Adapter binding checks
+#
+# The installer must bind the RIGHT platform adapter at install time.
+# If the wrong adapter is bound, hook_caller returns "unknown" for every
+# call and all three guards become no-ops — so this must fail loudly.
+#
+# Claude install: ~/.claude/hooks/lib/adapter.sh ≡ adapter-claude.sh
+#                                                ≢ adapter-codex.sh
+# Codex install:  ~/.codex/hooks/lib/adapter.sh  ≡ adapter-codex.sh
+#                                                ≢ adapter-claude.sh
+# --------------------------------------------------------------------------
+echo ""
+echo "--- Adapter binding checks ---"
+
+_adapter_claude_src="${REPO_ROOT}/.agents/hooks/lib/adapter-claude.sh"
+_adapter_codex_src="${REPO_ROOT}/.agents/hooks/lib/adapter-codex.sh"
+
+_claude_adapter="${FAKE_HOME}/.claude/hooks/lib/adapter.sh"
+
+if cmp -s "$_claude_adapter" "$_adapter_claude_src"; then
+  echo "PASS claude-adapter-positive (adapter.sh matches adapter-claude.sh)"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL claude-adapter-positive (adapter.sh does NOT match adapter-claude.sh)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("ADAPTER MISMATCH (claude): adapter.sh != adapter-claude.sh")
+fi
+
+if ! cmp -s "$_claude_adapter" "$_adapter_codex_src"; then
+  echo "PASS claude-adapter-negative (adapter.sh is not adapter-codex.sh)"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL claude-adapter-negative (adapter.sh is identical to adapter-codex.sh — wrong adapter bound)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("ADAPTER WRONG (claude): adapter.sh is adapter-codex.sh")
+fi
+
+_codex_adapter="${CODEX_FAKE_HOME}/.codex/hooks/lib/adapter.sh"
+
+if cmp -s "$_codex_adapter" "$_adapter_codex_src"; then
+  echo "PASS codex-adapter-positive (adapter.sh matches adapter-codex.sh)"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL codex-adapter-positive (adapter.sh does NOT match adapter-codex.sh)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("ADAPTER MISMATCH (codex): adapter.sh != adapter-codex.sh")
+fi
+
+if ! cmp -s "$_codex_adapter" "$_adapter_claude_src"; then
+  echo "PASS codex-adapter-negative (adapter.sh is not adapter-claude.sh)"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL codex-adapter-negative (adapter.sh is identical to adapter-claude.sh — wrong adapter bound)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("ADAPTER WRONG (codex): adapter.sh is adapter-claude.sh")
+fi
+
+# --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 echo ""
