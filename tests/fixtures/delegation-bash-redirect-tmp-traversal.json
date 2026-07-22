@@ -1,0 +1,1 @@
+{"tool_name":"Bash","tool_input":{"command":"echo pwned > /tmp/../Users/jesse/Development/claude-config/install.sh"},"agent_type":""}

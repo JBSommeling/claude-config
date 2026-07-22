@@ -131,11 +131,12 @@ check_edit_paths \
   $'*** Update File: a.py\n*** Update File: b.py' \
   $'a.py\nb.py'
 
-# Move to: replaces source for the renamed file; other files unaffected
+# Move to: reports BOTH the source and the destination so a move into a
+# memory path cannot exempt the non-memory source file (N1 fix).
 check_edit_paths \
   "multi-with-move" \
   $'*** Update File: a.py\n*** Update File: b.py\n*** Move to: c.py' \
-  $'a.py\nc.py'
+  $'a.py\nb.py\nc.py'
 
 # Unified diff: +++ /dev/null falls back to --- path
 check_edit_paths \

@@ -136,11 +136,12 @@ hook_edit_paths() {
   cmd=$(hook_json '.tool_input.command // empty')
   [ -z "$cmd" ] && return 0
 
-  # Try apply_patch envelope lines first (all, not just first).
-  # "*** Move to: <dst>" replaces the preceding source for that file so the
-  # destination path is reported, not the source.
-  local paths
-  paths=$(printf '%s' "$cmd" \
+  # Collect apply_patch envelope lines (all, not just first).
+  # "*** Move to: <dst>" renames the preceding file: BOTH the source and the
+  # destination are reported so a move into a memory path cannot exempt the
+  # non-memory source file (C4 fix).
+  local envelope_paths diff_paths
+  envelope_paths=$(printf '%s' "$cmd" \
     | awk '
       /^[[:space:]]*\*\*\* (Update File|Add File|Delete File):/ {
         if (have_pending) print pending
@@ -155,21 +156,21 @@ hook_edit_paths() {
         path = $0
         sub(/^[[:space:]]*\*\*\* Move to: /, "", path)
         sub(/[[:space:]]*$/, "", path)
+        if (have_pending) print pending
         print path
         have_pending = 0
         next
       }
       END { if (have_pending) print pending }
     ')
-  if [ -n "$paths" ]; then
-    echo "$paths"
-    return 0
-  fi
 
-  # Fall back to unified diff.
+  # Also scan unified-diff blocks.  A patch may contain BOTH envelope headers
+  # and unified-diff hunks (adversarial or mixed-format payloads), so we always
+  # check both sections and return the union rather than short-circuiting on
+  # envelope paths.
   # Strip "a/" or "b/" prefix; cut at first tab to remove diff timestamps.
   # If "+++ /dev/null" (deletion), use the path from the preceding "---" line.
-  printf '%s' "$cmd" \
+  diff_paths=$(printf '%s' "$cmd" \
     | awk '
       /^--- / {
         path = $0
@@ -188,7 +189,13 @@ hook_edit_paths() {
         }
         prev_minus = ""
       }
-    '
+    ')
+
+  # Return the union of both sections.
+  if [ -n "$envelope_paths" ] || [ -n "$diff_paths" ]; then
+    [ -n "$envelope_paths" ] && echo "$envelope_paths"
+    [ -n "$diff_paths" ] && echo "$diff_paths"
+  fi
   return 0
 }
 

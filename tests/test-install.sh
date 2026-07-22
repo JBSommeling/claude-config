@@ -281,7 +281,7 @@ done < <(grep '"command"[[:space:]]*:' "${REPO_ROOT}/.claude/settings.json" \
 # Codex: run --codex --apply install into a separate temp HOME and check
 # command paths from config.toml
 CODEX_FAKE_HOME="$(mktemp -d)"
-trap 'rm -rf "$CODEX_FAKE_HOME"' EXIT
+trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME"' EXIT
 HOME="$CODEX_FAKE_HOME" bash "$INSTALL" --codex --apply > /dev/null 2>&1
 
 echo ""
