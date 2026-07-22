@@ -191,10 +191,14 @@ hook_edit_paths() {
       }
     ')
 
-  # Return the union of both sections.
+  # Return the union of both sections, deduped while preserving order.
+  # A file appearing in both the envelope and the unified-diff would otherwise
+  # be returned twice, which is wrong for callers that count entries.
   if [ -n "$envelope_paths" ] || [ -n "$diff_paths" ]; then
-    [ -n "$envelope_paths" ] && echo "$envelope_paths"
-    [ -n "$diff_paths" ] && echo "$diff_paths"
+    {
+      [ -n "$envelope_paths" ] && echo "$envelope_paths"
+      [ -n "$diff_paths" ] && echo "$diff_paths"
+    } | awk '!seen[$0]++'
   fi
   return 0
 }

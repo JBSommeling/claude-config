@@ -126,15 +126,17 @@ if hook_is_shell_tool "$TOOL_NAME"; then
         }
       }' \
     | sed 's/[-=]>//g' \
-    | sed 's/\\"//g' \
+    | sed 's/\\["><]//g' \
+    | sed -E "s/'([^'>]*)'/\1/g" \
     | sed "s/'[^']*'/QUOTEDARG/g" \
+    | sed -E 's/"([^">]*)"/\1/g' \
     | sed 's/"[^"]*"/QUOTEDARG/g')
   while IFS= read -r target; do
     [ -z "$target" ] && continue
     case "$target" in
       *..*) hook_deny "Blocked: redirect target contains '..' ($target). $SUFFIX" ;;
       /dev/null|/dev/stdout|/dev/stderr) continue ;;
-      /tmp/*|/var/tmp/*|/private/tmp/*|/var/folders/*) continue ;;
+      /tmp/*|/var/tmp/*|/private/tmp/*|/var/folders/*|\$TMPDIR/*|\${TMPDIR}/*) continue ;;
       *) hook_deny "Blocked: this Bash command redirects output into a file ($target). $SUFFIX" ;;
     esac
   done < <(printf '%s' "$SCAN" | grep -oE '>>?\|?[[:space:]]*[^[:space:]<>&|;)]+' | sed -E 's/^>>?\|?[[:space:]]*//')
