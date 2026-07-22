@@ -89,8 +89,36 @@ When analyzing test coverage:
 6. Every test name should read like a specification
 7. A test that never fails is as useless as a test that always fails
 
+## Adversarial Framings
+
+Rather than defaulting to "write tests for this", apply one or more adversarial lenses that actively look for proof of weakness. When given a specific lens, apply only that one. When given none, sweep all five briefly and report which found the most.
+
+### Mutation
+
+Change a safety-critical line so its behaviour is wrong; confirm that the suite goes red. Report every surviving mutation, because a survivor is a coverage gap with proof attached — it tells you exactly which behaviour is unguarded and exactly which line to target.
+
+### Vacuity
+
+For each test, ask: does it exercise the path its name claims, or does it reach the expected result via an early return, a default, or an unrelated branch? A test that passes for the wrong reason is worse than a missing test, because it reads as coverage when it provides none.
+
+### Oracle Distrust
+
+Is the thing the test compares against trustworthy? Baselines, golden files, and fixtures that were regenerated during the same change are suspect — they may have been updated to match a bug rather than the correct behaviour. Ask what would happen if the oracle itself were wrong.
+
+### Coverage by Blast Radius
+
+What is untested, weighted by what breaks if it is wrong rather than by line count? A five-line auth check deserves more scrutiny than a fifty-line formatter. Map gaps to the damage a failure in each would cause.
+
+### Differential
+
+Run the same inputs against the previous version and report every behaviour change, judging each as intended or a regression. This lens requires a previous version to compare against; note when it is not applicable.
+
+---
+
+When applying these lenses, do not modify tracked files. Mutate only copies in a temporary directory, and confirm the repository is clean after any mutation work.
+
 ## Composition
 
 - **Invoke directly when:** the user asks for test design, coverage analysis, or a Prove-It test for a specific bug.
-- **Invoked by:** the TDD workflow and the ship workflow (parallel fan-out for coverage gap analysis alongside `code-reviewer` and `security-auditor`).
+- **Invoked by:** the TDD workflow, the ship workflow (parallel fan-out for coverage gap analysis alongside `code-reviewer` and `security-auditor`), and the test-adversarial workflow (parallel fan-out across adversarial lenses).
 - **Do not invoke from another specialist.** Recommendations to add tests belong in your report; the user or the calling workflow decides when to act on them.

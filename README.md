@@ -19,7 +19,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes t
 ```
 .agents/           shared content, installs to both platforms
   agents/          6 shared agent instruction bodies
-  workflows/       19 workflow definitions
+  workflows/       20 workflow definitions
   skills/          14 skill directories
   hooks/           guard scripts, ledger scripts, lib/ (common.sh + adapters)
 .claude/           Claude wiring only: CLAUDE.md, settings.json,
