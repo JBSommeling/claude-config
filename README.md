@@ -19,7 +19,7 @@ Each subagent runs in its own context window, so heavy I/O work never pollutes t
 ```
 .agents/           shared content, installs to both platforms
   agents/          6 shared agent instruction bodies
-  workflows/       20 workflow definitions
+  workflows/       21 workflow definitions
   skills/          14 skill directories
   hooks/           guard scripts, ledger scripts, lib/ (common.sh + adapters)
 .claude/           Claude wiring only: CLAUDE.md, settings.json,
@@ -172,18 +172,9 @@ Reasoning effort is capped at medium across all agents.
 
 ## Development pipeline
 
-`/full-pipeline` (Claude) / `$full-pipeline` (Codex) orchestrates the complete workflow:
-
-```
-spec → plan → build (loop) → validate → review → ship
-```
-
-Checkpoints after spec and plan for approval; the approved spec and plan are saved to `~/Desktop/<feature-slug>/`. Build, validate, review, and ship run automatically. Individual steps work standalone.
-
 Key workflows:
 
-- **Spec-first development** — `spec` → `plan` → `build` → `validate` → `review` → `ship`, or run `full-pipeline` to orchestrate the whole sequence
-- **Spec-first with auto-fix** — `full-pipeline-cycle` runs the same pipeline but Phase 5 runs `review-cycle` (auto-fix loop, capped at 5 iterations), then opens a PR with residual findings as inline comments, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only; everything after runs automatically
+- **Spec-first with auto-fix** — `full-pipeline-cycle` runs the full pipeline (spec → plan → build → validate), then Phase 5 runs `review-cycle` (auto-fix loop, capped at 5 iterations), opens a PR with residual findings as inline comments, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only; everything after runs automatically
 - **Test-driven development** — `tdd` activates red-green-refactor for the session
 - **Debugging** — `diagnose` runs the disciplined diagnosis loop without fixing; `diagnose-fix` diagnoses and applies the fix with a regression test; `diagnose-full-pipeline-cycle` diagnoses then drives the fix through the full pipeline to an open PR
 - **Domain grilling** — `grill` stress-tests a plan against the project's domain model, sharpens terminology in CONTEXT.md, and creates ADRs as decisions crystallise

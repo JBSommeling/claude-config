@@ -280,6 +280,11 @@ install_claude() {
   # Only the specific known-superseded name is removed; nothing else is touched.
   do_rm_f "${HOME}/.claude/hooks/block-push-to-default-branch.sh"
 
+  # Remove superseded command left by older installs.
+  # full-pipeline.md was superseded by full-pipeline-cycle, which is
+  # self-contained and does not invoke it. Older installs may still have it.
+  do_rm_f "${HOME}/.claude/commands/full-pipeline.md"
+
   # Settings — expand $HOME so hook command paths are absolute
   do_sed_expand_home "${SCRIPT_DIR}/.claude/settings.json" \
                      "${HOME}/.claude/settings.json"

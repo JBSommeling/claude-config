@@ -1,8 +1,11 @@
 ---
-description: Full pipeline with auto-converging review loop — spec, plan, build, validate, converge (loop + PR), judge
+description: BETA — Full pipeline with adversarial test lenses in the judging phase (costs more agents than full-pipeline-cycle)
 ---
 
-Run the full development pipeline with a convergence-based review loop — spec, plan, build, validate — where Phase 5 auto-fixes until clean (or capped), opens a PR, and Phase 6 judges the cleaned-up state.
+> **BETA variant of `/full-pipeline-cycle`.**
+> One substantive change: Phase 6 replaces the single `test-engineer` judge with four adversarial lenses, running six judging agents in parallel instead of three. This costs more agent invocations. Everything else — Phases 1 to 5, the checkpoints, the branch precheck, and the residual posting — is identical to the original.
+
+Run the full development pipeline with a convergence-based review loop — spec, plan, build, validate — where Phase 5 auto-fixes until clean (or capped), opens a PR, and Phase 6 judges the cleaned-up state with adversarial test lenses.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -111,17 +114,26 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 
 ## Phase 6 — Judge (automatic)
 
-Spawn three subagents in parallel against the **PR's current state** (not the local working tree):
+Spawn all six agents in a single turn so they execute in parallel. **Issue all six Agent tool calls in one assistant turn — sequential calls defeat the purpose of parallel judging.**
 
-1. **code-reviewer** — five-axis review on the PR diff
-2. **security-auditor** — vulnerability and threat-model pass
-3. **test-engineer** — coverage gap analysis
+Agents operate against the **PR's current state** (not the local working tree):
 
-Merge all reports into a GO/NO-GO recommendation with:
-- Blockers (must fix before merge)
-- Recommended fixes
-- Acknowledged risks
-- Rollback plan
+1. **code-reviewer** — five-axis review on the PR diff (unchanged from the original pipeline)
+2. **security-auditor** — vulnerability and threat-model pass (unchanged from the original pipeline)
+3. **test-engineer** with the **mutation lens** — mutate safety-critical lines so their behaviour is wrong; confirm the suite goes red. Report every surviving mutation with the exact line mutated and the test that should have caught it. Do not modify tracked files — mutate only copies in a temporary directory; confirm the repository is clean after mutation work.
+4. **test-engineer** with the **vacuity lens** — for each test, determine whether it exercises the path its name claims, or reaches the expected result via an early return, a default, or an unrelated branch. List every test that passes for the wrong reason.
+5. **test-engineer** with the **oracle distrust lens** — audit every baseline, golden file, and fixture. Flag any that were regenerated during the same change under review — they may encode a bug rather than the correct behaviour. Report what would have to be true for each oracle to be wrong.
+6. **test-engineer** with the **blast radius lens** — map untested paths to the damage a failure in each would cause. Rank gaps by blast radius, not line count. A five-line auth check outranks a fifty-line formatter.
+
+### Merge and report
+
+Merge all agent reports into a GO/NO-GO recommendation. The merged report must:
+
+- **Separate evidence-backed findings from reasoning-only findings.** Findings that carry proof — a surviving mutation with the exact line and test that should have caught it, a demonstrated vacuous test with a concrete example, a verified-compromised oracle — are listed first and outrank findings that are reasoning or inference alone. Label each finding as *Proven* or *Suspected*.
+- List **Blockers** (must fix before merge), with evidence type noted
+- List **Recommended fixes**
+- List **Acknowledged risks**
+- Include a **Rollback plan**
 
 Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level PR comment.
 

@@ -25,6 +25,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASELINE="$REPO_ROOT/tests/baseline-manifest.txt"
+INTENTIONAL_CHANGES_FILE="$REPO_ROOT/tests/intentional-changes.txt"
+REMOVED_FILES_FILE="$REPO_ROOT/tests/removed-files.txt"
 INSTALL="$REPO_ROOT/install.sh"
 
 # --------------------------------------------------------------------------
@@ -107,6 +109,95 @@ if [ -f "$RENAMED_HOOKS_FILE" ]; then
   done < "$RENAMED_HOOKS_FILE"
 fi
 
+# Load intentional-changes allowlist
+# Format: path | reason
+intentional_paths=()
+intentional_reasons=()
+if [ -f "$INTENTIONAL_CHANGES_FILE" ]; then
+  while IFS= read -r iline; do
+    [[ "$iline" =~ ^# ]] && continue
+    [[ -z "$iline"     ]] && continue
+    _ipath="${iline%% |*}"
+    _ipath="${_ipath%% }"   # trim trailing space
+    _ireason="${iline##*| }"
+    intentional_paths+=("$_ipath")
+    intentional_reasons+=("$_ireason")
+  done < "$INTENTIONAL_CHANGES_FILE"
+fi
+
+# Load removed-files allowlist
+# Format: path | reason
+# Lists baseline files that are deliberately no longer installed.
+removed_paths=()
+removed_reasons=()
+if [ -f "$REMOVED_FILES_FILE" ]; then
+  while IFS= read -r rline; do
+    [[ "$rline" =~ ^# ]] && continue
+    [[ -z "$rline"     ]] && continue
+    _rpath="${rline%% |*}"
+    _rpath="${_rpath%% }"   # trim trailing space
+    _rreason="${rline##*| }"
+    removed_paths+=("$_rpath")
+    removed_reasons+=("$_rreason")
+  done < "$REMOVED_FILES_FILE"
+fi
+
+# --------------------------------------------------------------------------
+# Staleness check — intentional-changes.txt entries whose installed file
+# now matches the baseline hash are stale (the change was reverted).
+# --------------------------------------------------------------------------
+echo "--- Intentional-changes staleness check ---"
+_stale_found=false
+for ii in "${!intentional_paths[@]}"; do
+  _ipath="${intentional_paths[$ii]}"
+  # Find baseline hash for this path
+  _ibaseline_md5=""
+  for bi in "${!baseline_paths[@]}"; do
+    if [ "${baseline_paths[$bi]}" = "$_ipath" ]; then
+      _ibaseline_md5="${baseline_md5s[$bi]}"
+      break
+    fi
+  done
+  [ -z "$_ibaseline_md5" ] && continue
+  _iactual_path="${_ipath/#\~/$FAKE_HOME}"
+  if [ -f "$_iactual_path" ]; then
+    _iactual_md5=$(file_md5 "$_iactual_path")
+    if [ "$_iactual_md5" = "$_ibaseline_md5" ]; then
+      echo "  FAIL: stale entry in intentional-changes.txt: $_ipath"
+      echo "        (installed hash matches baseline — remove this entry)"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("STALE INTENTIONAL ENTRY: $_ipath")
+      _stale_found=true
+    fi
+  fi
+done
+if ! $_stale_found; then
+  echo "  (no stale entries)"
+fi
+
+# --------------------------------------------------------------------------
+# Staleness check — removed-files.txt entries whose path IS present after
+# install are stale (the file was restored but the allowlist was not cleaned up).
+# --------------------------------------------------------------------------
+echo ""
+echo "--- Removed-files staleness check ---"
+_removed_stale_found=false
+for ri in "${!removed_paths[@]}"; do
+  _rpath="${removed_paths[$ri]}"
+  _ractual_path="${_rpath/#\~/$FAKE_HOME}"
+  if [ -f "$_ractual_path" ]; then
+    echo "  FAIL: stale entry in removed-files.txt: $_rpath"
+    echo "        (file IS installed — remove this entry or stop installing it)"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("STALE REMOVED ENTRY: $_rpath")
+    _removed_stale_found=true
+  fi
+done
+if ! $_removed_stale_found; then
+  echo "  (no stale entries)"
+fi
+
+echo ""
 echo "--- Non-hook files vs baseline ---"
 
 for i in "${!baseline_paths[@]}"; do
@@ -186,22 +277,55 @@ for i in "${!baseline_paths[@]}"; do
     continue
   fi
 
-  # Regular file — must exist and md5 must match baseline exactly
+  # Regular file — must exist and md5 must match baseline, OR path must
+  # appear in intentional-changes.txt with a non-empty reason.
+  # If the file is absent, it passes only if listed in removed-files.txt.
   if [ ! -f "$actual_path" ]; then
-    echo "  FAIL: $bpath (missing)"
-    fail_count=$((fail_count + 1))
-    fail_messages+=("MISSING: $bpath")
+    _found_removed=false
+    for ri in "${!removed_paths[@]}"; do
+      if [ "${removed_paths[$ri]}" = "$bpath" ]; then
+        _rreason="${removed_reasons[$ri]}"
+        if [ -n "$_rreason" ]; then
+          echo "  ok (removed): $bpath"
+          echo "        reason: $_rreason"
+          pass_count=$((pass_count + 1))
+          _found_removed=true
+        fi
+        break
+      fi
+    done
+    if ! $_found_removed; then
+      echo "  FAIL: $bpath (missing — not in removed-files.txt)"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("MISSING: $bpath")
+    fi
   else
     actual_md5=$(file_md5 "$actual_path")
     if [ "$actual_md5" = "$bmd5" ]; then
       echo "  ok: $bpath"
       pass_count=$((pass_count + 1))
     else
-      echo "  FAIL: $bpath (md5 mismatch)"
-      echo "        baseline: $bmd5"
-      echo "        actual:   $actual_md5"
-      fail_count=$((fail_count + 1))
-      fail_messages+=("MD5 MISMATCH: $bpath")
+      # Hash mismatch — check intentional-changes.txt
+      _found_intentional=false
+      for ii in "${!intentional_paths[@]}"; do
+        if [ "${intentional_paths[$ii]}" = "$bpath" ]; then
+          _ireason="${intentional_reasons[$ii]}"
+          if [ -n "$_ireason" ]; then
+            echo "  ok (intentional): $bpath"
+            echo "        reason: $_ireason"
+            pass_count=$((pass_count + 1))
+            _found_intentional=true
+          fi
+          break
+        fi
+      done
+      if ! $_found_intentional; then
+        echo "  FAIL: $bpath (md5 mismatch — not in intentional-changes.txt)"
+        echo "        baseline: $bmd5"
+        echo "        actual:   $actual_md5"
+        fail_count=$((fail_count + 1))
+        fail_messages+=("MD5 MISMATCH: $bpath")
+      fi
     fi
   fi
 done
@@ -406,6 +530,31 @@ if [ -e "${CLEANUP_HOME}/.claude/hooks/ledger-record.sh" ]; then
   fail_messages+=("LEDGER CLEANUP FAILED: ledger-record.sh still present after Claude install")
 else
   echo "PASS ledger-cleanup"
+  pass_count=$((pass_count + 1))
+fi
+
+# --------------------------------------------------------------------------
+# Superseded-command cleanup tests
+#
+# full-pipeline.md is no longer installed (superseded by full-pipeline-cycle).
+# A user who ran an older install may still have it at ~/.claude/commands/.
+# The installer must remove it.
+# --------------------------------------------------------------------------
+echo ""
+echo "--- Superseded-command cleanup tests ---"
+
+# Pre-seed ~/.claude/commands/full-pipeline.md, run install, verify it is gone.
+SUPERSEDED_HOME="$(mktemp -d)"
+trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A" "$ORPHAN_HOME_B" "$CLEANUP_HOME" "$SUPERSEDED_HOME"' EXIT
+mkdir -p "${SUPERSEDED_HOME}/.claude/commands"
+printf '# stale full-pipeline stub\n' > "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md"
+HOME="$SUPERSEDED_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
+if [ -e "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md" ]; then
+  echo "FAIL superseded-full-pipeline-removed (pre-seeded full-pipeline.md was not removed by Claude install)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("SUPERSEDED COMMAND NOT REMOVED: ~/.claude/commands/full-pipeline.md still present after Claude install")
+else
+  echo "PASS superseded-full-pipeline-removed"
   pass_count=$((pass_count + 1))
 fi
 

@@ -88,3 +88,13 @@ In addition to the fixture loop, `run.sh` runs several standalone test scripts:
 4. Run `./tests/run.sh <description>` to verify.
 
 Use the matching prefix for the hook you want to exercise (see table above).
+
+## Codex delegation fixture notes
+
+`codex-delegation-permissive-default` — tests that an unidentified caller is allowed when
+`CODEX_ENFORCE_DELEGATION` is not set. The hook returns `unknown` for the Codex caller, so the
+delegation logic never runs; the permissive default takes effect. This is the allow path for an
+unrecognised caller.
+
+The corresponding deny path — strict enforcement via `CODEX_ENFORCE_DELEGATION=1` — is covered by
+`codex-delegation-strict-deny`, which uses an `apply_patch` payload and expects `deny`.

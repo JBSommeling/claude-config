@@ -1,0 +1,16 @@
+# Baseline files that are DELIBERATELY no longer installed.
+#
+# Format: path | reason
+#
+# A path listed here is a file that exists in the baseline-manifest.txt but is
+# no longer installed by install.sh. The install test passes for a missing
+# baseline file ONLY if the path appears here with a non-empty reason.
+#
+# Rules:
+#   1. Every entry MUST have a non-empty reason.
+#   2. If install.sh starts installing the file again, the entry is STALE and
+#      the test suite will FAIL — remove the entry when the file is restored.
+#   3. Do NOT add entries here to paper over unreviewed removals.
+#      Only record removals that were deliberate and code-reviewed.
+#
+~/.claude/commands/full-pipeline.md | removed: superseded by full-pipeline-cycle, which is self-contained and does not invoke it

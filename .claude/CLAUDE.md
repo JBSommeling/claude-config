@@ -74,10 +74,8 @@ Available commands: check `~/.claude/commands/`
 
 ### Full pipeline
 
-`/full-pipeline` runs: `/spec` → `/plan` → `/build` (loop) → `/validate` → `/review` → `/ship`. Checkpoints after spec and plan, then automatic.
-
-`/full-pipeline-cycle` is a variant where Phase 5 runs `/review-cycle` (auto-fix loop, capped at 5 iterations), opens a PR with any residual findings posted as inline comments, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only — everything after the plan, including push and PR creation, runs automatically.
+`/full-pipeline-cycle` runs the full development pipeline with a convergence-based review loop: spec, plan, build, validate, then Phase 5 auto-fixes until clean (or capped), opens a PR, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only — everything after the plan, including push and PR creation, runs automatically.
 
 `/diagnose-full-pipeline-cycle` chains the two: it runs `/diagnose` (diagnose-only) to confirm the bug's root cause, then feeds that diagnosis into `/full-pipeline-cycle` to spec, plan, build, and open a PR with the fix.
 
-Both pipelines save the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
+Both save the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
