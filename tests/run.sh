@@ -123,6 +123,32 @@ for json_file in "$FIXTURES_DIR"/*.json; do
   fi
 done
 
+# ---------------------------------------------------------------------------
+# Ledger integration tests
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Ledger integration tests ---"
+LEDGER_TEST="$REPO_ROOT/tests/test-ledger.sh"
+
+if [ -f "$LEDGER_TEST" ]; then
+  # Stream ledger test output line by line and fold PASS/FAIL into global counts.
+  while IFS= read -r line; do
+    echo "$line"
+    case "$line" in
+      "PASS "*)
+        pass=$((pass + 1))
+        total=$((total + 1))
+        ;;
+      "FAIL "*)
+        fail=$((fail + 1))
+        total=$((total + 1))
+        ;;
+    esac
+  done < <(bash "$LEDGER_TEST" 2>/dev/null)
+else
+  echo "SKIP ledger tests (tests/test-ledger.sh not found)"
+fi
+
 echo ""
 echo "$pass/$total passed"
 

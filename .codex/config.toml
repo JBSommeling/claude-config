@@ -80,3 +80,43 @@ matcher = "apply_patch|Edit|Write"
   type    = "command"
   command = "$HOME/.codex/hooks/enforce-delegation.sh"
   timeout = 10
+
+# ---------------------------------------------------------------------------
+# Delegation ledger — observational only, NEVER blocks tool calls.
+#
+# Because hook_caller returns "unknown" on Codex when no worker identity is
+# present, the prevention guards above fail open for the orchestrator. The
+# ledger provides after-the-fact detection instead: it records edit and
+# delegation events during a session and reports, at session end, any edits
+# that happened while no delegation was active.
+#
+# Design: the ledger fails toward false positives (noisy reports), never
+# toward silent misses. A missed SubagentStop produces an over-report.
+#
+# All three scripts exit 0 unconditionally. A broken ledger never blocks work.
+# ---------------------------------------------------------------------------
+
+# ENABLED: Record edit and spawn events to the session ledger.
+[[hooks.PreToolUse]]
+matcher = "apply_patch|Edit|Write|spawn_agent|Agent"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/ledger-record.sh"
+  timeout = 10
+
+# ENABLED: Decrement the delegation depth counter when a subagent stops.
+[[hooks.SubagentStop]]
+
+  [[hooks.SubagentStop.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/ledger-close.sh"
+  timeout = 10
+
+# ENABLED: Emit a session summary at stop — lists any undelegated edits.
+[[hooks.Stop]]
+
+  [[hooks.Stop.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/ledger-report.sh"
+  timeout = 10

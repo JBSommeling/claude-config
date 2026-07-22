@@ -126,3 +126,9 @@ hook_caller() {
 hook_is_subagent() {
   [ "$(hook_caller)" = "subagent" ]
 }
+
+# hook_session_id — echo the session id from the payload, or empty if absent.
+# The field name is identical to Claude Code (verified: session_id).
+hook_session_id() {
+  hook_json '.session_id // empty'
+}

@@ -58,3 +58,8 @@ hook_caller() {
 hook_is_subagent() {
   [ "$(hook_caller)" = "subagent" ]
 }
+
+# hook_session_id — echo the session id from the payload, or empty if absent.
+hook_session_id() {
+  hook_json '.session_id // empty'
+}
