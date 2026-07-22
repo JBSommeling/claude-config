@@ -1,0 +1,1 @@
+{"tool_name":"Bash","tool_input":{"command":"git commit -m \"$(cat <<'EOF'\nfix: stop writing logs\n\nThe old code did echo x > out.txt which was wrong.\nEOF\n)\""}}

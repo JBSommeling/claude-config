@@ -65,7 +65,56 @@ if hook_is_shell_tool "$TOOL_NAME"; then
   # output redirects sit outside quotes, so removing the (possibly
   # escaped) quoted content avoids false-positives without weakening the
   # check — e.g. `echo "code" > file.py` still leaves `> file.py` exposed.
-  SCAN=$(printf '%s' "$CMD" | sed 's/\\"//g' | sed "s/'[^']*'//g" | sed 's/"[^"]*"//g')
+  # Strip heredoc bodies then arrow operators before scanning for redirections.
+  # sed is line-oriented and cannot track multi-line quoting context; any '>'
+  # inside a heredoc body would be a false-positive redirect.  We run an awk
+  # pass to remove body lines while keeping the line that contains '<<' itself
+  # (e.g. "cat <<EOF > file" is preserved and still caught — the real write
+  # vector redirects on the '<<' line, which is never stripped).  Arrow
+  # operators '->' and '=>' are not shell redirections; they are removed to
+  # avoid false-positives from prose such as ".claude/skills -> .agents/skills".
+  # Two-pass awk: collect all lines first, then walk the array so we only skip
+  # a heredoc body when the terminator line genuinely exists later in the input.
+  # This closes bypass 1 (unterminated marker strips remaining lines) and
+  # partially closes bypass 2 (quoted <<TOKEN that happens to have a matching
+  # terminator later would still be treated as a real heredoc opener — that
+  # residual case is highly contrived and accepted as a known limitation).
+  SCAN=$(printf '%s' "$CMD" \
+    | awk '{L[NR]=$0} END{
+        i=1
+        while(i<=NR){
+          line=L[i]
+          # check for heredoc opener on this line
+          tok=""
+          tmp=line
+          if(match(tmp,/<<-?[[:space:]]*'"'"'?[A-Za-z_][A-Za-z0-9_]*'"'"'?/)){
+            tok=substr(tmp,RSTART,RLENGTH)
+            sub(/^<<-?[[:space:]]*/,"",tok)
+            gsub(/'"'"'/,"",tok)
+            sub(/[[:space:]].*$/,"",tok)
+          }
+          print line
+          if(tok!=""){
+            # search forward for terminator
+            found=0
+            for(j=i+1;j<=NR;j++){
+              t=L[j]; gsub(/^[[:space:]]+|[[:space:]]+$/,"",t)
+              if(t==tok){found=j;break}
+            }
+            if(found>0){
+              # skip body lines i+1 .. found (terminator itself also skipped)
+              i=found+1
+              continue
+            }
+            # no terminator found: do NOT skip anything — just keep going
+          }
+          i++
+        }
+      }' \
+    | sed 's/[-=]>//g' \
+    | sed 's/\\"//g' \
+    | sed "s/'[^']*'//g" \
+    | sed 's/"[^"]*"//g')
   while IFS= read -r target; do
     [ -z "$target" ] && continue
     case "$target" in
