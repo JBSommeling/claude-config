@@ -300,6 +300,47 @@ done < <(grep -E '^[[:space:]]*command[[:space:]]*=[[:space:]]*"' "${REPO_ROOT}/
            | sed -E 's/^[[:space:]]*command[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
 
 # --------------------------------------------------------------------------
+# Orphan scripts/ cleanup tests
+#
+# Case A: a decoy ~/.claude/skills/scripts/ directory (no SKILL.md) must be
+#         removed by the installer.
+# Case B: a ~/.claude/skills/scripts/ directory that CONTAINS a SKILL.md must
+#         be left alone (it is a real user skill named "scripts").
+# --------------------------------------------------------------------------
+echo ""
+echo "--- Orphan scripts/ cleanup tests ---"
+
+# Case A — orphan removed
+ORPHAN_HOME_A="$(mktemp -d)"
+trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A"' EXIT
+mkdir -p "${ORPHAN_HOME_A}/.claude/skills/scripts"
+printf 'dummy orphan file\n' > "${ORPHAN_HOME_A}/.claude/skills/scripts/hitl-loop.template.sh"
+HOME="$ORPHAN_HOME_A" bash "$INSTALL" --claude > /dev/null 2>&1
+if [ -d "${ORPHAN_HOME_A}/.claude/skills/scripts" ]; then
+  echo "FAIL orphan-scripts-removed (orphan ~/.claude/skills/scripts/ was not removed)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("ORPHAN NOT REMOVED: ~/.claude/skills/scripts/")
+else
+  echo "PASS orphan-scripts-removed"
+  pass_count=$((pass_count + 1))
+fi
+
+# Case B — real skill (has SKILL.md) preserved
+ORPHAN_HOME_B="$(mktemp -d)"
+trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A" "$ORPHAN_HOME_B"' EXIT
+mkdir -p "${ORPHAN_HOME_B}/.claude/skills/scripts"
+printf 'name: scripts\n' > "${ORPHAN_HOME_B}/.claude/skills/scripts/SKILL.md"
+HOME="$ORPHAN_HOME_B" bash "$INSTALL" --claude > /dev/null 2>&1
+if [ -f "${ORPHAN_HOME_B}/.claude/skills/scripts/SKILL.md" ]; then
+  echo "PASS orphan-scripts-guard-preserved"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL orphan-scripts-guard-preserved (SKILL.md was removed — real user skill must be preserved)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("REAL SKILL REMOVED: ~/.claude/skills/scripts/")
+fi
+
+# --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 echo ""

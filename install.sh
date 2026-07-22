@@ -223,6 +223,19 @@ install_claude() {
   # Skills — strip trailing slash so BSD cp copies each skill as a DIRECTORY
   # (a trailing slash makes BSD cp dump the contents, producing a stray SKILL.md)
   do_rm_f "${HOME}/.claude/skills/SKILL.md"
+  # Remove orphan scripts/ directory left by the same pre-eb2911c trailing-slash
+  # bug: skills like diagnose and idea-refine each have a scripts/ subdirectory;
+  # the buggy loop dumped their contents into ~/.claude/skills/scripts/ instead of
+  # placing them inside each skill directory where they belong.
+  # Guard: if a SKILL.md is present the directory is a real user skill — leave it.
+  if [ -d "${HOME}/.claude/skills/scripts" ]; then
+    if [ -f "${HOME}/.claude/skills/scripts/SKILL.md" ]; then
+      echo "  notice: ~/.claude/skills/scripts/ contains SKILL.md — skipping removal (user skill)"
+    else
+      action "rm -rf ${HOME}/.claude/skills/scripts"
+      $dry_run || rm -rf "${HOME}/.claude/skills/scripts"
+    fi
+  fi
   skill_count=0
   for dir in "${SCRIPT_DIR}/.agents/skills/"/*/; do
     do_cp_r "${dir%/}" "${HOME}/.claude/skills/"
