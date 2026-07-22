@@ -1,5 +1,5 @@
 #!/bin/bash
-# block-push-to-default-branch.sh
+# block-push.sh
 #
 # PreToolUse hook that blocks `git push` to the repository's default branch
 # (typically main/master). Belt-and-suspenders alongside the in-prompt
@@ -17,18 +17,18 @@
 
 set -uo pipefail
 
-INPUT=$(cat)
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/common.sh
+source "$HOOK_DIR/lib/common.sh"
 
-if [ "${CLAUDE_BYPASS_PUSH_GUARD:-0}" = "1" ]; then
-  exit 0
-fi
+hook_init
 
-TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty')
-if [ "$TOOL_NAME" != "Bash" ]; then
-  exit 0
-fi
+if hook_bypass CLAUDE_BYPASS_PUSH_GUARD; then exit 0; fi
 
-COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
+TOOL_NAME=$(hook_tool_name)
+if ! hook_is_shell_tool "$TOOL_NAME"; then exit 0; fi
+
+COMMAND=$(hook_cmd)
 case "$COMMAND" in
   *"git push"*) ;;
   *) exit 0 ;;
@@ -49,14 +49,7 @@ if [ -z "$DEFAULT_BRANCH" ]; then
 fi
 if [ -z "$DEFAULT_BRANCH" ]; then
   # Fail-closed: if we cannot determine the default branch, refuse.
-  jq -n '{
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: "Cannot determine repository default branch — refusing git push as a safety precaution. Set CLAUDE_BYPASS_PUSH_GUARD=1 to override."
-    }
-  }'
-  exit 0
+  hook_deny "Cannot determine repository default branch — refusing git push as a safety precaution. Set CLAUDE_BYPASS_PUSH_GUARD=1 to override."
 fi
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
@@ -74,15 +67,4 @@ if [ "$EXPLICIT_HIT" -eq 0 ] && [ "$CURRENT_BRANCH" != "$DEFAULT_BRANCH" ]; then
   exit 0
 fi
 
-jq -n --arg branch "$DEFAULT_BRANCH" --arg current "$CURRENT_BRANCH" --arg cmd "$COMMAND" '
-{
-  hookSpecificOutput: {
-    hookEventName: "PreToolUse",
-    permissionDecision: "deny",
-    permissionDecisionReason: (
-      "Blocked: `git push` would target the default branch `\($branch)`. " +
-      "Current branch: `\($current)`. Command: `\($cmd)`. " +
-      "Open a PR instead. To bypass for a single session, set CLAUDE_BYPASS_PUSH_GUARD=1."
-    )
-  }
-}'
+hook_deny "Blocked: \`git push\` would target the default branch \`${DEFAULT_BRANCH}\`. Current branch: \`${CURRENT_BRANCH}\`. Command: \`${COMMAND}\`. Open a PR instead. To bypass for a single session, set CLAUDE_BYPASS_PUSH_GUARD=1."

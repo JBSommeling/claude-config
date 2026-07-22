@@ -12,7 +12,7 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIXTURES_DIR="$REPO_ROOT/tests/fixtures"
 DELEGATION_HOOK="$REPO_ROOT/.agents/hooks/enforce-delegation.sh"
-PUSH_HOOK="$REPO_ROOT/.agents/hooks/block-push-to-default-branch.sh"
+PUSH_HOOK="$REPO_ROOT/.agents/hooks/block-push.sh"
 
 FILTER="${1:-}"
 
