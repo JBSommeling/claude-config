@@ -65,7 +65,12 @@ hook_allow() {
 
 _HOOK_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -f "$_HOOK_LIB_DIR/adapter.sh" ]; then
+if [ -n "${HOOK_ADAPTER:-}" ] && [ -f "$_HOOK_LIB_DIR/$HOOK_ADAPTER" ]; then
+  # Explicit adapter override — used by the test runner for platform-specific
+  # fixture sets (e.g. codex-* fixtures set HOOK_ADAPTER=adapter-codex.sh).
+  # shellcheck source=/dev/null
+  source "$_HOOK_LIB_DIR/$HOOK_ADAPTER"
+elif [ -f "$_HOOK_LIB_DIR/adapter.sh" ]; then
   # Install-time binding wins (lets admins swap platform adapters).
   # shellcheck source=/dev/null
   source "$_HOOK_LIB_DIR/adapter.sh"
@@ -74,6 +79,6 @@ elif [ -f "$_HOOK_LIB_DIR/adapter-claude.sh" ]; then
   # shellcheck source=/dev/null
   source "$_HOOK_LIB_DIR/adapter-claude.sh"
 else
-  # Neither adapter is present — fail closed with a clear message.
+  # No adapter found — fail closed with a clear message.
   hook_deny "Hook misconfiguration: no platform adapter found in $_HOOK_LIB_DIR (expected adapter.sh or adapter-claude.sh). Cannot determine tool context."
 fi

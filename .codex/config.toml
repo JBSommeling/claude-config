@@ -1,0 +1,76 @@
+# Codex configuration for claude-config
+#
+# IMPORTANT: After installing, run `/hooks` in Codex to review and trust these
+# hooks before they will execute. Trust is hash-pinned — any edit to a hook
+# script requires re-running `/hooks` to re-approve the updated hash.
+
+# Model slug — fill this in before using.
+# Codex model slugs could not be verified at authoring time (2026-07-22);
+# do not guess. Run `codex models` or consult the Codex documentation to find
+# the correct identifier for the model you want.
+# model = "..."
+
+# Require explicit approval for untrusted operations.
+approval_policy = "on-request"
+
+# workspace-write allows the orchestrator to run git add / git commit inline.
+# read-only is deliberately NOT used here: the orchestrator must retain commit
+# access (see ADR 0004 — orchestrator holds exclusive commit rights). Subagents
+# that only read or search are defined with sandbox_mode = "read-only" in their
+# own agent TOML files.
+sandbox_mode = "workspace-write"
+
+[agents]
+# Maximum number of parallel subagent threads.
+max_threads = 6
+# Maximum subagent nesting depth. Specialists spawn from the orchestrator (depth 1);
+# specialists must not spawn further subagents.
+max_depth = 1
+
+# ---------------------------------------------------------------------------
+# Hooks
+#
+# Hook trust is hash-pinned. After any edit to a hook script you must run
+# `/hooks` in Codex to re-approve the new hash.
+#
+# Hook command paths use $HOME so install.sh can expand them correctly.
+# ---------------------------------------------------------------------------
+
+# ENABLED: Block git push to the default branch.
+[[hooks.PreToolUse]]
+matcher = "Bash"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/block-push.sh"
+  timeout = 10
+
+# DISABLED: Enforce commit ownership — deny git commit from subagents.
+# Depends on a worker-unique identifier in the PreToolUse payload. Codex's
+# documented release behaviour does not confirm this field is present in the
+# shipped release; enabling it risks blocking the orchestrator's own commits.
+# Re-enable if Codex exposes a verified worker identity field (see ADR 0003).
+#
+# [[hooks.PreToolUse]]
+# matcher = "Bash"
+#
+#   [[hooks.PreToolUse.hooks]]
+#   type    = "command"
+#   command = "$HOME/.codex/hooks/enforce-commit-ownership.sh"
+#   timeout = 10
+
+# DISABLED: Enforce delegation — block apply_patch/Edit/Write from the
+# orchestrator when no delegation window is active.
+# Same reason as enforce-commit-ownership.sh above: depends on worker identity
+# which is unverified on Codex. Additionally, the matcher must never be "*"
+# because Codex fires PreToolUse for update_plan, spawn_agent, and MCP tool
+# calls — a wildcard matcher would intercept those events incorrectly.
+# Re-enable if Codex exposes a verified worker identity field (see ADR 0003).
+#
+# [[hooks.PreToolUse]]
+# matcher = "apply_patch|Edit|Write"
+#
+#   [[hooks.PreToolUse.hooks]]
+#   type    = "command"
+#   command = "$HOME/.codex/hooks/enforce-delegation.sh"
+#   timeout = 10

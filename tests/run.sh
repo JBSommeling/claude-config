@@ -37,8 +37,23 @@ for json_file in "$FIXTURES_DIR"/*.json; do
 
   expected="$(cat "$expect_file" | tr -d '[:space:]')"
 
-  # Select hook based on fixture prefix
+  # Select hook and adapter based on fixture prefix.
+  # Fixtures beginning with "codex-" run against the Codex adapter by setting
+  # HOOK_ADAPTER=adapter-codex.sh, which common.sh honours when choosing an adapter.
+  HOOK_ADAPTER_VALUE=""
   case "$name" in
+    codex-delegation-*)
+      hook="$DELEGATION_HOOK"
+      HOOK_ADAPTER_VALUE="adapter-codex.sh"
+      ;;
+    codex-push-*)
+      hook="$PUSH_HOOK"
+      HOOK_ADAPTER_VALUE="adapter-codex.sh"
+      ;;
+    codex-commit-*)
+      hook="$COMMIT_HOOK"
+      HOOK_ADAPTER_VALUE="adapter-codex.sh"
+      ;;
     delegation-*)
       hook="$DELEGATION_HOOK"
       ;;
@@ -67,8 +82,23 @@ for json_file in "$FIXTURES_DIR"/*.json; do
     continue
   fi
 
-  # Run the hook with bypass env vars forced off so developer's env can't skew results
+  # Per-fixture Codex env override: if a <name>.codexenv sidecar file exists,
+  # read CODEX_ENFORCE_DELEGATION from it. This lets individual fixtures test
+  # strict mode (=1) or permissive mode (=0, the default) independently.
+  # Example: codex-delegation-bash-redirect.codexenv sets CODEX_ENFORCE_DELEGATION=1
+  # so the deny path is reachable, while codex-delegation-apply-patch uses the
+  # default (0) to test the permissive-allow path.
+  _CODEX_ENFORCE_DELEGATION=0
+  codexenv_file="$FIXTURES_DIR/${name}.codexenv"
+  if [ -f "$codexenv_file" ]; then
+    _override=$(grep -m1 '^CODEX_ENFORCE_DELEGATION=' "$codexenv_file" 2>/dev/null | cut -d= -f2- || true)
+    [ -n "$_override" ] && _CODEX_ENFORCE_DELEGATION="$_override"
+  fi
+
+  # Run the hook with bypass env vars forced off so developer's env can't skew results.
+  # HOOK_ADAPTER selects the platform adapter; empty string means use the default (Claude Code).
   stdout=$(CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 CLAUDE_BYPASS_COMMIT_GUARD=0 \
+    CODEX_ENFORCE_DELEGATION="$_CODEX_ENFORCE_DELEGATION" HOOK_ADAPTER="$HOOK_ADAPTER_VALUE" \
     $invoke < "$json_file" 2>/dev/null)
   exit_code=$?
 
