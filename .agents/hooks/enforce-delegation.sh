@@ -37,7 +37,7 @@ caller=$(hook_caller)
 
 TOOL_NAME=$(hook_tool_name)
 
-SUFFIX="Delegate the edit to the \`implementer\` subagent (Sonnet) via the Agent tool — pass the file path and the exact change. See ~/.claude/CLAUDE.md → Model Routing. To bypass for a single session, set CLAUDE_BYPASS_DELEGATION=1."
+SUFFIX="Delegate the edit to the \`implementer\` subagent via the Agent tool — pass the file path and the exact change. See your project instructions file → Model Routing. To bypass for a single session, set CLAUDE_BYPASS_DELEGATION=1."
 
 # --- Bash vector: detect file-mutating commands ---
 if hook_is_shell_tool "$TOOL_NAME"; then
@@ -136,4 +136,4 @@ case "$FILE_PATH" in
   */.claude/projects/*/memory/*) exit 0 ;;
 esac
 
-hook_deny "Direct $TOOL_NAME from the main Opus session is blocked. Delegate to the \`implementer\` subagent (Sonnet) via the Agent tool — pass the file path ($FILE_PATH) and the exact change to make. See ~/.claude/CLAUDE.md → Model Routing → Sonnet subagents. To bypass for a single session, set CLAUDE_BYPASS_DELEGATION=1."
+hook_deny "Direct $TOOL_NAME from the orchestrator is blocked. Delegate to the \`implementer\` subagent via the Agent tool — pass the file path ($FILE_PATH) and the exact change to make. See your project instructions file → Model Routing → implementer subagents. To bypass for a single session, set CLAUDE_BYPASS_DELEGATION=1."

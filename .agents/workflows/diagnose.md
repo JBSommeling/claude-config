@@ -1,4 +1,4 @@
-Read ~/.claude/skills/diagnose/SKILL.md and follow it now in DIAGNOSE-ONLY mode. Build a feedback loop before touching any code.
+Read the `diagnose` skill and follow it now in DIAGNOSE-ONLY mode. Build a feedback loop before touching any code.
 
 Run Phases 1–4 and Phase 6. Skip Phase 5 (Fix + regression test) — do NOT apply a fix, do NOT write a regression test, and do NOT change code to fix the bug.
 

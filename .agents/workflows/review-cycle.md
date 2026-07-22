@@ -23,7 +23,7 @@ Repeat until exit condition:
 
 2. **Exit condition** — If there are zero Critical and zero Important findings across all five axes, stop the loop. Suggestions alone do not justify another iteration.
 
-3. **Fix** — Delegate the fixes to the `implementer` subagent (Sonnet). Pass only the specific findings (file, line, recommendation) — do not pass whole files. After implementer returns, briefly verify the diff yourself before re-reviewing.
+3. **Fix** — Delegate the fixes to the `implementer` subagent. Pass only the specific findings (file, line, recommendation) — do not pass whole files. After implementer returns, briefly verify the diff yourself before re-reviewing.
 
 4. **Safety cap** — If the loop has run `cap` iterations (default 5) without converging, stop.
 

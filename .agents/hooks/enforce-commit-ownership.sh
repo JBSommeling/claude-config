@@ -49,7 +49,7 @@ esac
 # can still commit (see ADR 0003).
 caller=$(hook_caller)
 if [ "$caller" = "subagent" ]; then
-  hook_deny "Blocked: only the orchestrator may commit. A subagent attempted \`git commit\`. Return the diff to the orchestrator and let it review and commit inline. See ~/.claude/CLAUDE.md → Git Safety. To bypass for a single session, set CLAUDE_BYPASS_COMMIT_GUARD=1."
+  hook_deny "Blocked: only the orchestrator may commit. A subagent attempted \`git commit\`. Return the diff to the orchestrator and let it review and commit inline. See your project instructions file → Git Safety. To bypass for a single session, set CLAUDE_BYPASS_COMMIT_GUARD=1."
 fi
 
 exit 0

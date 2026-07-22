@@ -108,6 +108,43 @@ do_sed_expand_home() {
 }
 
 # --------------------------------------------------------------------------
+# Codex invocation-syntax transform helpers
+# --------------------------------------------------------------------------
+# build_codex_transform_expr — emit a sed -E expression that rewrites
+# /NAME → $NAME for every workflow name (longest names first so partial
+# prefixes like /diagnose never shadow /diagnose-fix).
+#
+# Anchoring rules:
+#   • preceded by ^  or  [^[:alnum:]/]   (not alphanumeric, not slash)
+#   • followed by    [^[:alnum:]-]  or  $  (word boundary: not alphanum, not dash)
+# This prevents matching URL path segments (https://host/ship) and
+# slash-separated words (tasks/plan.md), while matching the typical
+# markdown forms: `` `/ship` ``, "run /ship", "/ship is a..." etc.
+#
+# Delimiter is '#' (not '|') so the alternation '|' inside the expression
+# is not confused with the sed s/// delimiter.
+build_codex_transform_expr() {
+  local names_alt
+  names_alt=$(for f in "${SCRIPT_DIR}/.agents/workflows/"*.md; do
+    name="$(basename "$f" .md)"
+    printf '%d %s\n' "${#name}" "$name"
+  done | sort -rn | awk '{print $2}' | tr '\n' '|' | sed 's/|$//')
+  # In double-quoted string: $names_alt expands; \$ yields literal $ (shell strips \);
+  # sed sees $ = end-of-line in pattern, literal $ in replacement.
+  printf '%s' "s#(^|[^[:alnum:]/])/($names_alt)([^[:alnum:]-]|\$)#\1\$\2\3#g"
+}
+
+# codex_transform_file FILE EXPR — apply the Codex slash→dollar transform
+# to FILE in place (no-op in dry_run mode).
+codex_transform_file() {
+  local file="$1" expr="$2"
+  action "codex-transform /→\$ in: $file"
+  if ! $dry_run; then
+    sed -E "$expr" "$file" > "${file}.codextmp" && mv "${file}.codextmp" "$file"
+  fi
+}
+
+# --------------------------------------------------------------------------
 # Claude Code install
 # --------------------------------------------------------------------------
 install_claude() {
@@ -151,10 +188,17 @@ install_claude() {
   done
   echo "  ${agent_count} agents"
 
-  # Commands — workflows live in .agents/workflows/ in the new layout
+  # Commands — workflows live in .agents/workflows/ in the new layout.
+  # A per-platform override in .claude/workflows/ replaces the shared copy.
   cmd_count=0
   for f in "${SCRIPT_DIR}/.agents/workflows/"*.md; do
-    do_cp "$f" "${HOME}/.claude/commands/"
+    name="$(basename "$f")"
+    override="${SCRIPT_DIR}/.claude/workflows/${name}"
+    if [ -f "$override" ]; then
+      do_cp "$override" "${HOME}/.claude/commands/"
+    else
+      do_cp "$f" "${HOME}/.claude/commands/"
+    fi
     cmd_count=$((cmd_count + 1))
   done
   echo "  ${cmd_count} workflows -> ~/.claude/commands/"
@@ -258,19 +302,42 @@ install_codex() {
   done
   echo "  ${agent_count} agents"
 
-  # Skills — strip trailing slash (same BSD cp fix as Claude side)
+  # Build the invocation-syntax transform expression once (used for skills + workflows).
+  # Claude slash-commands (/name) are rewritten to Codex dollar-commands ($name)
+  # at install time so shared content stays platform-neutral in the repo.
+  codex_transform_expr="$(build_codex_transform_expr)"
+
+  # Skills — strip trailing slash (same BSD cp fix as Claude side), then apply
+  # the invocation-syntax transform to all markdown files in each skill.
   skill_count=0
   for dir in "${SCRIPT_DIR}/.agents/skills/"/*/; do
+    skill_name="$(basename "${dir%/}")"
     do_cp_r "${dir%/}" "${HOME}/.agents/skills/"
+    if ! $dry_run; then
+      while IFS= read -r md_file; do
+        codex_transform_file "$md_file" "$codex_transform_expr"
+      done < <(find "${HOME}/.agents/skills/${skill_name}" -name "*.md" -type f)
+    else
+      action "codex-transform /→\$ in: ${HOME}/.agents/skills/${skill_name}/**/*.md"
+    fi
     skill_count=$((skill_count + 1))
   done
   echo "  ${skill_count} skills -> ~/.agents/skills/"
 
-  # Workflows → ~/.agents/skills/ as plain copies
+  # Workflows → ~/.agents/skills/ as plain copies, then apply the invocation-syntax
+  # transform so /name references become $name for Codex.
+  # A per-platform override in .codex/workflows/ replaces the shared copy.
   # TODO T9: transform each workflow into a SKILL.md wrapper instead of plain copy
   wf_count=0
   for f in "${SCRIPT_DIR}/.agents/workflows/"*.md; do
-    do_cp "$f" "${HOME}/.agents/skills/"
+    name="$(basename "$f")"
+    override="${SCRIPT_DIR}/.codex/workflows/${name}"
+    if [ -f "$override" ]; then
+      do_cp "$override" "${HOME}/.agents/skills/"
+    else
+      do_cp "$f" "${HOME}/.agents/skills/"
+    fi
+    codex_transform_file "${HOME}/.agents/skills/${name}" "$codex_transform_expr"
     wf_count=$((wf_count + 1))
   done
   echo "  ${wf_count} workflows -> ~/.agents/skills/ (plain copy; T9 wrapper pending)"

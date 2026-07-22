@@ -22,9 +22,9 @@ Ask which scope to plan against:
 
 Wait for the answer.
 
-### Phase 2 — Read the diff (delegate to Haiku)
+### Phase 2 — Read the diff (delegate to `reader`)
 
-Delegate to a Haiku subagent. Pass the exact git command. Ask for:
+Delegate to the `reader` agent. Pass the exact git command. Ask for:
 - One-line summary per changed file (new endpoint, modified schema, added migration, etc.)
 - Test-surface signals: new routes, new env vars, new migrations, new/changed events, changed validation, modified auth, new feature flags, new CLI flags, modified response shapes
 - Structured summary under 400 words — never raw diff
@@ -88,7 +88,7 @@ If the expected output cannot be determined from the diff alone, write `**Expect
 
 ### Phase 7 — Write and confirm
 
-Delegate the file write to Sonnet (`implementer` agent) with the filled-in plan. Then report:
+Delegate the file write to the `implementer` agent with the filled-in plan. Then report:
 - Path written
 - Number of test steps
 - Any sections marked TBD
@@ -99,6 +99,6 @@ A QA engineer who has never seen this code must be able to execute the plan with
 
 ## Delegation
 
-- Phase 2 (diff reading) → Haiku
-- Phase 6 file write → Sonnet (`implementer`)
+- Phase 2 (diff reading) → `reader` agent
+- Phase 6 file write → `implementer` agent
 - Phases 1, 3, 4, 5, 7 → main agent (user interaction / judgment)
