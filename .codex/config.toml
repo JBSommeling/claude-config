@@ -99,8 +99,9 @@ matcher = "apply_patch|Edit|Write"
 # delegation events during a session and reports, at session end, any edits
 # that happened while no delegation was active.
 #
-# Design: the ledger fails toward false positives (noisy reports), never
-# toward silent misses. A missed SubagentStop produces an over-report.
+# Design: a missed SubagentStop leaves the depth counter elevated, so edits
+# inside the unclosed window appear delegated — a silent miss (under-reporting).
+# ledger-report.sh detects non-zero depth at session end and warns prominently.
 #
 # All three scripts exit 0 unconditionally. A broken ledger never blocks work.
 # ---------------------------------------------------------------------------

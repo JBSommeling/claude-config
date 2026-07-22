@@ -253,6 +253,10 @@ install_claude() {
 
   echo "  ${hook_count} hooks, ${lib_count} lib files + adapter.sh"
 
+  # Remove superseded hook filename left by older installs.
+  # Only the specific known-superseded name is removed; nothing else is touched.
+  do_rm_f "${HOME}/.claude/hooks/block-push-to-default-branch.sh"
+
   # Settings — expand $HOME so hook command paths are absolute
   do_sed_expand_home "${SCRIPT_DIR}/.claude/settings.json" \
                      "${HOME}/.claude/settings.json"

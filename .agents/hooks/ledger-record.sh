@@ -9,6 +9,10 @@
 # Ledger location: ${TMPDIR:-/tmp}/codex-delegation-ledger/<session_id>.jsonl
 # Depth counter:   ${TMPDIR:-/tmp}/codex-delegation-ledger/<session_id>.depth
 #
+# Failure mode: a missed SubagentStop leaves the depth counter elevated,
+# causing subsequent edits to appear delegated (silent miss, not false positive).
+# ledger-report.sh detects non-zero depth at session end and warns.
+#
 # Bypass: set CODEX_LEDGER_DISABLE=1 to disable for a single session.
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

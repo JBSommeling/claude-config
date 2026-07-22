@@ -228,7 +228,7 @@ echo "--- Ledger integration tests ---"
 LEDGER_TEST="$REPO_ROOT/tests/test-ledger.sh"
 
 if [ -f "$LEDGER_TEST" ]; then
-  run_suite "ledger" "$LEDGER_TEST" 5
+  run_suite "ledger" "$LEDGER_TEST" 6
 else
   echo "SKIP ledger tests (tests/test-ledger.sh not found)"
 fi

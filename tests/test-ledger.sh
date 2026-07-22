@@ -121,11 +121,15 @@ run_hook "$LEDGER_RECORD" "$SPAWN_PAYLOAD" > /dev/null
 EDIT_PAYLOAD="{\"tool_name\":\"apply_patch\",\"session_id\":\"${SID}\",\"tool_input\":{\"command\":\"*** Update File: bar.py\n--- bar.py\n+++ bar.py\n@@ -1 +1 @@\n-old\n+new\"}}"
 run_hook "$LEDGER_RECORD" "$EDIT_PAYLOAD" > /dev/null
 
+# Close the delegation window (simulates SubagentStop firing when the subagent ends).
+CLOSE_PAYLOAD="{\"session_id\":\"${SID}\"}"
+run_hook "$LEDGER_CLOSE" "$CLOSE_PAYLOAD" > /dev/null
+
 REPORT_PAYLOAD="{\"session_id\":\"${SID}\"}"
 report_out=$(run_hook "$LEDGER_REPORT" "$REPORT_PAYLOAD")
 
-assert_contains     "B: report says delegated"        "$report_out" "delegated"  || scenario_ok=false
-assert_not_contains "B: report does not warn"         "$report_out" "undelegated" || scenario_ok=false
+assert_contains     "B: report says all delegated"    "$report_out" "all delegated"  || scenario_ok=false
+assert_not_contains "B: report does not warn"         "$report_out" "WARNING" || scenario_ok=false
 
 if $scenario_ok; then
   echo "PASS Scenario B"
@@ -250,6 +254,44 @@ if $scenario_ok; then
   pass=$((pass + 1))
 else
   echo "FAIL Scenario E"
+  fail=$((fail + 1))
+fi
+
+# ---------------------------------------------------------------------------
+# Scenario F — spawn, edit, NO subagent-stop, another edit, report
+#              → report warns about unclosed delegation window (open window
+#                leaves depth > 0 at session end; second edit is silently
+#                mis-recorded as delegated — a silent miss, not a false positive)
+# ---------------------------------------------------------------------------
+echo ""
+echo "Scenario F: spawn, edit, no close, second edit, report"
+SID="test-session-f"
+clean_session "$SID"
+
+scenario_ok=true
+
+SPAWN_PAYLOAD="{\"tool_name\":\"spawn_agent\",\"session_id\":\"${SID}\"}"
+run_hook "$LEDGER_RECORD" "$SPAWN_PAYLOAD" > /dev/null
+
+EDIT1_PAYLOAD="{\"tool_name\":\"apply_patch\",\"session_id\":\"${SID}\",\"tool_input\":{\"command\":\"*** Update File: alpha.py\n--- alpha.py\n+++ alpha.py\n@@ -1 +1 @@\n-old\n+new\"}}"
+run_hook "$LEDGER_RECORD" "$EDIT1_PAYLOAD" > /dev/null
+
+# Deliberately NO ledger-close call here — simulate a missed SubagentStop.
+
+EDIT2_PAYLOAD="{\"tool_name\":\"apply_patch\",\"session_id\":\"${SID}\",\"tool_input\":{\"command\":\"*** Update File: beta.py\n--- beta.py\n+++ beta.py\n@@ -1 +1 @@\n-old\n+new\"}}"
+run_hook "$LEDGER_RECORD" "$EDIT2_PAYLOAD" > /dev/null
+
+REPORT_PAYLOAD="{\"session_id\":\"${SID}\"}"
+report_out=$(run_hook "$LEDGER_REPORT" "$REPORT_PAYLOAD")
+
+assert_contains "F: report warns about open window" "$report_out" "left open" || scenario_ok=false
+assert_contains "F: report mentions SubagentStop"   "$report_out" "SubagentStop" || scenario_ok=false
+
+if $scenario_ok; then
+  echo "PASS Scenario F"
+  pass=$((pass + 1))
+else
+  echo "FAIL Scenario F"
   fail=$((fail + 1))
 fi
 

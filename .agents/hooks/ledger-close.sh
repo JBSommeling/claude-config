@@ -3,9 +3,9 @@
 #
 # This hook is OBSERVATIONAL ONLY. It never denies and always exits 0.
 # A missed SubagentStop event means the depth counter stays elevated, which
-# causes subsequent edits to be recorded as delegated when they are not.
-# This is intentional: the ledger fails toward false positives (over-reports),
-# never toward silent misses.
+# causes subsequent edits to be recorded as delegated when they are not —
+# a silent miss (under-reporting). ledger-report.sh detects a non-zero depth
+# at session end and emits a prominent warning to surface this condition.
 #
 # Bypass: set CODEX_LEDGER_DISABLE=1 to disable for a single session.
 

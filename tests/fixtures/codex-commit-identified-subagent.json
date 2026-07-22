@@ -1,1 +1,1 @@
-{"tool_name":"Bash","tool_input":{"command":"git commit -m \"x\""},"agent_type":"implementer"}
+{"agent_id":"abc123","tool_name":"Bash","tool_input":{"command":"git commit -m \"x\""}}

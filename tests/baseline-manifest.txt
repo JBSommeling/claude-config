@@ -23,7 +23,7 @@
 ~/.claude/commands/diagnose-fix.md  2c52182e410c3149de8360e6f1996298
 ~/.claude/commands/diagnose-full-pipeline-cycle.md  78dba50dd7a72ebf663e94ef53afab61
 ~/.claude/commands/diagnose.md  d794bc16ea3375987c2c6de7fe249a4b
-~/.claude/commands/full-pipeline-cycle.md  a2f5927deabc3a9091f54e628db18ff4
+~/.claude/commands/full-pipeline-cycle.md  289c3ed88557259ed5d989e5f71e0104
 ~/.claude/commands/full-pipeline.md  b51bfd6b1a04489b0598247990d59ccc
 ~/.claude/commands/grill.md  71e62e6e0ebec78635edd79824e65337
 ~/.claude/commands/improve-architecture.md  cec66393f2464fe4a89428cf52fbcd8d

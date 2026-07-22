@@ -8,10 +8,10 @@
 # If any edits occurred outside an active delegation window, prints a warning
 # block listing each one's timestamp and path.
 #
-# NOTE: A missed SubagentStop event can elevate the depth counter, causing
-# subsequent edits to be recorded as delegated when they were not. This means
-# the report may produce false positives (over-reporting undelegated edits)
-# rather than false negatives. This is by design.
+# NOTE: A missed SubagentStop event leaves the depth counter elevated, causing
+# subsequent edits to be recorded as delegated when they were not — a silent
+# miss (under-reporting), NOT a false positive. If the depth counter is non-zero
+# at session end, a prominent warning is printed to make the silent miss visible.
 #
 # The .depth state file is removed at the end. The .jsonl ledger is kept for
 # inspection.
@@ -39,6 +39,13 @@ hook_bypass CODEX_LEDGER_DISABLE && exit 0
   ledger_file="$ledger_dir/${session_id}.jsonl"
   depth_file="$ledger_dir/${session_id}.depth"
 
+  # Read depth before removing the state file, so we can warn if it is non-zero.
+  depth_at_end=0
+  if [ -f "$depth_file" ]; then
+    raw=$(cat "$depth_file" 2>/dev/null || echo 0)
+    [[ "$raw" =~ ^[0-9]+$ ]] && depth_at_end="$raw"
+  fi
+
   # Clean up depth state file regardless of whether the ledger exists.
   rm -f "$depth_file"
 
@@ -51,6 +58,16 @@ hook_bypass CODEX_LEDGER_DISABLE && exit 0
   total_edits=$(jq -r 'select(.event=="edit")' "$ledger_file" 2>/dev/null | jq -s 'length' 2>/dev/null || echo 0)
   undelegated_count=$(jq -r 'select(.event=="edit" and .delegated==false)' "$ledger_file" 2>/dev/null | jq -s 'length' 2>/dev/null || echo 0)
 
+  # Warn if the depth counter is non-zero at session end: a SubagentStop was
+  # missed, so edits inside the unclosed window were recorded as delegated when
+  # they may not have been — a silent miss (under-reporting).
+  if [ "$depth_at_end" -gt 0 ]; then
+    echo "Delegation ledger WARNING: ${depth_at_end} delegation window(s) left open at session end."
+    echo "A SubagentStop event was missed. Edits recorded as delegated during"
+    echo "unclosed window(s) may actually be undelegated — under-reporting possible."
+    echo ""
+  fi
+
   if [ "$undelegated_count" -eq 0 ]; then
     echo "Delegation ledger: ${total_edits} edit(s), all delegated."
     exit 0
@@ -59,7 +76,8 @@ hook_bypass CODEX_LEDGER_DISABLE && exit 0
   echo "Delegation ledger WARNING: ${undelegated_count} undelegated edit(s) detected."
   echo "These edits occurred while no delegation was active, which may indicate"
   echo "the orchestrator edited directly without spawning a subagent."
-  echo "CAVEAT: a missed SubagentStop event can cause false positives here."
+  echo "CAVEAT: a missed SubagentStop event leaves depth elevated, causing edits"
+  echo "inside that window to appear delegated (silent miss, not false positive)."
   echo ""
   echo "Undelegated edits:"
 
