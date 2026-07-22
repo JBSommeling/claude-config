@@ -13,6 +13,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIXTURES_DIR="$REPO_ROOT/tests/fixtures"
 DELEGATION_HOOK="$REPO_ROOT/.agents/hooks/enforce-delegation.sh"
 PUSH_HOOK="$REPO_ROOT/.agents/hooks/block-push.sh"
+COMMIT_HOOK="$REPO_ROOT/.agents/hooks/enforce-commit-ownership.sh"
 
 FILTER="${1:-}"
 
@@ -44,6 +45,9 @@ for json_file in "$FIXTURES_DIR"/*.json; do
     push-*)
       hook="$PUSH_HOOK"
       ;;
+    commit-*)
+      hook="$COMMIT_HOOK"
+      ;;
     *)
       echo "SKIP $name (unknown prefix, cannot map to hook)"
       continue
@@ -64,7 +68,7 @@ for json_file in "$FIXTURES_DIR"/*.json; do
   fi
 
   # Run the hook with bypass env vars forced off so developer's env can't skew results
-  stdout=$(CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 \
+  stdout=$(CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 CLAUDE_BYPASS_COMMIT_GUARD=0 \
     $invoke < "$json_file" 2>/dev/null)
   exit_code=$?
 
