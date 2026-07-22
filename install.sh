@@ -1,48 +1,289 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# install.sh — install claude-config for Claude Code and/or Codex
+#
+# Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--help]
+#
+#   No platform flag  Install BOTH Claude Code and Codex configs
+#   --claude          Install Claude Code config only
+#   --codex           Install Codex config only
+#   --dry-run         Print every action; write nothing
+#   --apply           Actually write files (required for --codex; Claude writes by default)
+#   --help            Print usage and exit 0
+#
+# Codex note: if --codex is selected without --apply, a dry-run is shown
+# and nothing is written. Pass --apply to commit Codex files.
 
-set -e
+set -euo pipefail
 
-echo "Installing claude-config..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Create directories
-mkdir -p ~/.claude/agents
-mkdir -p ~/.claude/commands
-mkdir -p ~/.claude/skills
-mkdir -p ~/.claude/hooks
+# --------------------------------------------------------------------------
+# Argument parsing
+# --------------------------------------------------------------------------
+do_claude=false
+do_codex=false
+dry_run=false
+apply=false
 
-# CLAUDE.md
-cp CLAUDE.md ~/.claude/CLAUDE.md
-echo "✓ CLAUDE.md installed"
+for arg in "$@"; do
+  case "$arg" in
+    --claude)  do_claude=true ;;
+    --codex)   do_codex=true ;;
+    --dry-run) dry_run=true ;;
+    --apply)   apply=true ;;
+    --help)
+      cat <<'EOF'
+Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--help]
 
-# Agents
-cp .claude/agents/*.md ~/.claude/agents/
-echo "✓ Agents installed"
+  No platform flag  Install BOTH Claude Code and Codex configs
+  --claude          Install Claude Code config only
+  --codex           Install Codex config only
+  --dry-run         Print every action; write nothing
+  --apply           Actually write files (required for --codex)
+  --help            Print this help and exit 0
 
-# Commands
-cp .claude/commands/*.md ~/.claude/commands/
-echo "✓ Commands installed"
+Claude note: Claude Code config is written by default (no --apply needed).
+Codex note: if --codex is selected without --apply, only a dry-run is shown
+            and nothing is written. Pass --apply to commit Codex files.
 
-# Skills — strip the glob's trailing slash so cp copies each skill DIRECTORY
-# into ~/.claude/skills/ (with a trailing slash, BSD cp copies the contents
-# and dumps SKILL.md as a stray file instead of updating the subdirectory).
-rm -f ~/.claude/skills/SKILL.md
-for dir in .claude/skills/*/; do
-    cp -r "${dir%/}" ~/.claude/skills/
+After a Codex --apply, run /hooks inside Codex to review and trust the
+installed hooks. Trust is hash-pinned — re-run /hooks after any hook edit.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown flag: $arg" >&2
+      exit 1
+      ;;
+  esac
 done
-echo "✓ Skills installed"
 
-# Hooks
-cp hooks/*.sh ~/.claude/hooks/
-chmod +x ~/.claude/hooks/*.sh
-echo "✓ Hooks installed"
+# If neither platform flag is given, install both
+if ! $do_claude && ! $do_codex; then
+  do_claude=true
+  do_codex=true
+fi
 
-# Settings — expand $HOME so the hook path is absolute regardless of whether
-# Claude Code does shell expansion in hook command strings.
-sed "s|\$HOME|$HOME|g" .claude/settings.json > ~/.claude/settings.json
-echo "✓ Settings installed"
+# --------------------------------------------------------------------------
+# Dry-run helpers
+# --------------------------------------------------------------------------
+
+# action — print an action line (prefixed with [dry-run] when dry_run=true)
+action() {
+  if $dry_run; then
+    echo "[dry-run] $*"
+  fi
+  # In apply mode, actions run silently; progress shown via summary lines only
+}
+
+do_mkdir() {
+  action "mkdir -p $1"
+  $dry_run || mkdir -p "$1"
+}
+
+do_cp() {
+  action "cp $1 -> $2"
+  $dry_run || cp "$1" "$2"
+}
+
+do_cp_r() {
+  action "cp -r $1 -> $2"
+  $dry_run || cp -r "$1" "$2"
+}
+
+do_rm_f() {
+  action "rm -f $1"
+  $dry_run || rm -f "$1"
+}
+
+do_chmod_x() {
+  action "chmod +x $1"
+  $dry_run || chmod +x "$1"
+}
+
+do_sed_expand_home() {
+  local src="$1" dst="$2"
+  action "sed \$HOME expansion: $src -> $dst"
+  $dry_run || sed "s|\$HOME|${HOME}|g" "$src" > "$dst"
+}
+
+# --------------------------------------------------------------------------
+# Claude Code install
+# --------------------------------------------------------------------------
+install_claude() {
+  echo ""
+  echo "=== Claude Code ==="
+
+  do_mkdir "${HOME}/.claude/agents"
+  do_mkdir "${HOME}/.claude/commands"
+  do_mkdir "${HOME}/.claude/skills"
+  do_mkdir "${HOME}/.claude/hooks"
+  do_mkdir "${HOME}/.claude/hooks/lib"
+
+  # CLAUDE.md
+  do_cp "${SCRIPT_DIR}/.claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
+
+  # Agents
+  agent_count=0
+  for f in "${SCRIPT_DIR}/.claude/agents/"*.md; do
+    do_cp "$f" "${HOME}/.claude/agents/"
+    agent_count=$((agent_count + 1))
+  done
+  echo "  ${agent_count} agents"
+
+  # Commands — workflows live in .agents/workflows/ in the new layout
+  cmd_count=0
+  for f in "${SCRIPT_DIR}/.agents/workflows/"*.md; do
+    do_cp "$f" "${HOME}/.claude/commands/"
+    cmd_count=$((cmd_count + 1))
+  done
+  echo "  ${cmd_count} workflows -> ~/.claude/commands/"
+
+  # Skills — strip trailing slash so BSD cp copies each skill as a DIRECTORY
+  # (a trailing slash makes BSD cp dump the contents, producing a stray SKILL.md)
+  do_rm_f "${HOME}/.claude/skills/SKILL.md"
+  skill_count=0
+  for dir in "${SCRIPT_DIR}/.agents/skills/"/*/; do
+    do_cp_r "${dir%/}" "${HOME}/.claude/skills/"
+    skill_count=$((skill_count + 1))
+  done
+  echo "  ${skill_count} skills"
+
+  # Hooks
+  hook_count=0
+  for f in "${SCRIPT_DIR}/.agents/hooks/"*.sh; do
+    do_cp "$f" "${HOME}/.claude/hooks/"
+    do_chmod_x "${HOME}/.claude/hooks/$(basename "$f")"
+    hook_count=$((hook_count + 1))
+  done
+
+  # Hooks lib/
+  lib_count=0
+  for f in "${SCRIPT_DIR}/.agents/hooks/lib/"*; do
+    do_cp "$f" "${HOME}/.claude/hooks/lib/"
+    lib_count=$((lib_count + 1))
+  done
+
+  # Platform adapter — bind claude at install time so hooks use the right adapter
+  do_cp "${SCRIPT_DIR}/.agents/hooks/lib/adapter-claude.sh" \
+        "${HOME}/.claude/hooks/lib/adapter.sh"
+
+  echo "  ${hook_count} hooks, ${lib_count} lib files + adapter.sh"
+
+  # Settings — expand $HOME so hook command paths are absolute
+  do_sed_expand_home "${SCRIPT_DIR}/.claude/settings.json" \
+                     "${HOME}/.claude/settings.json"
+  echo "  settings.json (with \$HOME expanded)"
+
+  echo ""
+  if $dry_run; then
+    echo "[dry-run] Claude install complete (nothing written)"
+  else
+    echo "Claude install complete."
+    echo "Start Claude Code with: claude --model claude-opus-4-7"
+    echo "Verify setup with /status inside Claude Code."
+  fi
+}
+
+# --------------------------------------------------------------------------
+# Codex install
+# --------------------------------------------------------------------------
+install_codex() {
+  # Codex requires --apply to write; without it, force dry-run for this section.
+  # Use a local shadow of $dry_run so the do_* helpers pick it up automatically
+  # (bash dynamic scoping: local vars in a caller are visible in callees).
+  local dry_run=$dry_run
+  local codex_needs_apply=false
+  if ! $apply; then
+    dry_run=true
+    codex_needs_apply=true
+  fi
+
+  echo ""
+  echo "=== Codex ==="
+
+  if $codex_needs_apply; then
+    echo "[dry-run] --apply is required to write Codex files. Showing what would happen:"
+  fi
+
+  do_mkdir "${HOME}/.codex/agents"
+  do_mkdir "${HOME}/.codex/hooks"
+  do_mkdir "${HOME}/.codex/hooks/lib"
+  do_mkdir "${HOME}/.agents/skills"
+
+  # AGENTS.md
+  do_cp "${SCRIPT_DIR}/.codex/AGENTS.md" "${HOME}/.codex/AGENTS.md"
+
+  # config.toml — expand $HOME so hook command paths are absolute
+  do_sed_expand_home "${SCRIPT_DIR}/.codex/config.toml" \
+                     "${HOME}/.codex/config.toml"
+
+  # Codex agent .toml files
+  agent_count=0
+  for f in "${SCRIPT_DIR}/.codex/agents/"*.toml; do
+    do_cp "$f" "${HOME}/.codex/agents/"
+    agent_count=$((agent_count + 1))
+  done
+  echo "  ${agent_count} agents"
+
+  # Skills — strip trailing slash (same BSD cp fix as Claude side)
+  skill_count=0
+  for dir in "${SCRIPT_DIR}/.agents/skills/"/*/; do
+    do_cp_r "${dir%/}" "${HOME}/.agents/skills/"
+    skill_count=$((skill_count + 1))
+  done
+  echo "  ${skill_count} skills -> ~/.agents/skills/"
+
+  # Workflows → ~/.agents/skills/ as plain copies
+  # TODO T9: transform each workflow into a SKILL.md wrapper instead of plain copy
+  wf_count=0
+  for f in "${SCRIPT_DIR}/.agents/workflows/"*.md; do
+    do_cp "$f" "${HOME}/.agents/skills/"
+    wf_count=$((wf_count + 1))
+  done
+  echo "  ${wf_count} workflows -> ~/.agents/skills/ (plain copy; T9 wrapper pending)"
+
+  # Hooks
+  hook_count=0
+  for f in "${SCRIPT_DIR}/.agents/hooks/"*.sh; do
+    do_cp "$f" "${HOME}/.codex/hooks/"
+    do_chmod_x "${HOME}/.codex/hooks/$(basename "$f")"
+    hook_count=$((hook_count + 1))
+  done
+
+  # Hooks lib/
+  lib_count=0
+  for f in "${SCRIPT_DIR}/.agents/hooks/lib/"*; do
+    do_cp "$f" "${HOME}/.codex/hooks/lib/"
+    lib_count=$((lib_count + 1))
+  done
+
+  # Platform adapter — bind codex at install time
+  do_cp "${SCRIPT_DIR}/.agents/hooks/lib/adapter-codex.sh" \
+        "${HOME}/.codex/hooks/lib/adapter.sh"
+
+  echo "  ${hook_count} hooks, ${lib_count} lib files + adapter.sh"
+
+  echo ""
+  if $dry_run; then
+    echo "[dry-run] Codex install complete (nothing written)"
+    if $codex_needs_apply; then
+      echo ""
+      echo "Pass --apply to write these files."
+    fi
+  else
+    echo "Codex install complete."
+    echo ""
+    echo "IMPORTANT: Run /hooks inside Codex to review and trust the installed hooks."
+    echo "Trust is hash-pinned — re-run /hooks after any hook edit."
+  fi
+}
+
+# --------------------------------------------------------------------------
+# Main
+# --------------------------------------------------------------------------
+$do_claude && install_claude
+$do_codex  && install_codex
 
 echo ""
-echo "Done! Start Claude Code with:"
-echo "  claude --model claude-opus-4-7"
-echo ""
-echo "Verify setup with /status inside Claude Code."
+echo "Done."

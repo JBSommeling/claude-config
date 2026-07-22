@@ -149,6 +149,31 @@ else
   echo "SKIP ledger tests (tests/test-ledger.sh not found)"
 fi
 
+# ---------------------------------------------------------------------------
+# Install regression test (FR2)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Install regression test ---"
+INSTALL_TEST="$REPO_ROOT/tests/test-install.sh"
+
+if [ -f "$INSTALL_TEST" ]; then
+  while IFS= read -r line; do
+    echo "$line"
+    case "$line" in
+      "PASS "*)
+        pass=$((pass + 1))
+        total=$((total + 1))
+        ;;
+      "FAIL "*)
+        fail=$((fail + 1))
+        total=$((total + 1))
+        ;;
+    esac
+  done < <(bash "$INSTALL_TEST" 2>/dev/null)
+else
+  echo "SKIP install test (tests/test-install.sh not found)"
+fi
+
 echo ""
 echo "$pass/$total passed"
 
