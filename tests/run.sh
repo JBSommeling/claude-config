@@ -200,6 +200,31 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Codex skills install test
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Codex skills install test ---"
+CODEX_SKILLS_TEST="$REPO_ROOT/tests/test-codex-skills.sh"
+
+if [ -f "$CODEX_SKILLS_TEST" ]; then
+  while IFS= read -r line; do
+    echo "$line"
+    case "$line" in
+      "PASS "*)
+        pass=$((pass + 1))
+        total=$((total + 1))
+        ;;
+      "FAIL "*)
+        fail=$((fail + 1))
+        total=$((total + 1))
+        ;;
+    esac
+  done < <(bash "$CODEX_SKILLS_TEST" 2>/dev/null)
+else
+  echo "SKIP codex-skills test (tests/test-codex-skills.sh not found)"
+fi
+
+# ---------------------------------------------------------------------------
 # Install regression test (FR2)
 # ---------------------------------------------------------------------------
 echo ""

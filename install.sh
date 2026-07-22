@@ -324,23 +324,71 @@ install_codex() {
   done
   echo "  ${skill_count} skills -> ~/.agents/skills/"
 
-  # Workflows → ~/.agents/skills/ as plain copies, then apply the invocation-syntax
-  # transform so /name references become $name for Codex.
-  # A per-platform override in .codex/workflows/ replaces the shared copy.
-  # TODO T9: transform each workflow into a SKILL.md wrapper instead of plain copy
+  # Workflows → ~/.agents/skills/ as proper Codex skill directories.
+  # Each workflow becomes ~/.agents/skills/<skill-name>/SKILL.md with valid frontmatter:
+  #   name:        the skill directory name (workflow basename, or <basename>-workflow
+  #                if the basename collides with a real skill directory)
+  #   description: the workflow's own frontmatter description, or a synthesized one
+  #                derived from the first non-empty body line when frontmatter is absent
+  # The slash→dollar invocation-syntax transform is applied to the SKILL.md body.
+  # A per-platform override in .codex/workflows/ replaces the shared workflow body.
   wf_count=0
   for f in "${SCRIPT_DIR}/.agents/workflows/"*.md; do
-    name="$(basename "$f")"
-    override="${SCRIPT_DIR}/.codex/workflows/${name}"
-    if [ -f "$override" ]; then
-      do_cp "$override" "${HOME}/.agents/skills/"
-    else
-      do_cp "$f" "${HOME}/.agents/skills/"
+    wf_base="$(basename "$f" .md)"
+    override="${SCRIPT_DIR}/.codex/workflows/${wf_base}.md"
+
+    # Collision check: if a real skill directory shares this name, append -workflow
+    skill_name="$wf_base"
+    for _skill_dir in "${SCRIPT_DIR}/.agents/skills/"/*/; do
+      if [ "$(basename "${_skill_dir%/}")" = "$wf_base" ]; then
+        skill_name="${wf_base}-workflow"
+        break
+      fi
+    done
+
+    # Source file: per-platform override wins over the shared workflow
+    src="$f"
+    [ -f "$override" ] && src="$override"
+
+    skill_dir_dest="${HOME}/.agents/skills/${skill_name}"
+    skill_md="${skill_dir_dest}/SKILL.md"
+
+    do_mkdir "$skill_dir_dest"
+    action "write workflow skill: $skill_md"
+
+    if ! $dry_run; then
+      # Extract description and body.
+      # Files with frontmatter (--- block): pull description from it and strip
+      #   the block so the body is clean prose.
+      # Files without frontmatter: synthesize description from first non-empty line.
+      if head -1 "$src" | grep -q "^---"; then
+        desc=$(awk '/^---/{if(++c==1){next}else{exit}} c==1 && /^description:/{
+          sub(/^description:[[:space:]]*/,""); print; exit}' "$src")
+        awk 'BEGIN{c=0; found=0} /^---/{if(++c==2){found=1; next}} found{print}' \
+          "$src" > "${skill_md}.body"
+      else
+        desc=$(grep -m1 "." "$src" | cut -c1-120)
+        cp "$src" "${skill_md}.body"
+      fi
+
+      # Write SKILL.md: frontmatter header + body
+      {
+        echo "---"
+        echo "name: ${skill_name}"
+        echo "description: ${desc}"
+        echo "---"
+        echo ""
+        cat "${skill_md}.body"
+      } > "$skill_md"
+      rm -f "${skill_md}.body"
+
+      # Apply the Codex slash→dollar invocation-syntax transform to the body
+      codex_transform_file "$skill_md" "$codex_transform_expr"
     fi
-    codex_transform_file "${HOME}/.agents/skills/${name}" "$codex_transform_expr"
+
     wf_count=$((wf_count + 1))
   done
-  echo "  ${wf_count} workflows -> ~/.agents/skills/ (plain copy; T9 wrapper pending)"
+  echo "  ${wf_count} workflows -> ~/.agents/skills/ (as skill directories)"
 
   # Hooks
   hook_count=0
