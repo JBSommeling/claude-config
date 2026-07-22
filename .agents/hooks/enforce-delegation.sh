@@ -28,11 +28,12 @@ hook_init
 # for a single session when delegation overhead clearly exceeds the edit.
 if hook_bypass CLAUDE_BYPASS_DELEGATION; then exit 0; fi
 
-# Subagent calls carry agent_id (the canonical distinguisher per the Claude
-# Code hooks docs) and agent_type; allow them through. Match on either so a
-# subagent is detected even if a given version or invocation path populates
-# only one of the two fields.
-if hook_is_subagent; then exit 0; fi
+# Denies only when hook_caller returns "root" (the main Opus session on Claude
+# Code). Both "subagent" and "unknown" are allowed through. "unknown" is
+# treated permissively so Codex workers — whose identity cannot yet be verified
+# in the PreToolUse payload — are never blocked (see ADR 0003).
+caller=$(hook_caller)
+[ "$caller" = "root" ] || exit 0
 
 TOOL_NAME=$(hook_tool_name)
 

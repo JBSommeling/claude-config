@@ -33,11 +33,28 @@ hook_is_shell_tool() {
   [ "$1" = "Bash" ]
 }
 
-# hook_is_subagent — succeed if the invocation carries an agent_id or agent_type,
-# indicating that the caller is a subagent rather than the main session.
-hook_is_subagent() {
+# hook_caller — echo one of: subagent, root, unknown.
+#
+# On Claude Code, agent_id / agent_type are reliably absent for the main
+# session and present for subagents, so absence is meaningful here and
+# maps to "root" rather than "unknown".
+#
+#   subagent  — agent_id or agent_type is non-empty
+#   root      — neither field is present (main Opus session)
+#   unknown   — (never emitted by this adapter)
+hook_caller() {
   local agent_id agent_type
   agent_id=$(hook_json '.agent_id // empty')
   agent_type=$(hook_json '.agent_type // empty')
-  [ -n "$agent_id" ] || [ -n "$agent_type" ]
+  if [ -n "$agent_id" ] || [ -n "$agent_type" ]; then
+    echo "subagent"
+  else
+    echo "root"
+  fi
+}
+
+# hook_is_subagent — backward-compatible wrapper; succeeds when hook_caller
+# returns "subagent".
+hook_is_subagent() {
+  [ "$(hook_caller)" = "subagent" ]
 }

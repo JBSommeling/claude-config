@@ -13,8 +13,9 @@
 #   1. If bypassed (CLAUDE_BYPASS_COMMIT_GUARD=1), allow.
 #   2. If the tool is not the Bash shell tool, allow.
 #   3. If the command does not contain the substring "git commit", allow.
-#   4. If the caller is a subagent (agent_id or agent_type present), deny.
-#   5. Otherwise allow (orchestrator commit).
+#   4. If hook_caller returns "subagent" (agent_id or agent_type present), deny.
+#   5. Otherwise allow — covers both "root" (orchestrator) and "unknown"
+#      (Codex with unverified identity; treated permissively per ADR 0003).
 #
 # Known limitation: the "git commit" match is a substring check. A command
 # that merely mentions the phrase (e.g. `git log --grep "git commit"`) from
@@ -42,7 +43,12 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
-if hook_is_subagent; then
+# Denies only when hook_caller returns "subagent". Both "root" and "unknown"
+# are allowed through. "unknown" is treated permissively so a Codex
+# orchestrator — whose identity cannot be verified in the PreToolUse payload —
+# can still commit (see ADR 0003).
+caller=$(hook_caller)
+if [ "$caller" = "subagent" ]; then
   hook_deny "Blocked: only the orchestrator may commit. A subagent attempted \`git commit\`. Return the diff to the orchestrator and let it review and commit inline. See ~/.claude/CLAUDE.md → Git Safety. To bypass for a single session, set CLAUDE_BYPASS_COMMIT_GUARD=1."
 fi
 

@@ -91,39 +91,38 @@ hook_is_shell_tool() {
   [ "$1" = "Bash" ]
 }
 
-# hook_is_subagent — succeed if the invocation is from a worker/subagent
-# rather than the root session.
+# hook_caller — echo one of: subagent, root, unknown.
 #
-# Behaviour:
-#   1. Read .agent_id and .agent_type (UNVERIFIED fields — see header).
-#      If EITHER is non-empty, return success (it is a subagent).
-#   2. If BOTH are absent: check env var CODEX_ENFORCE_DELEGATION.
-#      If it equals "1", return failure (treat as root — strict mode for
-#      users who have verified their release populates neither field).
-#      Otherwise return SUCCESS (treat as subagent — permissive default).
+# On Codex, agent_id / agent_type are UNVERIFIED (see header). Their absence
+# does not reliably indicate the root session, so "unknown" is returned instead
+# of "root" when neither field is present.
 #
-# The default is PERMISSIVE. Rationale (see also docs/adr/0003):
-#   Codex cannot currently distinguish root from worker at PreToolUse when
-#   neither agent_id nor agent_type is present in the payload. Defaulting
-#   to strict would deny every edit and make Codex completely unusable.
-#   Delegation enforcement on Codex is therefore detective, not preventive.
-#   This function is the single flip point: once a worker-unique identifier
-#   is confirmed to appear in production payloads, set CODEX_ENFORCE_DELEGATION=1
-#   and the hook will switch to strict mode automatically.
-hook_is_subagent() {
+#   subagent  — agent_id or agent_type is non-empty (auto-activates when
+#               Codex exposes a worker-unique identifier in production)
+#   root      — neither field present AND CODEX_ENFORCE_DELEGATION=1 (strict
+#               mode for users who have verified their release populates them)
+#   unknown   — neither field present and strict mode is off (default); guards
+#               treat this as permissive to avoid blocking the orchestrator
+#               (see ADR 0003)
+hook_caller() {
   local agent_id agent_type
   agent_id=$(hook_json '.agent_id // empty')
   agent_type=$(hook_json '.agent_type // empty')
 
-  # If either field is present, we can positively identify a subagent.
   if [ -n "$agent_id" ] || [ -n "$agent_type" ]; then
+    echo "subagent"
     return 0
   fi
 
-  # Neither field is present. Check strict mode opt-in.
   if [ "${CODEX_ENFORCE_DELEGATION:-0}" = "1" ]; then
-    return 1  # strict mode: treat as root, deny edits
+    echo "root"
+  else
+    echo "unknown"
   fi
+}
 
-  return 0  # permissive default: treat as subagent, allow edits
+# hook_is_subagent — backward-compatible wrapper; succeeds when hook_caller
+# returns "subagent".
+hook_is_subagent() {
+  [ "$(hook_caller)" = "subagent" ]
 }
