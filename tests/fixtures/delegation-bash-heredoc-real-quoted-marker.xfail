@@ -1,0 +1,7 @@
+Known limitation: the heredoc-aware awk does not distinguish a <<MARKER inside a
+quoted string from a real heredoc opener. When a quoted <<MARKER has a matching
+terminator line later in the command, the body lines (including real redirects)
+are incorrectly consumed as heredoc body and the redirect goes undetected.
+
+This is accepted as a known limitation (noted in enforce-delegation.sh). Remove
+this .xfail file once the tokenizer is updated to track quoting context.

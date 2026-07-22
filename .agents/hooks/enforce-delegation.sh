@@ -44,21 +44,31 @@ if hook_is_shell_tool "$TOOL_NAME"; then
   CMD=$(hook_cmd)
   [ -z "$CMD" ] && exit 0
 
+  # Collapse backslash-newline continuations before running single-line pattern
+  # greps. A "sed \<newline>-i ..." splits across lines and would bypass the
+  # detector. The heredoc-aware SCAN below uses the original CMD intentionally.
+  CMD_NORMALIZED=$(printf '%s' "$CMD" \
+    | awk '{ if (/\\$/) { sub(/\\$/, ""); printf "%s", $0 } else { print } }')
+
   # In-place editors and file-writing utilities (sed -i / perl -i /
   # gawk -i inplace / tee / dd of=).
-  if printf '%s' "$CMD" | grep -Eq '(^|[[:space:];&|(])(sed[[:space:]]+([^|]*[[:space:]])?(-[a-zA-Z]*i|--in-place)|perl[[:space:]]+[^|]*-[a-zA-Z]*i|gawk[[:space:]]+-i[[:space:]]+inplace|tee([[:space:]]|$)|dd[[:space:]]+[^|]*of=)'; then
+  if printf '%s' "$CMD_NORMALIZED" | grep -Eq '(^|[[:space:];&|(])(sed[[:space:]]+([^|]*[[:space:]])?(-[a-zA-Z]*i|--in-place)|perl[[:space:]]+[^|]*-[a-zA-Z]*i|gawk[[:space:]]+-i[[:space:]]+inplace|tee([[:space:]]|$)|dd[[:space:]]+[^|]*of=)'; then
     hook_deny "Blocked: this Bash command writes files via an in-place editor (sed -i / perl -i / tee / dd). $SUFFIX"
   fi
 
   # Inline interpreter file writes (python -c / node -e / ruby -e / perl -e
   # opening a file for writing).
-  if printf '%s' "$CMD" | grep -Eq '(python3?|node|ruby|perl)[[:space:]]+-[a-zA-Z]*(c|e)' \
-     && printf '%s' "$CMD" | grep -Eq "open\([^)]*['\"][wax]|writeFile|File\.write|fs\.write"; then
+  if printf '%s' "$CMD_NORMALIZED" | grep -Eq '(python3?|node|ruby|perl)[[:space:]]+-[a-zA-Z]*(c|e)' \
+     && printf '%s' "$CMD_NORMALIZED" | grep -Eq "open\([^)]*['\"][wax]|writeFile|File\.write|fs\.write"; then
     hook_deny "Blocked: this Bash command writes a file from an inline interpreter script. $SUFFIX"
   fi
 
   # Output redirection into a non-temporary path (also catches heredocs into
   # files). Temp paths and the standard devices are exempt.
+  #
+  # Operators caught: ">" (overwrite), ">>" (append), ">|" (noclobber override).
+  # The "|" in ">|" is part of the redirect operator, not a pipe — the grep
+  # pattern uses >>?\|? to capture all three forms.
   #
   # Strip escaped quotes then quoted spans first: a '>' inside a string
   # literal (e.g. a commit message with an email <addr>, a markdown quote,
@@ -80,6 +90,9 @@ if hook_is_shell_tool "$TOOL_NAME"; then
   # partially closes bypass 2 (quoted <<TOKEN that happens to have a matching
   # terminator later would still be treated as a real heredoc opener — that
   # residual case is highly contrived and accepted as a known limitation).
+  # NOTE: backslash-newline collapse is NOT applied to CMD here; the heredoc-
+  # aware awk below needs the original multi-line structure to correctly
+  # identify heredoc boundaries. Single-line greps use CMD_NORMALIZED above.
   SCAN=$(printf '%s' "$CMD" \
     | awk '{L[NR]=$0} END{
         i=1
@@ -123,7 +136,7 @@ if hook_is_shell_tool "$TOOL_NAME"; then
       /tmp/*|/var/tmp/*|/private/tmp/*|/var/folders/*) continue ;;
       *) hook_deny "Blocked: this Bash command redirects output into a file ($target). $SUFFIX" ;;
     esac
-  done < <(printf '%s' "$SCAN" | grep -oE '>>?[[:space:]]*[^[:space:]<>&|;)]+' | sed -E 's/^>>?[[:space:]]*//')
+  done < <(printf '%s' "$SCAN" | grep -oE '>>?\|?[[:space:]]*[^[:space:]<>&|;)]+' | sed -E 's/^>>?\|?[[:space:]]*//')
 
   exit 0
 fi

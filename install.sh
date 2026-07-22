@@ -136,11 +136,17 @@ build_codex_transform_expr() {
 
 # codex_transform_file FILE EXPR — apply the Codex slash→dollar transform
 # to FILE in place (no-op in dry_run mode).
+#
+# The expression is applied TWICE in a pipeline so that adjacent slash-commands
+# separated by a single non-word character are both transformed. A single pass
+# consumes the boundary character, leaving the second command untransformed:
+#   "run /plan /build now" → after one pass: "run $plan /build now"
+#   → after two passes:  "run $plan $build now"
 codex_transform_file() {
   local file="$1" expr="$2"
   action "codex-transform /→\$ in: $file"
   if ! $dry_run; then
-    sed -E "$expr" "$file" > "${file}.codextmp" && mv "${file}.codextmp" "$file"
+    sed -E "$expr" "$file" | sed -E "$expr" > "${file}.codextmp" && mv "${file}.codextmp" "$file"
   fi
 }
 

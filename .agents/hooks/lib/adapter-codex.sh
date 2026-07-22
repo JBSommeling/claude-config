@@ -10,7 +10,8 @@
 #   - Field names tool_name, tool_input, session_id, cwd, hook_event_name
 #     are IDENTICAL to Claude Code.
 #   - The shell tool is named "Bash", with the command in tool_input.command —
-#     identical to Claude Code.
+#     identical to Claude Code. "bash" (lowercase) and "shell" are also accepted
+#     defensively in hook_is_shell_tool in case a future release changes casing.
 #   - File edits go through a tool reported as "apply_patch". The "Edit" and
 #     "Write" names exist only as matcher aliases and never appear in tool_name.
 #   - There is NO tool_input.file_path. For apply_patch, tool_input.command
@@ -21,6 +22,15 @@
 # the documented release-behaviour page, which warns schema fields may be
 # absent from a shipped release):
 #   - agent_id / agent_type
+#
+# WARNING — CODEX_ENFORCE_DELEGATION=1 footgun:
+#   Setting this flag makes hook_caller return "root" when agent_id/agent_type
+#   are both absent, turning the delegation guard into a deny for every single
+#   edit — including from subagents, if they also lack those fields (the likely
+#   case, since the entire reason the tri-state exists is that the field is
+#   absent for ALL callers). Do NOT enable unless you have confirmed that a real
+#   subagent payload on your Codex release actually contains agent_id or
+#   agent_type. Enabling it blindly makes the harness unusable.
 
 # hook_tool_name — echo the current tool name, defaulting to "apply_patch"
 # when absent. The "apply_patch" fallback is the Codex analogue of Claude's
@@ -41,33 +51,65 @@ hook_cmd() {
 # tool_input.command. There is no tool_input.file_path on Codex.
 #
 # Supported formats (checked in order):
-#   1. OpenAI apply_patch envelope: "*** Update File: <path>",
+#   1. OpenAI apply_patch rename:  "*** Move to: <path>"  (destination wins)
+#   2. OpenAI apply_patch envelope: "*** Update File: <path>",
 #      "*** Add File: <path>", "*** Delete File: <path>"
-#   2. Unified diff fallback: "+++ b/<path>" or "+++ <path>"
+#   3. Unified diff fallback: "+++ b/<path>", "+++ a/<path>", or "+++ <path>"
+#      If "+++ /dev/null" (deletion hunk), fall back to the "---" line.
 #
 # Returns the FIRST path found, with a leading "a/" or "b/" stripped.
+# Trailing whitespace (including CR for CRLF safety) is trimmed.
+# Tab-separated diff timestamps are stripped from unified-diff paths.
+# Leading whitespace before "***" is tolerated (some Codex output indents).
 # Echoes empty if no path is found.
-# Uses grep/sed; POSIX-compatible, works with macOS BSD tools.
+# Uses grep/sed/cut; POSIX-compatible, works with macOS BSD tools.
 hook_edit_path() {
   local cmd
   cmd=$(hook_json '.tool_input.command // empty')
   [ -z "$cmd" ] && return 0
 
-  # Try apply_patch envelope lines first
   local path
+
+  # "*** Move to: <path>" takes priority — the rename destination is where
+  # content lands, not the source. Allow leading whitespace.
   path=$(printf '%s' "$cmd" \
-    | grep -m1 -E '^\*\*\* (Update File|Add File|Delete File): .+' \
-    | sed -E 's/^\*\*\* (Update File|Add File|Delete File): //')
+    | grep -m1 -E '^[[:space:]]*\*\*\* Move to: .+' \
+    | sed -E 's/^[[:space:]]*\*\*\* Move to: //' \
+    | sed 's/[[:space:]]*$//')
   if [ -n "$path" ]; then
     echo "$path"
     return 0
   fi
 
-  # Fall back to unified diff "+++ b/<path>" or "+++ <path>"
+  # apply_patch envelope: Update File / Add File / Delete File.
+  # Allow leading whitespace; trim trailing whitespace and CRLF.
+  path=$(printf '%s' "$cmd" \
+    | grep -m1 -E '^[[:space:]]*\*\*\* (Update File|Add File|Delete File): .+' \
+    | sed -E 's/^[[:space:]]*\*\*\* (Update File|Add File|Delete File): //' \
+    | sed 's/[[:space:]]*$//')
+  if [ -n "$path" ]; then
+    echo "$path"
+    return 0
+  fi
+
+  # Unified diff: "+++ b/<path>", "+++ a/<path>", or "+++ <path>".
+  # Strip both "a/" and "b/" prefixes; cut at first tab to remove timestamps.
   path=$(printf '%s' "$cmd" \
     | grep -m1 -E '^\+\+\+ ' \
-    | sed -E 's|^\+\+\+ (b/)?||')
-  if [ -n "$path" ]; then
+    | sed -E 's#^\+\+\+ (a/|b/)?##' \
+    | cut -f1)
+  if [ -n "$path" ] && [ "$path" != "/dev/null" ]; then
+    echo "$path"
+    return 0
+  fi
+
+  # "+++ /dev/null" signals a deletion hunk; the real path is on the "---" line.
+  # Also strip "a/" or "b/" prefix there; cut at first tab for timestamps.
+  path=$(printf '%s' "$cmd" \
+    | grep -m1 -E '^--- ' \
+    | sed -E 's#^--- (a/|b/)?##' \
+    | cut -f1)
+  if [ -n "$path" ] && [ "$path" != "/dev/null" ]; then
     echo "$path"
     return 0
   fi
@@ -80,29 +122,73 @@ hook_edit_path() {
 # every path found in the patch so multi-file patches can be fully inspected.
 #
 # Supported formats (checked in order):
-#   1. OpenAI apply_patch envelope: all "*** Update/Add/Delete File: <path>" lines
-#   2. Unified diff fallback: all "+++ b/<path>" or "+++ <path>" lines
+#   1. OpenAI apply_patch envelope: all "*** Update/Add/Delete File: <path>" lines,
+#      with "*** Move to: <path>" replacing the preceding source path for renames.
+#   2. Unified diff fallback: all "+++ b/<path>", "+++ a/<path>", or "+++ <path>"
+#      lines; "+++ /dev/null" falls back to the preceding "---" path.
 #
+# Leading whitespace before "***" is tolerated.
+# Trailing whitespace (including CR) and tab-separated timestamps are stripped.
+# Both "a/" and "b/" leading prefixes are stripped.
 # Echoes empty if no paths are found.
 hook_edit_paths() {
   local cmd
   cmd=$(hook_json '.tool_input.command // empty')
   [ -z "$cmd" ] && return 0
 
-  # Try apply_patch envelope lines first (all, not just first)
+  # Try apply_patch envelope lines first (all, not just first).
+  # "*** Move to: <dst>" replaces the preceding source for that file so the
+  # destination path is reported, not the source.
   local paths
   paths=$(printf '%s' "$cmd" \
-    | grep -E '^\*\*\* (Update File|Add File|Delete File): .+' \
-    | sed -E 's/^\*\*\* (Update File|Add File|Delete File): //')
+    | awk '
+      /^[[:space:]]*\*\*\* (Update File|Add File|Delete File):/ {
+        if (have_pending) print pending
+        path = $0
+        sub(/^[[:space:]]*\*\*\* (Update File|Add File|Delete File): /, "", path)
+        sub(/[[:space:]]*$/, "", path)
+        pending = path
+        have_pending = 1
+        next
+      }
+      /^[[:space:]]*\*\*\* Move to:/ {
+        path = $0
+        sub(/^[[:space:]]*\*\*\* Move to: /, "", path)
+        sub(/[[:space:]]*$/, "", path)
+        print path
+        have_pending = 0
+        next
+      }
+      END { if (have_pending) print pending }
+    ')
   if [ -n "$paths" ]; then
     echo "$paths"
     return 0
   fi
 
-  # Fall back to unified diff "+++ b/<path>" or "+++ <path>"
+  # Fall back to unified diff.
+  # Strip "a/" or "b/" prefix; cut at first tab to remove diff timestamps.
+  # If "+++ /dev/null" (deletion), use the path from the preceding "---" line.
   printf '%s' "$cmd" \
-    | grep -E '^\+\+\+ ' \
-    | sed -E 's|^\+\+\+ (b/)?||'
+    | awk '
+      /^--- / {
+        path = $0
+        sub(/^--- a\//, "", path); sub(/^--- b\//, "", path); sub(/^--- /, "", path)
+        sub(/\t.*$/, "", path)
+        prev_minus = path
+      }
+      /^\+\+\+ / {
+        path = $0
+        sub(/^\+\+\+ a\//, "", path); sub(/^\+\+\+ b\//, "", path); sub(/^\+\+\+ /, "", path)
+        sub(/\t.*$/, "", path)
+        if (path == "/dev/null") {
+          if (prev_minus != "/dev/null" && prev_minus != "") print prev_minus
+        } else {
+          print path
+        }
+        prev_minus = ""
+      }
+    '
   return 0
 }
 
@@ -118,8 +204,14 @@ hook_is_edit_tool() {
 }
 
 # hook_is_shell_tool <name> — succeed if name is the shell execution tool.
+# Accepts "Bash" (documented name), "bash" (lowercase variant), and "shell"
+# (alternative name used in some Codex releases) so the push and commit guards
+# do not fail open silently if the tool name casing changes.
 hook_is_shell_tool() {
-  [ "$1" = "Bash" ]
+  case "$1" in
+    Bash|bash|shell) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 # hook_caller — echo one of: subagent, root, unknown.

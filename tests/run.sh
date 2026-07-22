@@ -19,6 +19,7 @@ FILTER="${1:-}"
 
 pass=0
 fail=0
+xfail=0
 total=0
 
 # ---------------------------------------------------------------------------
@@ -159,13 +160,31 @@ for json_file in "$FIXTURES_DIR"/*.json; do
     actual="allow"
   fi
 
+  # Check for .xfail marker — a fixture marked xfail is a known limitation.
+  # XFAIL (actual != expected, marker present): report but do not count as failure.
+  # Unexpected PASS (actual == expected, marker present): FAIL loudly so the
+  # limitation is noticed and the .xfail marker can be removed.
+  xfail_file="$FIXTURES_DIR/${name}.xfail"
+  is_xfail=false
+  [ -f "$xfail_file" ] && is_xfail=true
+
   total=$((total + 1))
   if [ "$actual" = "$expected" ]; then
-    echo "PASS $name"
-    pass=$((pass + 1))
+    if $is_xfail; then
+      echo "FAIL $name (unexpected PASS — marked xfail; remove .xfail if the limitation is fixed)"
+      fail=$((fail + 1))
+    else
+      echo "PASS $name"
+      pass=$((pass + 1))
+    fi
   else
-    echo "FAIL $name (expected $expected, got $actual)"
-    fail=$((fail + 1))
+    if $is_xfail; then
+      echo "XFAIL $name (known limitation: expected $expected, got $actual)"
+      xfail=$((xfail + 1))
+    else
+      echo "FAIL $name (expected $expected, got $actual)"
+      fail=$((fail + 1))
+    fi
   fi
 done
 
@@ -203,7 +222,7 @@ echo "--- Ledger integration tests ---"
 LEDGER_TEST="$REPO_ROOT/tests/test-ledger.sh"
 
 if [ -f "$LEDGER_TEST" ]; then
-  run_suite "ledger" "$LEDGER_TEST" 4
+  run_suite "ledger" "$LEDGER_TEST" 5
 else
   echo "SKIP ledger tests (tests/test-ledger.sh not found)"
 fi
@@ -222,6 +241,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Codex adapter unit tests (path parsing)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Codex adapter unit tests ---"
+ADAPTER_TEST="$REPO_ROOT/tests/test-codex-adapter.sh"
+
+if [ -f "$ADAPTER_TEST" ]; then
+  run_suite "codex-adapter" "$ADAPTER_TEST" 6
+else
+  echo "SKIP codex-adapter tests (tests/test-codex-adapter.sh not found)"
+fi
+
+# ---------------------------------------------------------------------------
+# Codex transform tests (adjacent slash-command substitution)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Codex transform tests ---"
+TRANSFORM_TEST="$REPO_ROOT/tests/test-codex-transform.sh"
+
+if [ -f "$TRANSFORM_TEST" ]; then
+  run_suite "codex-transform" "$TRANSFORM_TEST" 3
+else
+  echo "SKIP codex-transform tests (tests/test-codex-transform.sh not found)"
+fi
+
+# ---------------------------------------------------------------------------
 # Install regression test (FR2)
 # ---------------------------------------------------------------------------
 echo ""
@@ -235,7 +280,11 @@ else
 fi
 
 echo ""
-echo "$pass/$total passed"
+if [ "$xfail" -gt 0 ]; then
+  echo "$pass/$total passed ($xfail known failure(s) — XFAIL)"
+else
+  echo "$pass/$total passed"
+fi
 
 if [ "$fail" -gt 0 ]; then
   exit 1

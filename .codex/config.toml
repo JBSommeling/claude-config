@@ -43,36 +43,45 @@ default_subagent_model = "gpt-5.6-terra"
 # Hook command paths use $HOME so install.sh can expand them correctly.
 # ---------------------------------------------------------------------------
 
-# ENABLED: Block git push to the default branch.
+# REGISTERED — no-op until Codex exposes worker identity; becomes preventive
+# automatically when it does (see ADR 0003): Block git push to the default branch.
+# Accepts "Bash", "bash", and "shell" because the Codex shell tool name may vary
+# across releases; a narrower matcher would silently miss pushes.
+#
+# WARNING — CODEX_ENFORCE_DELEGATION=1 footgun: do NOT set this flag unless you
+# have confirmed that a real subagent payload on your Codex release actually
+# contains agent_id or agent_type. If subagents also lack those fields (the
+# likely case), strict mode denies EVERY edit from EVERY agent, making the
+# harness unusable.
 [[hooks.PreToolUse]]
-matcher = "Bash"
+matcher = "Bash|bash|shell"
 
   [[hooks.PreToolUse.hooks]]
   type    = "command"
   command = "$HOME/.codex/hooks/block-push.sh"
   timeout = 10
 
-# ENABLED: Enforce commit ownership — deny git commit from subagents.
-# Safe under unknown caller identity: hook_caller returns "unknown" when
-# agent_id / agent_type are absent from the payload, and the hook treats
-# "unknown" as permissive (allow). This means the guard is a no-op until
-# Codex exposes a worker-unique identifier; once it does, prevention activates
-# automatically with no config change (see ADR 0003).
+# REGISTERED — no-op until Codex exposes worker identity; becomes preventive
+# automatically when it does (see ADR 0003): Enforce commit ownership — deny
+# git commit from subagents. hook_caller returns "unknown" when agent_id /
+# agent_type are absent from the payload, and the hook treats "unknown" as
+# permissive (allow). Once Codex exposes a worker-unique identifier, prevention
+# activates with no config change.
 [[hooks.PreToolUse]]
-matcher = "Bash"
+matcher = "Bash|bash|shell"
 
   [[hooks.PreToolUse.hooks]]
   type    = "command"
   command = "$HOME/.codex/hooks/enforce-commit-ownership.sh"
   timeout = 10
 
-# ENABLED: Enforce delegation — block apply_patch/Edit/Write from the
-# orchestrator when no delegation window is active.
-# Safe under unknown caller identity for the same reason as above: "unknown"
-# is treated permissively (allow), so this is a no-op until Codex exposes a
-# verified worker identity field. The matcher must never be "*" because Codex
-# fires PreToolUse for update_plan, spawn_agent, and MCP tool calls — a
-# wildcard matcher would intercept those events incorrectly (see ADR 0003).
+# REGISTERED — no-op until Codex exposes worker identity; becomes preventive
+# automatically when it does (see ADR 0003): Enforce delegation — block
+# apply_patch/Edit/Write from the orchestrator when no delegation window is
+# active. "unknown" caller is treated permissively (allow) for the same reason.
+# The matcher must never be "*" because Codex fires PreToolUse for update_plan,
+# spawn_agent, and MCP tool calls — a wildcard matcher would intercept those
+# events incorrectly.
 [[hooks.PreToolUse]]
 matcher = "apply_patch|Edit|Write"
 
@@ -96,7 +105,8 @@ matcher = "apply_patch|Edit|Write"
 # All three scripts exit 0 unconditionally. A broken ledger never blocks work.
 # ---------------------------------------------------------------------------
 
-# ENABLED: Record edit and spawn events to the session ledger.
+# REGISTERED — observational; never blocks tool calls. Record edit and spawn
+# events to the session ledger for after-the-fact delegation auditing.
 [[hooks.PreToolUse]]
 matcher = "apply_patch|Edit|Write|spawn_agent|Agent"
 
@@ -105,7 +115,8 @@ matcher = "apply_patch|Edit|Write|spawn_agent|Agent"
   command = "$HOME/.codex/hooks/ledger-record.sh"
   timeout = 10
 
-# ENABLED: Decrement the delegation depth counter when a subagent stops.
+# REGISTERED — observational only. Decrement the delegation depth counter when
+# a subagent stops.
 [[hooks.SubagentStop]]
 
   [[hooks.SubagentStop.hooks]]
@@ -113,7 +124,8 @@ matcher = "apply_patch|Edit|Write|spawn_agent|Agent"
   command = "$HOME/.codex/hooks/ledger-close.sh"
   timeout = 10
 
-# ENABLED: Emit a session summary at stop — lists any undelegated edits.
+# REGISTERED — observational only. Emit a session summary at stop — lists any
+# undelegated edits.
 [[hooks.Stop]]
 
   [[hooks.Stop.hooks]]

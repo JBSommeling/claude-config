@@ -206,6 +206,51 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Scenario E — session_id with path-traversal characters cannot escape the
+# ledger directory. A malicious session_id like "../../../tmp/escape" must be
+# sanitised to a safe name before use in any file path.
+# ---------------------------------------------------------------------------
+echo ""
+echo "Scenario E: session_id path traversal"
+
+scenario_ok=true
+
+MALICIOUS_SID="../../../tmp/escape"
+
+EDIT_PAYLOAD="{\"tool_name\":\"apply_patch\",\"session_id\":\"${MALICIOUS_SID}\",\"tool_input\":{\"command\":\"*** Update File: x.py\\n--- x.py\\n+++ x.py\\n@@ -1 +1 @@\\n-old\\n+new\"}}"
+run_hook "$LEDGER_RECORD" "$EDIT_PAYLOAD" > /dev/null
+
+ledger_dir="${TEST_TMPDIR}/codex-delegation-ledger"
+
+# The escaped path would be: $ledger_dir/../../../tmp/escape.jsonl
+# Resolve it to check if it exists outside the ledger dir.
+escaped_resolved="${TEST_TMPDIR}/escape.jsonl"
+if [ -f "$escaped_resolved" ]; then
+  echo "  FAIL: path traversal succeeded — file exists at $escaped_resolved"
+  scenario_ok=false
+else
+  echo "  ok: no path traversal (file not found outside ledger dir)"
+fi
+
+# The sanitized session_id replaces / and . with _: "______tmp_escape"
+sanitized_sid=$(printf '%s' "$MALICIOUS_SID" | sed 's/[^A-Za-z0-9_-]/_/g')
+sanitized_file="${ledger_dir}/${sanitized_sid}.jsonl"
+if [ -f "$sanitized_file" ]; then
+  echo "  ok: sanitized session_id ledger file found at expected path"
+else
+  echo "  FAIL: expected sanitized ledger file not found at $sanitized_file"
+  scenario_ok=false
+fi
+
+if $scenario_ok; then
+  echo "PASS Scenario E"
+  pass=$((pass + 1))
+else
+  echo "FAIL Scenario E"
+  fail=$((fail + 1))
+fi
+
+# ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
 rm -rf "$TEST_TMPDIR"

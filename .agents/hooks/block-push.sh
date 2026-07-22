@@ -7,8 +7,8 @@
 #
 # Heuristic:
 #   1. If the command is not a `git push`, allow.
-#   2. Determine the default branch via `gh repo view`, then `git symbolic-ref
-#      refs/remotes/origin/HEAD`, falling back to "main" then "master".
+#   2. Determine the default branch via `git symbolic-ref refs/remotes/origin/HEAD`
+#      (local, instant), then `gh repo view` (network), falling back to "main"/"master".
 #   3. If the push uses an explicit refspec ending in :<default-branch>, deny.
 #   4. If no explicit refspec AND current branch is the default branch, deny.
 #   5. Otherwise allow.
@@ -34,10 +34,14 @@ case "$COMMAND" in
   *) exit 0 ;;
 esac
 
-# Determine default branch — try gh, then origin HEAD, then conventional names.
-DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || true)
+# Determine default branch — try local git ref first (instant, no network),
+# then gh repo view (network round-trip), then conventional name fallback.
+# The local ref avoids a 10 s timeout on slow or offline networks.
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+  | sed 's|refs/remotes/origin/||' || true)
 if [ -z "$DEFAULT_BRANCH" ]; then
-  DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||' || true)
+  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef \
+    -q .defaultBranchRef.name 2>/dev/null || true)
 fi
 if [ -z "$DEFAULT_BRANCH" ]; then
   for candidate in main master; do

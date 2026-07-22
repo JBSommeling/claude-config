@@ -25,9 +25,12 @@ hook_bypass CODEX_LEDGER_DISABLE && exit 0
 (
   session_id=$(hook_session_id)
   session_id="${session_id:-unknown-session}"
+  # Sanitize: replace any character outside A-Za-z0-9_- with _ to prevent
+  # path traversal (e.g. a session_id containing "../" would escape the dir).
+  session_id=$(printf '%s' "$session_id" | sed 's/[^A-Za-z0-9_-]/_/g')
 
   ledger_dir="${TMPDIR:-/tmp}/codex-delegation-ledger"
-  mkdir -p "$ledger_dir"
+  mkdir -p -m 700 "$ledger_dir"
 
   ledger_file="$ledger_dir/${session_id}.jsonl"
   depth_file="$ledger_dir/${session_id}.depth"
