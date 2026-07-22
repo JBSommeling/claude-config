@@ -1,7 +1,8 @@
 name        = "implementer"
 description = "Use for all implementation tasks where the plan is already clear. Trigger when the orchestrator has decided what to build and needs it executed. Examples: implement this plan, write tests for X, refactor Y to follow Z pattern, fix this failing test, generate a config file, write boilerplate, rename variables, apply a pattern across files. Do NOT use when the task requires architectural judgment or when it is unclear what the correct solution is."
 
-# model = "..."  # TODO: fill in verified Codex model slug for a medium-cost model
+# mid tier — $2.50/$15.00 per 1M tokens (in/out)
+model = "gpt-5.6-terra"
 
 model_reasoning_effort = "medium"
 

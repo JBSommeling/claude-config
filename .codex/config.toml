@@ -4,11 +4,13 @@
 # hooks before they will execute. Trust is hash-pinned — any edit to a hook
 # script requires re-running `/hooks` to re-approve the updated hash.
 
-# Model slug — fill this in before using.
-# Codex model slugs could not be verified at authoring time (2026-07-22);
-# do not guess. Run `codex models` or consult the Codex documentation to find
-# the correct identifier for the model you want.
-# model = "..."
+# Orchestrator model — high tier, because the orchestrator plans, reviews, and
+# makes architectural decisions.
+# Slugs verified from the Codex models documentation on 2026-07-22. Note: there
+# is no `codex models` CLI command to re-check them (the request was closed as
+# not planned); refresh these slugs when OpenAI rotates the model family.
+# high tier — $5.00/$30.00 per 1M tokens (in/out)
+model = "gpt-5.6-sol"
 
 # Require explicit approval for untrusted operations.
 approval_policy = "on-request"
@@ -26,6 +28,11 @@ max_threads = 6
 # Maximum subagent nesting depth. Specialists spawn from the orchestrator (depth 1);
 # specialists must not spawn further subagents.
 max_depth = 1
+# Safety net: any agent that omits `model` falls back to this slug.
+# Without this, resolution falls through to the parent session's model,
+# which would defeat cost tiering.
+# mid tier — $2.50/$15.00 per 1M tokens (in/out)
+default_subagent_model = "gpt-5.6-terra"
 
 # ---------------------------------------------------------------------------
 # Hooks

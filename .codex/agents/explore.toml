@@ -1,7 +1,8 @@
 name        = "explore"
 description = "Read-only search agent for broad fan-out searches — when answering means sweeping many files, directories, or naming conventions and you only need the conclusion, not the file dumps. Reads excerpts rather than whole files, so it locates code; it does not review or audit it. Specify search breadth: \"medium\" for moderate exploration, \"very thorough\" for multiple locations and naming conventions."
 
-# model = "..."  # TODO: fill in verified Codex model slug for a low-cost model
+# cheap tier — $1.00/$6.00 per 1M tokens (in/out)
+model = "gpt-5.6-luna"
 
 model_reasoning_effort = "low"
 

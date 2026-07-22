@@ -1,7 +1,8 @@
 name        = "reader"
 description = "Use for ALL file reading, searching, and codebase exploration tasks. Trigger when the orchestrator needs to understand existing code, find where something is defined, trace how something works, answer questions about the codebase, or gather context before planning. Examples: where is X defined, how does Y work, what files relate to Z, find all usages of X, summarize this file, what ports or configs are used. Always prefer this over the orchestrator reading files directly."
 
-# model = "..."  # TODO: fill in verified Codex model slug for a low-cost model
+# cheap tier — $1.00/$6.00 per 1M tokens (in/out)
+model = "gpt-5.6-luna"
 
 model_reasoning_effort = "low"
 
