@@ -1,9 +1,12 @@
 # T1 baseline manifest — targets produced by install.sh at bb5a313
 # format: <target-path>  <md5-of-content>
+# 2026-07-22 (T12): implementer.md hash updated for Opus-to-orchestrator neutralization
+#   (two lines reworded to "the orchestrator" so body is platform-neutral for Claude+Codex);
+#   all other hashes remain from the original pre-restructure capture.
 ~/.claude/CLAUDE.md  9cb918b90beef989e74559b621169313
 ~/.claude/agents/Explore.md  ee2ee2f81b4208f00b12e9a1e094cbc1
 ~/.claude/agents/code-reviewer.md  cc073c09d58224f9b234c5dec5106cad
-~/.claude/agents/implementer.md  59998b0b05107e5f1fd442f23cd8fcc0
+~/.claude/agents/implementer.md  d2b68f5bc7962e240c1b928659706217
 ~/.claude/agents/reader.md  bb9ce4a80a6894d278d20c395e7b7dfe
 ~/.claude/agents/security-auditor.md  476b22c3710b5860d4d9cbd58b76fa0f
 ~/.claude/agents/test-engineer.md  60fa51abc5314e454230f8e18d7895b3

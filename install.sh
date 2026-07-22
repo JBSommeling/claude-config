@@ -123,10 +123,30 @@ install_claude() {
   # CLAUDE.md
   do_cp "${SCRIPT_DIR}/.claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
 
-  # Agents
+  # Agents — assemble from header + shared body
+  # Guard: abort if any shared body contains ''' (would break Codex TOML literal strings)
+  for body in "${SCRIPT_DIR}/.agents/agents/"*.md; do
+    if grep -q "'''" "$body" 2>/dev/null; then
+      echo "ERROR: $body contains ''' which would terminate a TOML literal string early" >&2
+      exit 1
+    fi
+  done
+
   agent_count=0
-  for f in "${SCRIPT_DIR}/.claude/agents/"*.md; do
-    do_cp "$f" "${HOME}/.claude/agents/"
+  for header in "${SCRIPT_DIR}/.claude/agents/"*.header.md; do
+    name="${header##*/}"          # e.g., explore.header.md
+    name="${name%.header.md}"     # e.g., explore
+    body="${SCRIPT_DIR}/.agents/agents/${name}.md"
+
+    # Derive output filename: explore -> Explore.md, others -> ${name}.md
+    case "$name" in
+      explore) out_name="Explore.md" ;;
+      *)       out_name="${name}.md" ;;
+    esac
+
+    dest="${HOME}/.claude/agents/${out_name}"
+    action "assemble claude agent: ${name} -> ${out_name}"
+    $dry_run || cat "$header" "$body" > "$dest"
     agent_count=$((agent_count + 1))
   done
   echo "  ${agent_count} agents"
@@ -180,7 +200,7 @@ install_claude() {
     echo "[dry-run] Claude install complete (nothing written)"
   else
     echo "Claude install complete."
-    echo "Start Claude Code with: claude --model claude-opus-4-7"
+    echo "Start Claude Code with: claude --model claude-opus-4-8"
     echo "Verify setup with /status inside Claude Code."
   fi
 }
@@ -218,10 +238,22 @@ install_codex() {
   do_sed_expand_home "${SCRIPT_DIR}/.codex/config.toml" \
                      "${HOME}/.codex/config.toml"
 
-  # Codex agent .toml files
+  # Codex agents — assemble from header + shared body
   agent_count=0
-  for f in "${SCRIPT_DIR}/.codex/agents/"*.toml; do
-    do_cp "$f" "${HOME}/.codex/agents/"
+  for header in "${SCRIPT_DIR}/.codex/agents/"*.header.toml; do
+    name="${header##*/}"
+    name="${name%.header.toml}"
+    body="${SCRIPT_DIR}/.agents/agents/${name}.md"
+    dest="${HOME}/.codex/agents/${name}.toml"
+
+    action "assemble codex agent: ${name}.toml"
+    if ! $dry_run; then
+      { cat "$header"
+        printf "developer_instructions = '''\n"
+        cat "$body"
+        printf "'''\n"
+      } > "$dest"
+    fi
     agent_count=$((agent_count + 1))
   done
   echo "  ${agent_count} agents"
