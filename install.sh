@@ -86,6 +86,17 @@ do_cp() {
   $dry_run || cp "$1" "$2"
 }
 
+# do_atomic_cp SRC DST — copy SRC to DST atomically (copy to a temp name in
+# the destination directory, then mv) so an interrupted install cannot leave
+# a half-written file (M1 fix for adapter copies).
+do_atomic_cp() {
+  action "cp (atomic) $1 -> $2"
+  if ! $dry_run; then
+    local _tmp="${2}.tmp$$"
+    cp "$1" "$_tmp" && mv "$_tmp" "$2"
+  fi
+}
+
 do_cp_r() {
   action "cp -r $1 -> $2"
   $dry_run || cp -r "$1" "$2"
@@ -234,9 +245,11 @@ install_claude() {
     lib_count=$((lib_count + 1))
   done
 
-  # Platform adapter — bind claude at install time so hooks use the right adapter
-  do_cp "${SCRIPT_DIR}/.agents/hooks/lib/adapter-claude.sh" \
-        "${HOME}/.claude/hooks/lib/adapter.sh"
+  # Platform adapter — bind claude at install time so hooks use the right adapter.
+  # Copied atomically (temp + mv) so an interrupted install cannot leave a
+  # half-written, truncated adapter that sources cleanly but fails at runtime.
+  do_atomic_cp "${SCRIPT_DIR}/.agents/hooks/lib/adapter-claude.sh" \
+               "${HOME}/.claude/hooks/lib/adapter.sh"
 
   echo "  ${hook_count} hooks, ${lib_count} lib files + adapter.sh"
 
@@ -411,9 +424,9 @@ install_codex() {
     lib_count=$((lib_count + 1))
   done
 
-  # Platform adapter — bind codex at install time
-  do_cp "${SCRIPT_DIR}/.agents/hooks/lib/adapter-codex.sh" \
-        "${HOME}/.codex/hooks/lib/adapter.sh"
+  # Platform adapter — bind codex at install time (atomic copy).
+  do_atomic_cp "${SCRIPT_DIR}/.agents/hooks/lib/adapter-codex.sh" \
+               "${HOME}/.codex/hooks/lib/adapter.sh"
 
   echo "  ${hook_count} hooks, ${lib_count} lib files + adapter.sh"
 

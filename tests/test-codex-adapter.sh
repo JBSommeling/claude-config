@@ -17,8 +17,11 @@ fail=0
 # ---------------------------------------------------------------------------
 # Load the Codex adapter so hook_edit_path / hook_edit_paths are available.
 # Set HOOK_ADAPTER before sourcing common.sh so it picks up the Codex adapter.
+# HOOK_ADAPTER_ALLOW_OVERRIDE=1 is required by the C1 security fix so the
+# companion-var guard does not block the test runner's deliberate override.
 # ---------------------------------------------------------------------------
 export HOOK_ADAPTER="adapter-codex.sh"
+export HOOK_ADAPTER_ALLOW_OVERRIDE=1
 # HOOK_INPUT is read directly by hook_json; no need to call hook_init.
 HOOK_INPUT=""
 

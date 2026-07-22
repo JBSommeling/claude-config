@@ -144,8 +144,14 @@ for json_file in "$FIXTURES_DIR"/*.json; do
 
   # Run the hook with bypass env vars forced off so developer's env can't skew results.
   # HOOK_ADAPTER selects the platform adapter; empty string means use the default (Claude Code).
+  # HOOK_ADAPTER_ALLOW_OVERRIDE=1 is set whenever HOOK_ADAPTER is non-empty (C1 fix):
+  # the new companion-var requirement prevents a single innocuous env var from being
+  # an override channel, while still allowing the test runner's deliberate overrides.
+  _HOOK_ADAPTER_ALLOW_OVERRIDE=0
+  [ -n "$HOOK_ADAPTER_VALUE" ] && _HOOK_ADAPTER_ALLOW_OVERRIDE=1
   stdout=$(CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 CLAUDE_BYPASS_COMMIT_GUARD=0 \
     CODEX_ENFORCE_DELEGATION="$_CODEX_ENFORCE_DELEGATION" HOOK_ADAPTER="$HOOK_ADAPTER_VALUE" \
+    HOOK_ADAPTER_ALLOW_OVERRIDE="$_HOOK_ADAPTER_ALLOW_OVERRIDE" \
     $invoke < "$json_file" 2>/dev/null)
   exit_code=$?
 
@@ -264,6 +270,19 @@ if [ -f "$TRANSFORM_TEST" ]; then
   run_suite "codex-transform" "$TRANSFORM_TEST" 3
 else
   echo "SKIP codex-transform tests (tests/test-codex-transform.sh not found)"
+fi
+
+# ---------------------------------------------------------------------------
+# Push guard integration tests (H2: forged origin/HEAD, metacharacter branch)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Push guard integration tests ---"
+PUSH_GUARD_TEST="$REPO_ROOT/tests/test-push-guard.sh"
+
+if [ -f "$PUSH_GUARD_TEST" ]; then
+  run_suite "push-guard" "$PUSH_GUARD_TEST" 3
+else
+  echo "SKIP push-guard tests (tests/test-push-guard.sh not found)"
 fi
 
 # ---------------------------------------------------------------------------

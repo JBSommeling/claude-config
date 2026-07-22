@@ -93,7 +93,26 @@ if hook_is_shell_tool "$TOOL_NAME"; then
   # NOTE: backslash-newline collapse is NOT applied to CMD here; the heredoc-
   # aware awk below needs the original multi-line structure to correctly
   # identify heredoc boundaries. Single-line greps use CMD_NORMALIZED above.
+  # Pre-heredoc quote masking: mask any double-quoted span that CONTAINS '<<'
+  # BEFORE the heredoc-stripping awk so that a <<TOKEN inside a quoted argument
+  # (e.g. grep -n "<<EOF" README.md, or git commit -m "see <<PATCH docs")
+  # cannot be mistaken for a heredoc opener (H1 fix).
+  #
+  # The pattern "only mask when '<<' is inside the string" is intentional:
+  #   • "a > b" and "/tmp/x" contain no '<<' and are left alone so the
+  #     post-heredoc redirect detector can still find them (no regression).
+  #   • "<<EOF" and "see <<PATCH docs" contain '<<' and ARE masked.
+  #
+  # Only double-quoted spans are masked at this stage.  Single-quoted spans
+  # are left alone because <<'TOKEN' is valid heredoc syntax — masking the
+  # 'TOKEN' literal would rename the terminator to QUOTEDARG and prevent the
+  # awk from correctly finding the end of the heredoc body.
+  #
+  # Escaped chars are removed first so \" does not prevent the pattern from
+  # matching its own closing quote.
   SCAN=$(printf '%s' "$CMD" \
+    | sed 's/\\["><]//g' \
+    | sed 's/"[^"]*<<[^"]*"/QUOTEDARG/g' \
     | awk '{L[NR]=$0} END{
         i=1
         while(i<=NR){
@@ -160,6 +179,12 @@ if [ -n "$EDIT_PATHS" ]; then
   while IFS= read -r _p; do
     [ -z "$_p" ] && continue
     case "$_p" in
+      # Reject any path containing '..' before the memory glob check (H3 fix).
+      # The Bash-vector redirect check already rejects '..'; this mirrors that
+      # protection for the Edit/Write/MultiEdit tool path.  A path like
+      #   ~/.claude/projects/p1/memory/../../../../.zshrc
+      # matches *memory/* but escapes the memory subtree — deny it.
+      *..*) _all_memory=false; break ;;
       */.claude/projects/*/memory/*) ;;
       *) _all_memory=false; break ;;
     esac

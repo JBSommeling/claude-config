@@ -10,6 +10,16 @@
 # hook_* helpers for all policy decisions.
 
 # ---------------------------------------------------------------------------
+# jq availability guard — every hook depends on jq for input parsing and for
+# building deny envelopes.  If jq is absent, emit a static deny envelope
+# (no jq needed) so the hook fails CLOSED rather than silently allowing.
+# ---------------------------------------------------------------------------
+if ! command -v jq >/dev/null 2>&1; then
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Hook dependency missing: jq is required but not found in PATH. Install jq to enable hook enforcement."}}\n'
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
 
@@ -65,9 +75,25 @@ hook_allow() {
 
 _HOOK_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -n "${HOOK_ADAPTER:-}" ] && [ -f "$_HOOK_LIB_DIR/$HOOK_ADAPTER" ]; then
-  # Explicit adapter override — used by the test runner for platform-specific
-  # fixture sets (e.g. codex-* fixtures set HOOK_ADAPTER=adapter-codex.sh).
+if [ -n "${HOOK_ADAPTER:-}" ]; then
+  # Explicit adapter override — opt-in ONLY: requires HOOK_ADAPTER_ALLOW_OVERRIDE=1
+  # as a companion env var so the override cannot be triggered by a single
+  # innocuous variable (C1 fix).
+  if [ "${HOOK_ADAPTER_ALLOW_OVERRIDE:-0}" != "1" ]; then
+    hook_deny "Hook misconfiguration: HOOK_ADAPTER is set to '${HOOK_ADAPTER}' but HOOK_ADAPTER_ALLOW_OVERRIDE=1 is not set. Set both variables together to opt in to adapter override."
+  fi
+  # Reject any value containing '/' or '..' — only bare filenames are allowed.
+  case "$HOOK_ADAPTER" in
+    */*|*..*) hook_deny "Hook misconfiguration: HOOK_ADAPTER value '${HOOK_ADAPTER}' contains '/' or '..' — only bare filenames are allowed. Rejecting to prevent path traversal." ;;
+  esac
+  # Whitelist: accept only the two known adapter filenames.
+  case "$HOOK_ADAPTER" in
+    adapter-claude.sh|adapter-codex.sh) ;;
+    *) hook_deny "Hook misconfiguration: HOOK_ADAPTER value '${HOOK_ADAPTER}' is not an allowed adapter name. Allowed values: adapter-claude.sh, adapter-codex.sh." ;;
+  esac
+  if [ ! -f "$_HOOK_LIB_DIR/$HOOK_ADAPTER" ]; then
+    hook_deny "Hook misconfiguration: HOOK_ADAPTER '${HOOK_ADAPTER}' not found in ${_HOOK_LIB_DIR}."
+  fi
   # shellcheck source=/dev/null
   source "$_HOOK_LIB_DIR/$HOOK_ADAPTER"
 elif [ -f "$_HOOK_LIB_DIR/adapter.sh" ]; then
@@ -82,3 +108,14 @@ else
   # No adapter found — fail closed with a clear message.
   hook_deny "Hook misconfiguration: no platform adapter found in $_HOOK_LIB_DIR (expected adapter.sh or adapter-claude.sh). Cannot determine tool context."
 fi
+
+# ---------------------------------------------------------------------------
+# Adapter completeness check — a zero-byte or partially-copied adapter may
+# source cleanly but leave required helpers undefined, causing hooks to fail
+# open with rc 127 rather than denying.  Assert every required function is
+# present after sourcing (M1 fix).
+# ---------------------------------------------------------------------------
+for _fn in hook_tool_name hook_cmd hook_caller hook_edit_path hook_edit_paths hook_is_shell_tool; do
+  declare -F "$_fn" >/dev/null 2>&1 || hook_deny "Hook misconfiguration: platform adapter is missing required function '${_fn}'. The adapter may be incomplete or corrupted — reinstall or check the adapter file in ${_HOOK_LIB_DIR}."
+done
+unset _fn

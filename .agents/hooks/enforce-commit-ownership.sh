@@ -38,10 +38,32 @@ TOOL_NAME=$(hook_tool_name)
 if ! hook_is_shell_tool "$TOOL_NAME"; then exit 0; fi
 
 COMMAND=$(hook_cmd)
-case "$COMMAND" in
-  *"git commit"*) ;;
-  *) exit 0 ;;
-esac
+
+# Detect 'git commit' as the git subcommand, normalizing whitespace and
+# skipping git global options (-C <path>, -c <k=v>, --git-dir=, --work-tree=,
+# --namespace=) so that `git -C . commit` and `git  commit` (double space)
+# are not bypasses (M2 fix).  The substring match `*"git commit"*` used
+# previously failed both of those forms.
+_GIT_SUBCOMMAND=$(printf '%s' "$COMMAND" \
+  | tr -s '[:space:]' ' ' \
+  | awk '{
+      for (i = 1; i <= NF; i++) {
+        if ($i == "git") {
+          i++
+          while (i <= NF) {
+            if ($i == "-C" || $i == "-c") { i += 2 }
+            else if ($i ~ /^(--git-dir=|--work-tree=|--namespace=)/) { i++ }
+            else break
+          }
+          if (i <= NF) print $i
+          break
+        }
+      }
+    }' 2>/dev/null || true)
+
+if [ "$_GIT_SUBCOMMAND" != "commit" ]; then
+  exit 0
+fi
 
 # Denies only when hook_caller returns "subagent". Both "root" and "unknown"
 # are allowed through. "unknown" is treated permissively so a Codex

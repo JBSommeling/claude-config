@@ -25,7 +25,10 @@ TEST_TMPDIR="$(mktemp -d)"
 export TMPDIR="$TEST_TMPDIR"
 
 # Use Codex adapter for all scenarios (ledger is a Codex-specific feature).
+# HOOK_ADAPTER_ALLOW_OVERRIDE=1 is required by the C1 security fix so the
+# companion-var guard does not block the test runner's deliberate override.
 export HOOK_ADAPTER="adapter-codex.sh"
+export HOOK_ADAPTER_ALLOW_OVERRIDE=1
 
 pass=0
 fail=0
