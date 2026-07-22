@@ -244,8 +244,18 @@ install_claude() {
   echo "  ${skill_count} skills"
 
   # Hooks
+  # Remove any previously-installed ledger hooks from existing installs.
+  # ledger-*.sh are Codex-only detective enforcement hooks and are not registered
+  # in Claude's settings.json — stale copies in ~/.claude/hooks/ are misleading.
+  for _lf in "${HOME}/.claude/hooks/ledger-"*.sh; do
+    [ -e "$_lf" ] || continue
+    do_rm_f "$_lf"
+  done
   hook_count=0
   for f in "${SCRIPT_DIR}/.agents/hooks/"*.sh; do
+    # Skip ledger-*.sh: Codex-only detective enforcement hooks; not registered in
+    # Claude's settings.json — installing them here would be misleading.
+    case "$(basename "$f")" in ledger-*) continue ;; esac
     do_cp "$f" "${HOME}/.claude/hooks/"
     do_chmod_x "${HOME}/.claude/hooks/$(basename "$f")"
     hook_count=$((hook_count + 1))

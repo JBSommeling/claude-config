@@ -341,6 +341,75 @@ else
 fi
 
 # --------------------------------------------------------------------------
+# Ledger hook exclusion tests
+#
+# Case 1: Claude install must NOT include ledger-*.sh (Codex-only detective
+#         enforcement; not registered in Claude's settings.json).
+# Case 2: Active (non-ledger) hooks must exist and be executable.
+# Case 3: Codex install must include all three ledger-*.sh hooks.
+# Case 4: Cleanup — a pre-seeded ledger hook must be removed by Claude install.
+# --------------------------------------------------------------------------
+echo ""
+echo "--- Ledger hook exclusion tests ---"
+
+# Case 1: no ledger hooks in Claude install
+_ledger_found=false
+for _lf in "${FAKE_HOME}/.claude/hooks/ledger-"*.sh; do
+  [ -e "$_lf" ] || continue
+  _ledger_found=true
+  break
+done
+if $_ledger_found; then
+  echo "FAIL ledger-excluded-from-claude (ledger-*.sh found in ~/.claude/hooks/)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("LEDGER HOOKS FOUND IN CLAUDE INSTALL")
+else
+  echo "PASS ledger-excluded-from-claude"
+  pass_count=$((pass_count + 1))
+fi
+
+# Case 2: active hooks installed and executable in Claude install
+for _hook in block-push.sh enforce-delegation.sh enforce-commit-ownership.sh; do
+  _hp="${FAKE_HOME}/.claude/hooks/${_hook}"
+  if [ -x "$_hp" ]; then
+    echo "PASS active-hook-installed-${_hook}"
+    pass_count=$((pass_count + 1))
+  else
+    echo "FAIL active-hook-installed-${_hook} (${_hook} missing or not executable)"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("ACTIVE HOOK NOT EXECUTABLE: ${_hook}")
+  fi
+done
+
+# Case 3: Codex install includes all ledger-*.sh hooks
+for _lhook in ledger-record.sh ledger-close.sh ledger-report.sh; do
+  _lp="${CODEX_FAKE_HOME}/.codex/hooks/${_lhook}"
+  if [ -x "$_lp" ]; then
+    echo "PASS ledger-in-codex-${_lhook}"
+    pass_count=$((pass_count + 1))
+  else
+    echo "FAIL ledger-in-codex-${_lhook} (${_lhook} missing or not executable in Codex install)"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("LEDGER HOOK NOT IN CODEX INSTALL: ${_lhook}")
+  fi
+done
+
+# Case 4: cleanup — a pre-seeded ledger hook must be removed by Claude install
+CLEANUP_HOME="$(mktemp -d)"
+trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A" "$ORPHAN_HOME_B" "$CLEANUP_HOME"' EXIT
+mkdir -p "${CLEANUP_HOME}/.claude/hooks"
+printf '#!/usr/bin/env bash\n# stale ledger stub\n' > "${CLEANUP_HOME}/.claude/hooks/ledger-record.sh"
+HOME="$CLEANUP_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
+if [ -e "${CLEANUP_HOME}/.claude/hooks/ledger-record.sh" ]; then
+  echo "FAIL ledger-cleanup (pre-seeded ledger-record.sh was not removed by Claude install)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("LEDGER CLEANUP FAILED: ledger-record.sh still present after Claude install")
+else
+  echo "PASS ledger-cleanup"
+  pass_count=$((pass_count + 1))
+fi
+
+# --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 echo ""
