@@ -131,9 +131,24 @@ fi
 # --- File-editing tools: Edit / Write / MultiEdit / NotebookEdit ---
 # Memory writes from the main session are part of the auto-memory system
 # and must be allowed. Path shape: ~/.claude/projects/*/memory/*
+#
+# Exemption applies ONLY when the full path list is non-empty and EVERY path
+# matches the memory pattern. A mixed patch (memory + non-memory paths) is
+# denied — the first-path check used previously was insufficient for multi-file
+# patches (C4 fix).
 FILE_PATH=$(hook_edit_path)
-case "$FILE_PATH" in
-  */.claude/projects/*/memory/*) exit 0 ;;
-esac
+EDIT_PATHS=$(hook_edit_paths)
+_all_memory=false
+if [ -n "$EDIT_PATHS" ]; then
+  _all_memory=true
+  while IFS= read -r _p; do
+    [ -z "$_p" ] && continue
+    case "$_p" in
+      */.claude/projects/*/memory/*) ;;
+      *) _all_memory=false; break ;;
+    esac
+  done <<< "$EDIT_PATHS"
+fi
+$_all_memory && exit 0
 
 hook_deny "Direct $TOOL_NAME from the orchestrator is blocked. Delegate to the \`implementer\` subagent via the Agent tool — pass the file path ($FILE_PATH) and the exact change to make. See your project instructions file → Model Routing → implementer subagents. To bypass for a single session, set CLAUDE_BYPASS_DELEGATION=1."

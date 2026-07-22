@@ -75,6 +75,37 @@ hook_edit_path() {
   return 0
 }
 
+# hook_edit_paths — echo all target file paths from the patch, one per line.
+# Unlike hook_edit_path (which returns only the first match), this returns
+# every path found in the patch so multi-file patches can be fully inspected.
+#
+# Supported formats (checked in order):
+#   1. OpenAI apply_patch envelope: all "*** Update/Add/Delete File: <path>" lines
+#   2. Unified diff fallback: all "+++ b/<path>" or "+++ <path>" lines
+#
+# Echoes empty if no paths are found.
+hook_edit_paths() {
+  local cmd
+  cmd=$(hook_json '.tool_input.command // empty')
+  [ -z "$cmd" ] && return 0
+
+  # Try apply_patch envelope lines first (all, not just first)
+  local paths
+  paths=$(printf '%s' "$cmd" \
+    | grep -E '^\*\*\* (Update File|Add File|Delete File): .+' \
+    | sed -E 's/^\*\*\* (Update File|Add File|Delete File): //')
+  if [ -n "$paths" ]; then
+    echo "$paths"
+    return 0
+  fi
+
+  # Fall back to unified diff "+++ b/<path>" or "+++ <path>"
+  printf '%s' "$cmd" \
+    | grep -E '^\+\+\+ ' \
+    | sed -E 's|^\+\+\+ (b/)?||'
+  return 0
+}
+
 # hook_is_edit_tool <name> — succeed if name is a file-mutating tool.
 # "apply_patch" is the canonical Codex file-edit tool.
 # "Edit" and "Write" are accepted defensively in case a future release

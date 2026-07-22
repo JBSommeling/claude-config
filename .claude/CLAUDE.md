@@ -57,7 +57,7 @@ If a delegated task fails or freezes, retry with next higher model immediately:
 
 ## Git Safety
 
-A `PreToolUse` hook (`~/.claude/hooks/block-push-to-default-branch.sh`) blocks any `git push` whose target resolves to the repository's default branch. This hook is the sole guardrail. To bypass for a single session, set `CLAUDE_BYPASS_PUSH_GUARD=1`.
+A `PreToolUse` hook (`~/.claude/hooks/block-push.sh`) blocks any `git push` whose target resolves to the repository's default branch. This hook is the sole guardrail. To bypass for a single session, set `CLAUDE_BYPASS_PUSH_GUARD=1`.
 
 **Commits.** The orchestrator commits directly, inline, via `git add` / `git commit` after reviewing the implementer's diff. Never spawn a subagent whose sole purpose is to run a commit — delegating a commit-only task wastes a full context-load for a one-line command.
 

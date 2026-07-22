@@ -8,9 +8,16 @@
 #   Non-hook, non-settings files  — MUST exist and md5 MUST match baseline
 #   settings.json                 — MUST exist; md5 verified dynamically
 #                                   (baseline used real $HOME; we expand with FAKE_HOME)
-#   Hook files (~/.claude/hooks/) — expected to have changed (T3b/T3c refactor);
-#                                   reported as "changed (expected)", never fail
+#   Hook files (~/.claude/hooks/) that EXIST but differ in md5
+#                                 — reported as "changed (expected)", never fail
+#   Hook files that are MISSING   — FAIL unless the basename appears in
+#                                   tests/renamed-hooks.txt AND the replacement
+#                                   exists and is executable after install
 #   New files not in baseline     — reported as "new files", never fail
+#
+# Additionally, every `command` path in .claude/settings.json and
+# .codex/config.toml is verified to exist and be executable after install.
+# This catches dead hook registrations (C1/C2 fix).
 #
 # Usage: bash tests/test-install.sh
 
@@ -80,10 +87,25 @@ pass_count=0
 fail_count=0
 fail_messages=()
 
-hook_reports=()         # "changed (expected)" or "missing (expected)"
+hook_reports=()         # "changed (expected)" or "renamed (expected)" entries
 new_files=()            # installed but not in baseline
 
 settings_target="${FAKE_HOME}/.claude/settings.json"
+
+# Load the renamed-hooks allowlist (basename-only lines: old -> new)
+RENAMED_HOOKS_FILE="$REPO_ROOT/tests/renamed-hooks.txt"
+renamed_old=()
+renamed_new=()
+if [ -f "$RENAMED_HOOKS_FILE" ]; then
+  while IFS= read -r rline; do
+    [[ "$rline" =~ ^# ]] && continue
+    [[ -z "$rline" ]]    && continue
+    _rold="${rline%% ->*}"
+    _rnew="${rline##*-> }"
+    renamed_old+=("$_rold")
+    renamed_new+=("$_rnew")
+  done < "$RENAMED_HOOKS_FILE"
+fi
 
 echo "--- Non-hook files vs baseline ---"
 
@@ -97,7 +119,11 @@ for i in "${!baseline_paths[@]}"; do
   # Classify: hooks vs settings vs everything else
   # Note: keep the literal ~ here; bpath values come from the manifest as-is
   if [[ "$bpath" == "~/.claude/hooks/"* ]]; then
-    # Hook file — expected-difference, never fail
+    # Hook file — handling depends on whether the file exists:
+    #   EXISTS + md5 matches: "matched (unexpected)"
+    #   EXISTS + md5 differs: "changed (expected)", no fail
+    #   MISSING + in renamed-hooks.txt with replacement installed: "renamed (expected)", no fail
+    #   MISSING + not in allowlist: FAIL
     if [ -f "$actual_path" ]; then
       installed_md5=$(file_md5 "$actual_path")
       if [ "$installed_md5" = "$bmd5" ]; then
@@ -106,7 +132,31 @@ for i in "${!baseline_paths[@]}"; do
         hook_reports+=("  changed (expected): $bpath")
       fi
     else
-      hook_reports+=("  missing (expected — file renamed or removed): $bpath")
+      # File is missing — check renamed-hooks.txt allowlist
+      basename_old="$(basename "$bpath")"
+      _found_rename=false
+      for ri in "${!renamed_old[@]}"; do
+        if [ "${renamed_old[$ri]}" = "$basename_old" ]; then
+          _replacement="${renamed_new[$ri]}"
+          _replacement_path="${FAKE_HOME}/.claude/hooks/${_replacement}"
+          if [ -x "$_replacement_path" ]; then
+            hook_reports+=("  renamed (expected): $bpath -> ~/.claude/hooks/${_replacement}")
+            _found_rename=true
+          else
+            hook_reports+=("  renamed but replacement missing/non-executable: $bpath -> ~/.claude/hooks/${_replacement}")
+            echo "  FAIL: $bpath (renamed to ${_replacement} but replacement not installed)"
+            fail_count=$((fail_count + 1))
+            fail_messages+=("MISSING (replacement not found): $bpath -> ${_replacement}")
+            _found_rename=true  # prevent double-failure
+          fi
+          break
+        fi
+      done
+      if ! $_found_rename; then
+        echo "  FAIL: $bpath (missing — not in renamed-hooks.txt)"
+        fail_count=$((fail_count + 1))
+        fail_messages+=("MISSING (not renamed): $bpath")
+      fi
     fi
     continue
   fi
@@ -157,10 +207,11 @@ for i in "${!baseline_paths[@]}"; do
 done
 
 # --------------------------------------------------------------------------
-# Report hook files (expected-changed — not counted toward pass/fail)
+# Report hook files (expected-changed/renamed — not counted toward pass/fail
+# unless already FAIL'd above for missing + not-in-allowlist cases)
 # --------------------------------------------------------------------------
 echo ""
-echo "--- Hook files (expected-changed, not counted) ---"
+echo "--- Hook files (expected-changed/renamed, not counted unless missing) ---"
 if [ "${#hook_reports[@]}" -gt 0 ]; then
   # bash 3 compat: guard non-empty expansion before iterating
   for msg in "${hook_reports[@]+"${hook_reports[@]}"}"; do
@@ -205,12 +256,56 @@ else
 fi
 
 # --------------------------------------------------------------------------
+# Command-path checks: every hook command registered in settings.json (Claude)
+# and config.toml (Codex) must exist and be executable after install.
+# This is the direct check that would have caught C1 (dead push-guard path).
+# --------------------------------------------------------------------------
+echo ""
+echo "--- Settings command-path checks ---"
+
+# Claude: parse command values from .claude/settings.json
+# Matches lines of the form:  "command": "$HOME/..."
+while IFS= read -r cmd_path; do
+  expanded="${cmd_path/\$HOME/$FAKE_HOME}"
+  if [ -x "$expanded" ]; then
+    echo "  ok: $cmd_path"
+    pass_count=$((pass_count + 1))
+  else
+    echo "  FAIL: command not found or not executable after install: $cmd_path"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("COMMAND NOT EXECUTABLE (claude): $cmd_path")
+  fi
+done < <(grep '"command"[[:space:]]*:' "${REPO_ROOT}/.claude/settings.json" \
+           | sed -E 's/.*"command"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+
+# Codex: run --codex --apply install into a separate temp HOME and check
+# command paths from config.toml
+CODEX_FAKE_HOME="$(mktemp -d)"
+trap 'rm -rf "$CODEX_FAKE_HOME"' EXIT
+HOME="$CODEX_FAKE_HOME" bash "$INSTALL" --codex --apply > /dev/null 2>&1
+
+echo ""
+echo "--- Codex config.toml command-path checks ---"
+while IFS= read -r cmd_path; do
+  expanded="${cmd_path/\$HOME/$CODEX_FAKE_HOME}"
+  if [ -x "$expanded" ]; then
+    echo "  ok: $cmd_path"
+    pass_count=$((pass_count + 1))
+  else
+    echo "  FAIL: command not found or not executable after codex install: $cmd_path"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("COMMAND NOT EXECUTABLE (codex): $cmd_path")
+  fi
+done < <(grep -E '^[[:space:]]*command[[:space:]]*=[[:space:]]*"' "${REPO_ROOT}/.codex/config.toml" \
+           | sed -E 's/^[[:space:]]*command[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+
+# --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 echo ""
 echo "--- Summary ---"
-echo "  ${pass_count} files matched baseline"
-echo "  ${#hook_reports[@]} hook entries (expected-changed, not counted)"
+echo "  ${pass_count} files/checks passed"
+echo "  ${#hook_reports[@]} hook entries (expected-changed/renamed, not counted)"
 echo "  ${#new_files[@]} new files (not in baseline)"
 
 if [ "${fail_count}" -gt 0 ]; then

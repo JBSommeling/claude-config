@@ -21,6 +21,50 @@ pass=0
 fail=0
 total=0
 
+# ---------------------------------------------------------------------------
+# run_suite LABEL SCRIPT MIN_TESTS
+#   Run a sub-suite script, fold its PASS/FAIL lines into global counters,
+#   surface stderr, and fail if:
+#     • the script exits non-zero with no PASS/FAIL output (silent crash), or
+#     • it reports fewer than MIN_TESTS PASS/FAIL lines (too few tests ran).
+# ---------------------------------------------------------------------------
+run_suite() {
+  local label="$1" script="$2" min_tests="$3"
+  local _tmpout _suite_exit _suite_count _line
+  _tmpout=$(mktemp)
+  bash "$script" > "$_tmpout" 2>&1
+  _suite_exit=$?
+  _suite_count=0
+  while IFS= read -r _line; do
+    echo "$_line"
+    case "$_line" in
+      "PASS "*)
+        pass=$((pass + 1))
+        total=$((total + 1))
+        _suite_count=$((_suite_count + 1))
+        ;;
+      "FAIL "*)
+        fail=$((fail + 1))
+        total=$((total + 1))
+        _suite_count=$((_suite_count + 1))
+        ;;
+    esac
+  done < "$_tmpout"
+  rm -f "$_tmpout"
+  # Crash guard: non-zero exit with no output means the suite died silently.
+  if [ "$_suite_exit" -ne 0 ] && [ "$_suite_count" -eq 0 ]; then
+    echo "FAIL $label (sub-suite crashed with exit $_suite_exit and no PASS/FAIL output)"
+    fail=$((fail + 1))
+    total=$((total + 1))
+  fi
+  # Minimum-count guard: too few tests means something is silently skipped.
+  if [ "$_suite_count" -lt "$min_tests" ]; then
+    echo "FAIL $label (expected at least $min_tests tests, got $_suite_count — possible silent skip or crash)"
+    fail=$((fail + 1))
+    total=$((total + 1))
+  fi
+}
+
 for json_file in "$FIXTURES_DIR"/*.json; do
   name="$(basename "$json_file" .json)"
 
@@ -31,7 +75,9 @@ for json_file in "$FIXTURES_DIR"/*.json; do
 
   expect_file="$FIXTURES_DIR/${name}.expect"
   if [ ! -f "$expect_file" ]; then
-    echo "SKIP $name (no .expect file)"
+    echo "FAIL $name (no .expect file — every fixture must have a paired .expect)"
+    fail=$((fail + 1))
+    total=$((total + 1))
     continue
   fi
 
@@ -131,19 +177,7 @@ echo "--- Platform-neutrality tests ---"
 NEUTRALITY_TEST="$REPO_ROOT/tests/test-platform-neutrality.sh"
 
 if [ -f "$NEUTRALITY_TEST" ]; then
-  while IFS= read -r line; do
-    echo "$line"
-    case "$line" in
-      "PASS "*)
-        pass=$((pass + 1))
-        total=$((total + 1))
-        ;;
-      "FAIL "*)
-        fail=$((fail + 1))
-        total=$((total + 1))
-        ;;
-    esac
-  done < <(bash "$NEUTRALITY_TEST" 2>/dev/null)
+  run_suite "platform-neutrality" "$NEUTRALITY_TEST" 12
 else
   echo "SKIP platform-neutrality tests (tests/test-platform-neutrality.sh not found)"
 fi
@@ -156,19 +190,7 @@ echo "--- Agent assembly tests ---"
 ASSEMBLY_TEST="$REPO_ROOT/tests/test-agent-assembly.sh"
 
 if [ -f "$ASSEMBLY_TEST" ]; then
-  while IFS= read -r line; do
-    echo "$line"
-    case "$line" in
-      "PASS "*)
-        pass=$((pass + 1))
-        total=$((total + 1))
-        ;;
-      "FAIL "*)
-        fail=$((fail + 1))
-        total=$((total + 1))
-        ;;
-    esac
-  done < <(bash "$ASSEMBLY_TEST" 2>/dev/null)
+  run_suite "agent-assembly" "$ASSEMBLY_TEST" 10
 else
   echo "SKIP agent assembly tests (tests/test-agent-assembly.sh not found)"
 fi
@@ -181,20 +203,7 @@ echo "--- Ledger integration tests ---"
 LEDGER_TEST="$REPO_ROOT/tests/test-ledger.sh"
 
 if [ -f "$LEDGER_TEST" ]; then
-  # Stream ledger test output line by line and fold PASS/FAIL into global counts.
-  while IFS= read -r line; do
-    echo "$line"
-    case "$line" in
-      "PASS "*)
-        pass=$((pass + 1))
-        total=$((total + 1))
-        ;;
-      "FAIL "*)
-        fail=$((fail + 1))
-        total=$((total + 1))
-        ;;
-    esac
-  done < <(bash "$LEDGER_TEST" 2>/dev/null)
+  run_suite "ledger" "$LEDGER_TEST" 4
 else
   echo "SKIP ledger tests (tests/test-ledger.sh not found)"
 fi
@@ -207,19 +216,7 @@ echo "--- Codex skills install test ---"
 CODEX_SKILLS_TEST="$REPO_ROOT/tests/test-codex-skills.sh"
 
 if [ -f "$CODEX_SKILLS_TEST" ]; then
-  while IFS= read -r line; do
-    echo "$line"
-    case "$line" in
-      "PASS "*)
-        pass=$((pass + 1))
-        total=$((total + 1))
-        ;;
-      "FAIL "*)
-        fail=$((fail + 1))
-        total=$((total + 1))
-        ;;
-    esac
-  done < <(bash "$CODEX_SKILLS_TEST" 2>/dev/null)
+  run_suite "codex-skills" "$CODEX_SKILLS_TEST" 5
 else
   echo "SKIP codex-skills test (tests/test-codex-skills.sh not found)"
 fi
@@ -232,19 +229,7 @@ echo "--- Install regression test ---"
 INSTALL_TEST="$REPO_ROOT/tests/test-install.sh"
 
 if [ -f "$INSTALL_TEST" ]; then
-  while IFS= read -r line; do
-    echo "$line"
-    case "$line" in
-      "PASS "*)
-        pass=$((pass + 1))
-        total=$((total + 1))
-        ;;
-      "FAIL "*)
-        fail=$((fail + 1))
-        total=$((total + 1))
-        ;;
-    esac
-  done < <(bash "$INSTALL_TEST" 2>/dev/null)
+  run_suite "install" "$INSTALL_TEST" 1
 else
   echo "SKIP install test (tests/test-install.sh not found)"
 fi

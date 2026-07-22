@@ -11,7 +11,7 @@
 #   ~/.claude/commands/code-simplify.md, diagnose-fix.md, diagnose.md,
 #     manual-test-plan.md, review-cycle.md, ship.md, zoom-out.md
 #   ~/.claude/skills/manual-test-plan/SKILL.md
-~/.claude/CLAUDE.md  9cb918b90beef989e74559b621169313
+~/.claude/CLAUDE.md  b7ec1897d07332499f457375a11fe325
 ~/.claude/agents/Explore.md  3afa4e4109d1d61182e58d45c2d12701
 ~/.claude/agents/code-reviewer.md  19ec86456a2f4980e75bbc3f9bebc61f
 ~/.claude/agents/implementer.md  d2b68f5bc7962e240c1b928659706217

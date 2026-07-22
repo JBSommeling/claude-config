@@ -20,6 +20,12 @@ hook_edit_path() {
   hook_json '.tool_input.file_path // empty'
 }
 
+# hook_edit_paths — echo all target file paths, one per line.
+# For Claude Code there is always at most one path per tool call.
+hook_edit_paths() {
+  hook_json '.tool_input.file_path // empty'
+}
+
 # hook_is_edit_tool <name> — succeed if name is a file-mutating tool.
 hook_is_edit_tool() {
   case "$1" in
