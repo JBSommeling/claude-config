@@ -1,0 +1,79 @@
+# Verified output of install.sh --codex --apply at commit 201aafb41653f315f9b318c5ce267fdffb323e9e
+# Capture method: install.sh --codex --apply into a throwaway HOME (two independent
+#   captures diffed for determinism); md5 -q of every regular file under ~/.codex
+#   and ~/.agents/skills; ~/.codex/config.toml excluded as dynamic (verified separately
+#   by the oracle).
+#
+# THIS FILE MUST NEVER BE EDITED TO ACCOMMODATE A CHANGE.
+# If a file legitimately changed, record it in tests/intentional-changes.txt
+# with a reason.  Editing this file to match a new hash defeats the oracle.
+#
+# format: <target-path>  <md5-of-content>
+~/.agents/skills/build/SKILL.md  bf5407b9287dd3f239127a7be2741529
+~/.agents/skills/code-review/SKILL.md  fa5ca44bfd7be7380004bad0373dbcae
+~/.agents/skills/code-review/code-reviewer.md  7a6332d58ab6d8ca2edf743f15f16dca
+~/.agents/skills/code-simplification/SKILL.md  3ebc4b43a9b8f14314d8605af53cc2b1
+~/.agents/skills/code-simplify/SKILL.md  a16f5e25551c44b0ab570e7a7ba4ea2f
+~/.agents/skills/diagnose-fix/SKILL.md  96a6fda93433847de1d828c8ecd06630
+~/.agents/skills/diagnose-full-pipeline-cycle-beta/SKILL.md  0f25dd6b44d6a1db0057d2a52a4b15e5
+~/.agents/skills/diagnose-full-pipeline-cycle/SKILL.md  a36d153ac001796acdd9e50fe54311ba
+~/.agents/skills/diagnose-workflow/SKILL.md  e855c595331cc0fc32d699782977407c
+~/.agents/skills/diagnose/SKILL.md  95db4e9ff0a8a9bfe50c53e1dfb38148
+~/.agents/skills/diagnose/scripts/hitl-loop.template.sh  46a2a00761be2785e59661f0e3c11471
+~/.agents/skills/full-pipeline-cycle-beta/SKILL.md  61e2db29d8f83b7318c2610dc26c9967
+~/.agents/skills/full-pipeline-cycle/SKILL.md  d5681042f1fac27eaad0f11dbff668f5
+~/.agents/skills/grill-with-docs/ADR-FORMAT.md  bb327bab674f400796f64b6e2ef5850c
+~/.agents/skills/grill-with-docs/CONTEXT-FORMAT.md  c2f41ffc931955b2b8d01322273d75fa
+~/.agents/skills/grill-with-docs/SKILL.md  8bf29044d7890561fe964b884498ff9e
+~/.agents/skills/grill/SKILL.md  a7be1d6bab868aa37bbea7964968377f
+~/.agents/skills/idea-refine/SKILL.md  f81be3f2a2b0811d8ba2940ed854d0ad
+~/.agents/skills/idea-refine/examples.md  8e3e911c980f371e695e786d5b22b495
+~/.agents/skills/idea-refine/frameworks.md  fa20786abdfa9de40c6886a8d7c958f2
+~/.agents/skills/idea-refine/refinement-criteria.md  5ce82e7acc7b4b2b9dcd843fb9dcd1d6
+~/.agents/skills/idea-refine/scripts/idea-refine.sh  7d09d06b836527b5261a27027b1d8548
+~/.agents/skills/improve-architecture/SKILL.md  51ec9e80988e48299d40ab921f81a951
+~/.agents/skills/improve-codebase-architecture/DEEPENING.md  ebdd48f7e3b0afeb8085d797df543e1a
+~/.agents/skills/improve-codebase-architecture/HTML-REPORT.md  1857b55ee9eb301b094922f32d2f73d7
+~/.agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md  aee2c0695396f8c6432ba5bfe547f195
+~/.agents/skills/improve-codebase-architecture/LANGUAGE.md  680627d828b489f96b92d4a2d7fa3bb6
+~/.agents/skills/improve-codebase-architecture/SKILL.md  b49bc843f32d06bbba85b4ac4b606aa5
+~/.agents/skills/incremental-implementation/SKILL.md  9b77bdc2766017133a594de8880a59e8
+~/.agents/skills/manual-test-plan-workflow/SKILL.md  61639d535d1fcd0e1f582fe1eac37908
+~/.agents/skills/manual-test-plan/SKILL.md  bc43cd943b5477df9c8d63c73621b54f
+~/.agents/skills/plan/SKILL.md  4235e0f57fe6bfc82debf7690a20678a
+~/.agents/skills/planning-and-task-breakdown/SKILL.md  44c01dd181cf24748e97bf94b256be4e
+~/.agents/skills/review-cycle/SKILL.md  268b8c1dc9ddb62b9d3fd2886673b970
+~/.agents/skills/review-pr/SKILL.md  518b7fb850f7d3158df3245d8075e706
+~/.agents/skills/review/SKILL.md  6de3b0226d37ed46d3debd14a0a2f41c
+~/.agents/skills/security-and-hardening/SKILL.md  c74d2d66fe508fdf9aa7334a38d75b34
+~/.agents/skills/ship/SKILL.md  6a836e9f73105b6b72f1055d86da4df7
+~/.agents/skills/spec-driven-development/SKILL.md  a74a9c8dbe2e639e1a2153f043e024ba
+~/.agents/skills/spec/SKILL.md  23c84b5ce7b7db9ec2c8e656610a9f5c
+~/.agents/skills/tdd-workflow/SKILL.md  d52e92fac08e0f6c104dcbb4808e8353
+~/.agents/skills/tdd/SKILL.md  a99c3bc988c9888af9ebb8411b69d96a
+~/.agents/skills/tdd/deep-modules.md  fee2c44ab025f43e10ed717bb42cc9c2
+~/.agents/skills/tdd/mocking.md  982a96b9f2c2b1248e69ca94db85ce86
+~/.agents/skills/tdd/refactoring.md  ecbf516d99a591169adce39a8a933f2e
+~/.agents/skills/tdd/tests.md  253c991bba867959c0146c72b93a6f6f
+~/.agents/skills/test-adversarial/SKILL.md  950905ed6c0dafbc5e7bfa75122dc958
+~/.agents/skills/test/SKILL.md  0196e11b562dd322f72fc0d3f860a320
+~/.agents/skills/write-a-skill/SKILL.md  492ef034b4fc9e497cc69b8fed78a742
+~/.agents/skills/zoom-out-workflow/SKILL.md  a8827825cec07fd352c05e0eb19f6716
+~/.agents/skills/zoom-out/SKILL.md  204f114b01386f4a0a8e6c7784266369
+~/.codex/AGENTS.md  090c1ad63c1a973ebbaecb7c5b99185f
+~/.codex/agents/code-reviewer.toml  d23ad01c3239079fa17d1068e81d66d1
+~/.codex/agents/explore.toml  4b3fd93541b887637dc9c49eb671f158
+~/.codex/agents/implementer.toml  9e83ad097d15485dbb793fbec1a1ba70
+~/.codex/agents/reader.toml  eeb717ca5f542b6fcef87099cced596e
+~/.codex/agents/security-auditor.toml  f524d2391cb6f5509cf9abe39f90c33d
+~/.codex/agents/test-engineer.toml  276c9339a197625cb20277e8d2787881
+~/.codex/hooks/block-push.sh  5eef7ab0daaacb9c2e0707dada0158f3
+~/.codex/hooks/enforce-commit-ownership.sh  dc648a1a0102c1bea7ae6908e5259d3c
+~/.codex/hooks/enforce-delegation.sh  168b78e39c7b46ff4b3f73721d7bbdba
+~/.codex/hooks/ledger-close.sh  cbfebef5b22745e00b7fa46a1b064b8f
+~/.codex/hooks/ledger-record.sh  5c3f25419b8737d64054e66024d7eb63
+~/.codex/hooks/ledger-report.sh  dc8a66f335259771524731d412cb0d1b
+~/.codex/hooks/lib/adapter-claude.sh  436b34b430d68ff21b000b6c56c40098
+~/.codex/hooks/lib/adapter-codex.sh  8b6b5cf74e8e9b4bc442aba15eb2511f
+~/.codex/hooks/lib/adapter.sh  8b6b5cf74e8e9b4bc442aba15eb2511f
+~/.codex/hooks/lib/common.sh  15a2965c0f277d92a02b2701eafa9134

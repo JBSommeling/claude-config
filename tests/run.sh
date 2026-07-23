@@ -306,13 +306,15 @@ echo "--- Install regression test ---"
 INSTALL_TEST="$REPO_ROOT/tests/test-install.sh"
 
 if [ -f "$INSTALL_TEST" ]; then
-  run_suite "install" "$INSTALL_TEST" 1
+  # Floor of 15 covers the milestone PASS lines; the codex content block's
+  # coverage is guarded by install-selfcheck Scenario 3, not by this count.
+  run_suite "install" "$INSTALL_TEST" 15
 else
   echo "SKIP install test (tests/test-install.sh not found)"
 fi
 
 # ---------------------------------------------------------------------------
-# Install oracle self-check (S11-S14)
+# Install oracle self-check (end-to-end negative tests: proves the oracle can fail)
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Install oracle self-check ---"
