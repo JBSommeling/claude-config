@@ -321,7 +321,7 @@ echo "--- Install oracle self-check ---"
 INSTALL_SELFCHECK_TEST="$REPO_ROOT/tests/test-install-selfcheck.sh"
 
 if [ -f "$INSTALL_SELFCHECK_TEST" ]; then
-  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 3
+  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 4
 else
   echo "SKIP install-selfcheck test (tests/test-install-selfcheck.sh not found)"
 fi
