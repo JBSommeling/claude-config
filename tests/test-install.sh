@@ -423,6 +423,170 @@ while IFS= read -r cmd_path; do
 done < <(grep -E '^[[:space:]]*command[[:space:]]*=[[:space:]]*"' "${REPO_ROOT}/.codex/config.toml" \
            | sed -E 's/^[[:space:]]*command[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
 
+echo ""
+echo "--- Codex content baseline checks ---"
+
+BASELINE_CODEX="${REPO_ROOT}/tests/codex-baseline-manifest.txt"
+
+if [ ! -f "$BASELINE_CODEX" ]; then
+  echo "  FAIL: codex-baseline-manifest.txt missing"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("MISSING: codex-baseline-manifest.txt")
+else
+  codex_baseline_paths=()
+  codex_baseline_md5s=()
+
+  while IFS= read -r line; do
+    [[ "$line" =~ ^# ]] && continue
+    [[ -z "$line"    ]] && continue
+    bpath="${line%%  *}"
+    bmd5="${line##*  }"
+    codex_baseline_paths+=("$bpath")
+    codex_baseline_md5s+=("$bmd5")
+  done < "$BASELINE_CODEX"
+
+  if [ "${#codex_baseline_paths[@]}" -eq 0 ]; then
+    echo "  FAIL: codex-baseline-manifest.txt parsed zero entries"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("EMPTY: codex-baseline-manifest.txt (zero entries parsed)")
+  fi
+
+  for i in "${!codex_baseline_paths[@]}"; do
+    bpath="${codex_baseline_paths[$i]}"
+    bmd5="${codex_baseline_md5s[$i]}"
+
+    actual_path="${bpath/#\~/$CODEX_FAKE_HOME}"
+
+    if [ ! -f "$actual_path" ]; then
+      _found_removed=false
+      for ri in "${!removed_paths[@]}"; do
+        if [ "${removed_paths[$ri]}" = "$bpath" ]; then
+          _rreason="${removed_reasons[$ri]}"
+          if [ -n "$_rreason" ]; then
+            echo "  ok (removed): $bpath"
+            echo "        reason: $_rreason"
+            pass_count=$((pass_count + 1))
+            _found_removed=true
+          fi
+          break
+        fi
+      done
+      if ! $_found_removed; then
+        echo "  FAIL: $bpath (missing — not in removed-files.txt)"
+        fail_count=$((fail_count + 1))
+        fail_messages+=("MISSING (codex): $bpath")
+      fi
+    else
+      actual_md5=$(file_md5 "$actual_path")
+      if [ "$actual_md5" = "$bmd5" ]; then
+        echo "  ok: $bpath"
+        pass_count=$((pass_count + 1))
+      else
+        _found_intentional=false
+        for ii in "${!intentional_paths[@]}"; do
+          if [ "${intentional_paths[$ii]}" = "$bpath" ]; then
+            _ireason="${intentional_reasons[$ii]}"
+            if [ -n "$_ireason" ]; then
+              echo "  ok (intentional): $bpath"
+              echo "        reason: $_ireason"
+              pass_count=$((pass_count + 1))
+              _found_intentional=true
+            fi
+            break
+          fi
+        done
+        if ! $_found_intentional; then
+          echo "  FAIL: $bpath (md5 mismatch — not in intentional-changes.txt)"
+          echo "        baseline: $bmd5"
+          echo "        actual:   $actual_md5"
+          fail_count=$((fail_count + 1))
+          fail_messages+=("MD5 MISMATCH (codex): $bpath")
+        fi
+      fi
+    fi
+  done
+
+  # Part B — dynamic check for config.toml (not in manifest — HOME-expanded)
+  _codex_toml_actual="${CODEX_FAKE_HOME}/.codex/config.toml"
+  if [ ! -f "$_codex_toml_actual" ]; then
+    echo "  FAIL: ~/.codex/config.toml (missing)"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("MISSING (codex): ~/.codex/config.toml")
+  else
+    _expected_toml_md5=$(sed "s|\$HOME|${CODEX_FAKE_HOME}|g" "${REPO_ROOT}/.codex/config.toml" | \
+      (command -v md5 &>/dev/null && md5 || md5sum | awk '{print $1}'))
+    _actual_toml_md5=$(file_md5 "$_codex_toml_actual")
+    if [ "$_actual_toml_md5" = "$_expected_toml_md5" ]; then
+      echo "  ok (dynamic): ~/.codex/config.toml (\$HOME expansion correct)"
+      pass_count=$((pass_count + 1))
+    else
+      echo "  FAIL: ~/.codex/config.toml (config.toml md5 mismatch)"
+      echo "        expected (dynamic): $_expected_toml_md5"
+      echo "        actual:             $_actual_toml_md5"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("MD5 MISMATCH (codex): ~/.codex/config.toml")
+    fi
+  fi
+
+  # ------------------------------------------------------------------------
+  # Staleness checks — Codex half. Mirror the Claude staleness checks
+  # (see the "--- Intentional-changes staleness check ---" / "--- Removed-files
+  # staleness check ---" sections above) against the codex baseline and
+  # CODEX_FAKE_HOME, so a stale ~/.codex or ~/.agents allowlist entry cannot
+  # silently paper over a reverted or restored codex file.
+  # ------------------------------------------------------------------------
+  echo ""
+  echo "--- Intentional-changes staleness check (codex) ---"
+  _codex_stale_found=false
+  for ii in "${!intentional_paths[@]}"; do
+    _ipath="${intentional_paths[$ii]}"
+    _ibaseline_md5=""
+    for bi in "${!codex_baseline_paths[@]}"; do
+      if [ "${codex_baseline_paths[$bi]}" = "$_ipath" ]; then
+        _ibaseline_md5="${codex_baseline_md5s[$bi]}"
+        break
+      fi
+    done
+    [ -z "$_ibaseline_md5" ] && continue
+    _iactual_path="${_ipath/#\~/$CODEX_FAKE_HOME}"
+    if [ -f "$_iactual_path" ]; then
+      _iactual_md5=$(file_md5 "$_iactual_path")
+      if [ "$_iactual_md5" = "$_ibaseline_md5" ]; then
+        echo "  FAIL: stale entry in intentional-changes.txt: $_ipath"
+        echo "        (installed hash matches codex baseline — remove this entry)"
+        fail_count=$((fail_count + 1))
+        fail_messages+=("STALE INTENTIONAL ENTRY (codex): $_ipath")
+        _codex_stale_found=true
+      fi
+    fi
+  done
+  if ! $_codex_stale_found; then
+    echo "  (no stale entries)"
+  fi
+
+  echo ""
+  echo "--- Removed-files staleness check (codex) ---"
+  _codex_removed_stale_found=false
+  for ri in "${!removed_paths[@]}"; do
+    _rpath="${removed_paths[$ri]}"
+    case "$_rpath" in
+      \~/.codex/*|\~/.agents/*) ;;
+      *) continue ;;
+    esac
+    _ractual_path="${_rpath/#\~/$CODEX_FAKE_HOME}"
+    if [ -f "$_ractual_path" ]; then
+      echo "  FAIL: stale entry in removed-files.txt: $_rpath"
+      echo "        (file IS installed in codex — remove this entry or stop installing it)"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("STALE REMOVED ENTRY (codex): $_rpath")
+      _codex_removed_stale_found=true
+    fi
+  done
+  if ! $_codex_removed_stale_found; then
+    echo "  (no stale entries)"
+  fi
+fi
+
 # --------------------------------------------------------------------------
 # Orphan scripts/ cleanup tests
 #

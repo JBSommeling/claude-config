@@ -186,5 +186,136 @@ else
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# Scenario 3: codex-oracle-detects-content-mismatch
+#
+# Proves the Codex baseline hash-comparison in test-install.sh actually fires —
+# the oracle must fail when a ~/.codex/ file's MD5 is corrupted in the
+# codex-baseline-manifest.txt. Surgically trips only that check.
+# ---------------------------------------------------------------------------
+_copy3=$(mktemp -d)
+trap 'rm -rf "$_copy" "$_copy2" "$_copy3"' EXIT
+
+if command -v rsync &>/dev/null; then
+  rsync -a --exclude=.git "$_repo/" "$_copy3/"
+else
+  cp -R "$_repo/." "$_copy3/"
+fi
+
+_codex_manifest="$_copy3/tests/codex-baseline-manifest.txt"
+_codex_target_path=""
+_codex_bad_md5="00000000000000000000000000000000"
+
+while IFS= read -r _line; do
+  [[ "$_line" =~ ^# ]] && continue
+  [[ -z "$_line"     ]] && continue
+
+  _bpath="${_line%%  *}"
+
+  # Must start with ~/.codex/  (escape ~ to prevent tilde-expansion in case)
+  case "$_bpath" in
+    \~/.codex/*) ;;
+    *) continue ;;
+  esac
+
+  # Must NOT appear in intentional-changes.txt (format: path | reason)
+  if grep -qF "$_bpath |" "$_copy3/tests/intentional-changes.txt" 2>/dev/null; then
+    continue
+  fi
+
+  # Must NOT appear in removed-files.txt (format: path | reason)
+  if grep -qF "$_bpath |" "$_copy3/tests/removed-files.txt" 2>/dev/null; then
+    continue
+  fi
+
+  _codex_target_path="$_bpath"
+  break
+done < "$_codex_manifest"
+
+if [ -z "$_codex_target_path" ]; then
+  echo "FAIL codex-oracle-detects-content-mismatch: could not find a suitable codex baseline line to corrupt"
+  fail=$((fail + 1))
+else
+  _tmp="$_copy3/.codexmanifest.tmp"
+  while IFS= read -r _line; do
+    _bpath="${_line%%  *}"
+    if [ "$_bpath" = "$_codex_target_path" ]; then
+      printf '%s  %s\n' "$_codex_target_path" "$_codex_bad_md5"
+    else
+      printf '%s\n' "$_line"
+    fi
+  done < "$_codex_manifest" > "$_tmp"
+  cp "$_tmp" "$_codex_manifest"
+
+  _out3=$(bash "$_copy3/tests/test-install.sh" 2>&1); _rc3=$?
+
+  if [ "$_rc3" -ne 0 ]; then
+    if printf '%s\n' "$_out3" | grep -qF "MD5 MISMATCH (codex): $_codex_target_path"; then
+      echo "PASS codex-oracle-detects-content-mismatch ($_codex_target_path)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL codex-oracle-detects-content-mismatch: oracle exited $_rc3 but not via the injected Codex MD5 mismatch for $_codex_target_path — assertion not attributable to the defect"
+      fail=$((fail + 1))
+    fi
+  else
+    echo "FAIL codex-oracle-detects-content-mismatch: real test-install.sh passed despite a corrupted Codex baseline — the Codex content comparison is not firing"
+    fail=$((fail + 1))
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Scenario 4: codex-oracle-detects-config-toml-mismatch
+#
+# Proves the DYNAMIC config.toml content check in test-install.sh actually
+# fires — the oracle must fail when install.sh's config.toml generation
+# produces output that diverges from the plain $HOME-expansion of the repo
+# source. Perturbs install.sh in the copy to append a comment line after the
+# installed config.toml is written, which trips only the md5 check (a comment
+# does not affect command-path validity).
+# ---------------------------------------------------------------------------
+_copy4=$(mktemp -d)
+trap 'rm -rf "$_copy" "$_copy2" "$_copy3" "$_copy4"' EXIT
+
+if command -v rsync &>/dev/null; then
+  rsync -a --exclude=.git "$_repo/" "$_copy4/"
+else
+  cp -R "$_repo/." "$_copy4/"
+fi
+
+# Perturb install.sh: after the do_sed_expand_home call that writes
+# "${HOME}/.codex/config.toml", inject a line that appends a harmless comment.
+# The while-read loop rewrites install.sh line by line, inserting the tamper
+# line immediately after the line containing the config.toml destination arg.
+_s4_matched=0
+_s4_install_tmp="$_copy4/install.sh.tmp"
+while IFS= read -r _line; do
+  printf '%s\n' "$_line"
+  if [ "$_s4_matched" -eq 0 ] && printf '%s\n' "$_line" | grep -qF '"${HOME}/.codex/config.toml"'; then
+    _s4_matched=1
+    printf '%s\n' '  $dry_run || echo "# selfcheck-tamper" >> "${HOME}/.codex/config.toml"'
+  fi
+done < "$_copy4/install.sh" > "$_s4_install_tmp"
+cp "$_s4_install_tmp" "$_copy4/install.sh"
+
+# Anti-vacuity guard: verify the perturbation actually took.
+if ! grep -qF '# selfcheck-tamper' "$_copy4/install.sh"; then
+  echo "FAIL codex-oracle-detects-config-toml-mismatch: could not locate/perturb config.toml generation in install.sh"
+  fail=$((fail + 1))
+else
+  _out4=$(bash "$_copy4/tests/test-install.sh" 2>&1); _rc4=$?
+  if [ "$_rc4" -ne 0 ]; then
+    if printf '%s\n' "$_out4" | grep -qF 'MD5 MISMATCH (codex): ~/.codex/config.toml'; then
+      echo "PASS codex-oracle-detects-config-toml-mismatch"
+      pass=$((pass + 1))
+    else
+      echo "FAIL codex-oracle-detects-config-toml-mismatch: oracle exited $_rc4 but not via the injected config.toml mismatch — assertion not attributable to the defect"
+      fail=$((fail + 1))
+    fi
+  else
+    echo "FAIL codex-oracle-detects-config-toml-mismatch: real test-install.sh passed despite a perturbed config.toml generation — the config.toml dynamic check is not firing"
+    fail=$((fail + 1))
+  fi
+fi
+
 echo "$pass/$((pass+fail)) install-selfcheck tests passed"
 [ "$fail" -eq 0 ]
