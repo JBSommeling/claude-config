@@ -145,6 +145,54 @@ GHEOF
   fi
 ) && pass=$((pass + 1)) || { fail=$((fail + 1)); true; }
 
+# ---------------------------------------------------------------------------
+# Test 4: Non-push command on default branch is allowed (early-exit guard)
+# ---------------------------------------------------------------------------
+# The hook exits 0 early for any command not containing `git push`. If that
+# early-exit were removed, the hook would reach the branch comparison and deny
+# any command when current branch == default branch.
+# This test sets up a repo checked out ON the default branch (so the
+# current==default comparison would fire if the early-exit were absent) and
+# runs a non-push command. The expected result is allow.
+# Note: mock gh is NOT placed in PATH here so the hook falls back to
+# `git show-ref` which finds "main" as a local branch.
+(
+  _tmpdir=$(mktemp -d)
+  trap 'rm -rf "$_tmpdir"' EXIT
+
+  cd "$_tmpdir"
+  git init -q
+  git config user.email "test@test.com"
+  git config user.name "Test"
+  git commit --allow-empty -q -m "init"
+  # Stay on the default branch (main / whatever git init created).
+  # The hook must see current == default so that removing the early-exit
+  # would flip the result from allow to deny.
+  _current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+  # Mock gh returns the same branch as the current branch, ensuring that
+  # current == default so removing the early-exit would deny.
+  _bindir=$(mktemp -d)
+  cat >"$_bindir/gh" <<GHEOF
+#!/bin/bash
+echo "${_current}"
+GHEOF
+  chmod +x "$_bindir/gh"
+
+  payload='{"tool_name":"Bash","tool_input":{"command":"echo hello"}}'
+  result=$(
+    export PATH="$_bindir:$PATH"
+    printf '%s' "$payload" | CLAUDE_BYPASS_PUSH_GUARD=0 bash "$PUSH_HOOK" 2>/dev/null || true
+  )
+  if printf '%s' "$result" | grep -q '"permissionDecision".*"deny"'; then
+    echo "FAIL non-push-command-allowed: expected allow for non-push command, got deny"
+    exit 1
+  else
+    echo "PASS non-push-command-allowed"
+    exit 0
+  fi
+) && pass=$((pass + 1)) || { fail=$((fail + 1)); true; }
+
 echo ""
 echo "$pass/$((pass + fail)) push-guard tests passed"
 [ "$fail" -eq 0 ]

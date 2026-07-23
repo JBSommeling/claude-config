@@ -195,6 +195,19 @@ for json_file in "$FIXTURES_DIR"/*.json; do
 done
 
 # ---------------------------------------------------------------------------
+# Common-guards unit tests (HOOK_ADAPTER allowlist, jq-missing fail-closed)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Common-guards tests ---"
+COMMON_GUARDS_TEST="$REPO_ROOT/tests/test-common-guards.sh"
+
+if [ -f "$COMMON_GUARDS_TEST" ]; then
+  run_suite "common-guards" "$COMMON_GUARDS_TEST" 6
+else
+  echo "SKIP common-guards tests (tests/test-common-guards.sh not found)"
+fi
+
+# ---------------------------------------------------------------------------
 # Platform-neutrality tests
 # ---------------------------------------------------------------------------
 echo ""
@@ -280,7 +293,7 @@ echo "--- Push guard integration tests ---"
 PUSH_GUARD_TEST="$REPO_ROOT/tests/test-push-guard.sh"
 
 if [ -f "$PUSH_GUARD_TEST" ]; then
-  run_suite "push-guard" "$PUSH_GUARD_TEST" 3
+  run_suite "push-guard" "$PUSH_GUARD_TEST" 4
 else
   echo "SKIP push-guard tests (tests/test-push-guard.sh not found)"
 fi
@@ -296,6 +309,19 @@ if [ -f "$INSTALL_TEST" ]; then
   run_suite "install" "$INSTALL_TEST" 1
 else
   echo "SKIP install test (tests/test-install.sh not found)"
+fi
+
+# ---------------------------------------------------------------------------
+# Install oracle self-check (S11-S14)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Install oracle self-check ---"
+INSTALL_SELFCHECK_TEST="$REPO_ROOT/tests/test-install-selfcheck.sh"
+
+if [ -f "$INSTALL_SELFCHECK_TEST" ]; then
+  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 4
+else
+  echo "SKIP install-selfcheck test (tests/test-install-selfcheck.sh not found)"
 fi
 
 echo ""
