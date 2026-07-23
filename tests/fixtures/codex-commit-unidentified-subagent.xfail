@@ -1,0 +1,11 @@
+# XFAIL: enforce-commit-ownership.sh can never deny a Codex subagent commit
+# while Codex does not populate agent_id or agent_type in PreToolUse payloads.
+#
+# The hook denies only when hook_caller returns "subagent", which requires
+# agent_id or agent_type to be present (non-empty) in the payload.  Without
+# those fields, hook_caller returns "unknown" (default Codex mode) or "root"
+# (with CODEX_ENFORCE_DELEGATION=1), and the guard allows in both cases.
+#
+# This XFAIL can be removed when a Codex release populates agent_id or
+# agent_type in subagent PreToolUse payloads — at that point the guard
+# activates with no code change required.

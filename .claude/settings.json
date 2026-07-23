@@ -24,7 +24,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/.claude/hooks/block-push-to-default-branch.sh"
+            "command": "$HOME/.claude/hooks/block-push.sh"
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/enforce-commit-ownership.sh"
           },
           {
             "type": "command",

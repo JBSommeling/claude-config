@@ -1,0 +1,6 @@
+# Allowlist for hooks that were renamed between baseline capture and now.
+# Format: old-name.sh -> new-name.sh
+# A baseline hook that is missing after install is tolerated ONLY if it appears
+# here AND its replacement (new-name.sh) exists and is executable in
+# ~/.claude/hooks/ after install. Any other missing hook is a hard FAIL.
+block-push-to-default-branch.sh -> block-push.sh

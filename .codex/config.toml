@@ -1,0 +1,135 @@
+# Codex configuration for claude-config
+#
+# IMPORTANT: After installing, run `/hooks` in Codex to review and trust these
+# hooks before they will execute. Trust is hash-pinned — any edit to a hook
+# script requires re-running `/hooks` to re-approve the updated hash.
+
+# Orchestrator model — high tier, because the orchestrator plans, reviews, and
+# makes architectural decisions.
+# Slugs verified from the Codex models documentation on 2026-07-22. Note: there
+# is no `codex models` CLI command to re-check them (the request was closed as
+# not planned); refresh these slugs when OpenAI rotates the model family.
+# high tier — $5.00/$30.00 per 1M tokens (in/out)
+model = "gpt-5.6-sol"
+
+# Require explicit approval for untrusted operations.
+approval_policy = "on-request"
+
+# workspace-write allows the orchestrator to run git add / git commit inline.
+# read-only is deliberately NOT used here: the orchestrator must retain commit
+# access (see ADR 0004 — orchestrator holds exclusive commit rights). Subagents
+# that only read or search are defined with sandbox_mode = "read-only" in their
+# own agent TOML files.
+sandbox_mode = "workspace-write"
+
+[agents]
+# Maximum number of parallel subagent threads.
+max_threads = 6
+# Maximum subagent nesting depth. Specialists spawn from the orchestrator (depth 1);
+# specialists must not spawn further subagents.
+max_depth = 1
+# Safety net: any agent that omits `model` falls back to this slug.
+# Without this, resolution falls through to the parent session's model,
+# which would defeat cost tiering.
+# mid tier — $2.50/$15.00 per 1M tokens (in/out)
+default_subagent_model = "gpt-5.6-terra"
+
+# ---------------------------------------------------------------------------
+# Hooks
+#
+# Hook trust is hash-pinned. After any edit to a hook script you must run
+# `/hooks` in Codex to re-approve the new hash.
+#
+# Hook command paths use $HOME so install.sh can expand them correctly.
+# ---------------------------------------------------------------------------
+
+# REGISTERED — no-op until Codex exposes worker identity; becomes preventive
+# automatically when it does (see ADR 0003): Block git push to the default branch.
+# Accepts "Bash", "bash", and "shell" because the Codex shell tool name may vary
+# across releases; a narrower matcher would silently miss pushes.
+#
+# WARNING — CODEX_ENFORCE_DELEGATION=1 footgun: do NOT set this flag unless you
+# have confirmed that a real subagent payload on your Codex release actually
+# contains agent_id or agent_type. If subagents also lack those fields (the
+# likely case), strict mode denies EVERY edit from EVERY agent, making the
+# harness unusable.
+[[hooks.PreToolUse]]
+matcher = "Bash|bash|shell"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/block-push.sh"
+  timeout = 10
+
+# REGISTERED — no-op until Codex exposes worker identity; becomes preventive
+# automatically when it does (see ADR 0003): Enforce commit ownership — deny
+# git commit from subagents. hook_caller returns "unknown" when agent_id /
+# agent_type are absent from the payload, and the hook treats "unknown" as
+# permissive (allow). Once Codex exposes a worker-unique identifier, prevention
+# activates with no config change.
+[[hooks.PreToolUse]]
+matcher = "Bash|bash|shell"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/enforce-commit-ownership.sh"
+  timeout = 10
+
+# REGISTERED — no-op until Codex exposes worker identity; becomes preventive
+# automatically when it does (see ADR 0003): Enforce delegation — block
+# apply_patch/Edit/Write from the orchestrator when no delegation window is
+# active. "unknown" caller is treated permissively (allow) for the same reason.
+# The matcher must never be "*" because Codex fires PreToolUse for update_plan,
+# spawn_agent, and MCP tool calls — a wildcard matcher would intercept those
+# events incorrectly.
+[[hooks.PreToolUse]]
+matcher = "apply_patch|Edit|Write"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/enforce-delegation.sh"
+  timeout = 10
+
+# ---------------------------------------------------------------------------
+# Delegation ledger — observational only, NEVER blocks tool calls.
+#
+# Because hook_caller returns "unknown" on Codex when no worker identity is
+# present, the prevention guards above fail open for the orchestrator. The
+# ledger provides after-the-fact detection instead: it records edit and
+# delegation events during a session and reports, at session end, any edits
+# that happened while no delegation was active.
+#
+# Design: a missed SubagentStop leaves the depth counter elevated, so edits
+# inside the unclosed window appear delegated — a silent miss (under-reporting).
+# ledger-report.sh detects non-zero depth at session end and warns prominently.
+#
+# All three scripts exit 0 unconditionally. A broken ledger never blocks work.
+# ---------------------------------------------------------------------------
+
+# REGISTERED — observational; never blocks tool calls. Record edit and spawn
+# events to the session ledger for after-the-fact delegation auditing.
+[[hooks.PreToolUse]]
+matcher = "apply_patch|Edit|Write|spawn_agent|Agent"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/ledger-record.sh"
+  timeout = 10
+
+# REGISTERED — observational only. Decrement the delegation depth counter when
+# a subagent stops.
+[[hooks.SubagentStop]]
+
+  [[hooks.SubagentStop.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/ledger-close.sh"
+  timeout = 10
+
+# REGISTERED — observational only. Emit a session summary at stop — lists any
+# undelegated edits.
+[[hooks.Stop]]
+
+  [[hooks.Stop.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/ledger-report.sh"
+  timeout = 10

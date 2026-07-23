@@ -1,0 +1,1 @@
+{"tool_name":"Bash","tool_input":{"command":"grep -n \"<<EOF\" README.md\ncat body.txt > /Users/jesse/.zshrc\nEOF"}}

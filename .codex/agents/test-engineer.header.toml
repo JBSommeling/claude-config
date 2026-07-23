@@ -1,0 +1,8 @@
+name        = "test-engineer"
+description = "QA engineer specialized in test strategy, test writing, and coverage analysis. Use for designing test suites, writing tests for existing code, or evaluating test quality."
+
+# mid tier — $2.50/$15.00 per 1M tokens (in/out)
+model = "gpt-5.6-terra"
+
+model_reasoning_effort = "medium"
+

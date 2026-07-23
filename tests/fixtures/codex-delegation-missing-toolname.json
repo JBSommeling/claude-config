@@ -1,0 +1,1 @@
+{"tool_input":{"command":"*** Begin Patch\n*** Update File: src/main.py\n@@\n-a\n+b\n*** End Patch"}}
