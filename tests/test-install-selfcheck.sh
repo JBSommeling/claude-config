@@ -204,6 +204,7 @@ fi
 
 _codex_manifest="$_copy3/tests/codex-baseline-manifest.txt"
 _codex_target_path=""
+_codex_bad_md5="00000000000000000000000000000000"
 
 while IFS= read -r _line; do
   [[ "$_line" =~ ^# ]] && continue
@@ -239,7 +240,7 @@ else
   while IFS= read -r _line; do
     _bpath="${_line%%  *}"
     if [ "$_bpath" = "$_codex_target_path" ]; then
-      printf '%s  %s\n' "$_codex_target_path" "$_bad_md5"
+      printf '%s  %s\n' "$_codex_target_path" "$_codex_bad_md5"
     else
       printf '%s\n' "$_line"
     fi

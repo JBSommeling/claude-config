@@ -445,11 +445,17 @@ else
     codex_baseline_md5s+=("$bmd5")
   done < "$BASELINE_CODEX"
 
+  if [ "${#codex_baseline_paths[@]}" -eq 0 ]; then
+    echo "  FAIL: codex-baseline-manifest.txt parsed zero entries"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("EMPTY: codex-baseline-manifest.txt (zero entries parsed)")
+  fi
+
   for i in "${!codex_baseline_paths[@]}"; do
     bpath="${codex_baseline_paths[$i]}"
     bmd5="${codex_baseline_md5s[$i]}"
 
-    actual_path="${CODEX_FAKE_HOME}/${bpath#\~/}"
+    actual_path="${bpath/#\~/$CODEX_FAKE_HOME}"
 
     if [ ! -f "$actual_path" ]; then
       _found_removed=false
@@ -520,6 +526,64 @@ else
       fail_count=$((fail_count + 1))
       fail_messages+=("MD5 MISMATCH (codex): ~/.codex/config.toml")
     fi
+  fi
+
+  # ------------------------------------------------------------------------
+  # Staleness checks — Codex half. Mirror the Claude staleness checks
+  # (see the "--- Intentional-changes staleness check ---" / "--- Removed-files
+  # staleness check ---" sections above) against the codex baseline and
+  # CODEX_FAKE_HOME, so a stale ~/.codex or ~/.agents allowlist entry cannot
+  # silently paper over a reverted or restored codex file.
+  # ------------------------------------------------------------------------
+  echo ""
+  echo "--- Intentional-changes staleness check (codex) ---"
+  _codex_stale_found=false
+  for ii in "${!intentional_paths[@]}"; do
+    _ipath="${intentional_paths[$ii]}"
+    _ibaseline_md5=""
+    for bi in "${!codex_baseline_paths[@]}"; do
+      if [ "${codex_baseline_paths[$bi]}" = "$_ipath" ]; then
+        _ibaseline_md5="${codex_baseline_md5s[$bi]}"
+        break
+      fi
+    done
+    [ -z "$_ibaseline_md5" ] && continue
+    _iactual_path="${_ipath/#\~/$CODEX_FAKE_HOME}"
+    if [ -f "$_iactual_path" ]; then
+      _iactual_md5=$(file_md5 "$_iactual_path")
+      if [ "$_iactual_md5" = "$_ibaseline_md5" ]; then
+        echo "  FAIL: stale entry in intentional-changes.txt: $_ipath"
+        echo "        (installed hash matches codex baseline — remove this entry)"
+        fail_count=$((fail_count + 1))
+        fail_messages+=("STALE INTENTIONAL ENTRY (codex): $_ipath")
+        _codex_stale_found=true
+      fi
+    fi
+  done
+  if ! $_codex_stale_found; then
+    echo "  (no stale entries)"
+  fi
+
+  echo ""
+  echo "--- Removed-files staleness check (codex) ---"
+  _codex_removed_stale_found=false
+  for ri in "${!removed_paths[@]}"; do
+    _rpath="${removed_paths[$ri]}"
+    case "$_rpath" in
+      \~/.codex/*|\~/.agents/*) ;;
+      *) continue ;;
+    esac
+    _ractual_path="${_rpath/#\~/$CODEX_FAKE_HOME}"
+    if [ -f "$_ractual_path" ]; then
+      echo "  FAIL: stale entry in removed-files.txt: $_rpath"
+      echo "        (file IS installed in codex — remove this entry or stop installing it)"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("STALE REMOVED ENTRY (codex): $_rpath")
+      _codex_removed_stale_found=true
+    fi
+  done
+  if ! $_codex_removed_stale_found; then
+    echo "  (no stale entries)"
   fi
 fi
 
