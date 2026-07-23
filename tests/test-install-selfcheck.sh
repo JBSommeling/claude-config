@@ -108,17 +108,22 @@ done < "$_manifest" > "$_tmp_manifest"
 cp "$_tmp_manifest" "$_manifest"
 
 # ---------------------------------------------------------------------------
-# Run the REAL oracle in the copy
+# Run the REAL oracle in the copy — capture output for signature matching
 # ---------------------------------------------------------------------------
-bash "$_copy/tests/test-install.sh" >/dev/null 2>&1
+_out=$(bash "$_copy/tests/test-install.sh" 2>&1)
 _rc=$?
 
 # ---------------------------------------------------------------------------
-# Assert non-zero exit
+# Assert: non-zero exit AND the specific MD5 MISMATCH line for our path
 # ---------------------------------------------------------------------------
 if [ "$_rc" -ne 0 ]; then
-  echo "PASS oracle-detects-baseline-mismatch ($_target_path)"
-  pass=$((pass + 1))
+  if printf '%s\n' "$_out" | grep -qF "MD5 MISMATCH: $_target_path"; then
+    echo "PASS oracle-detects-baseline-mismatch ($_target_path)"
+    pass=$((pass + 1))
+  else
+    echo "FAIL oracle-detects-baseline-mismatch: oracle exited $_rc but not via the injected MD5 mismatch for $_target_path — assertion not attributable to the defect"
+    fail=$((fail + 1))
+  fi
 else
   echo "FAIL oracle-detects-baseline-mismatch ($_target_path): real test-install.sh passed despite a corrupted expected baseline — the actual-vs-expected comparison is not firing"
   fail=$((fail + 1))
@@ -164,11 +169,17 @@ if [ "$_s2_matched" -eq 0 ]; then
   echo "FAIL codex-oracle-detects-broken-command: no 'command = \"...\"' line found in .codex/config.toml — cannot perform mutation"
   fail=$((fail + 1))
 else
-  bash "$_copy2/tests/test-install.sh" >/dev/null 2>&1
+  _out2=$(bash "$_copy2/tests/test-install.sh" 2>&1)
   _rc2=$?
   if [ "$_rc2" -ne 0 ]; then
-    echo "PASS codex-oracle-detects-broken-command ($_s2_cmd_display)"
-    pass=$((pass + 1))
+    if printf '%s\n' "$_out2" | grep -qF "COMMAND NOT EXECUTABLE (codex)" && \
+       printf '%s\n' "$_out2" | grep -qF "__selfcheck_absent_sentinel__"; then
+      echo "PASS codex-oracle-detects-broken-command ($_s2_cmd_display)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL codex-oracle-detects-broken-command: oracle exited $_rc2 but not via the injected broken Codex command — assertion not attributable to the defect"
+      fail=$((fail + 1))
+    fi
   else
     echo "FAIL codex-oracle-detects-broken-command: real test-install.sh passed despite a broken Codex config.toml command path — the Codex command-path check is not firing"
     fail=$((fail + 1))
