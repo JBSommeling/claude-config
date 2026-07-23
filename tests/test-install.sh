@@ -423,6 +423,106 @@ while IFS= read -r cmd_path; do
 done < <(grep -E '^[[:space:]]*command[[:space:]]*=[[:space:]]*"' "${REPO_ROOT}/.codex/config.toml" \
            | sed -E 's/^[[:space:]]*command[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
 
+echo ""
+echo "--- Codex content baseline checks ---"
+
+BASELINE_CODEX="${REPO_ROOT}/tests/codex-baseline-manifest.txt"
+
+if [ ! -f "$BASELINE_CODEX" ]; then
+  echo "  FAIL: codex-baseline-manifest.txt missing"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("MISSING: codex-baseline-manifest.txt")
+else
+  codex_baseline_paths=()
+  codex_baseline_md5s=()
+
+  while IFS= read -r line; do
+    [[ "$line" =~ ^# ]] && continue
+    [[ -z "$line"    ]] && continue
+    bpath="${line%%  *}"
+    bmd5="${line##*  }"
+    codex_baseline_paths+=("$bpath")
+    codex_baseline_md5s+=("$bmd5")
+  done < "$BASELINE_CODEX"
+
+  for i in "${!codex_baseline_paths[@]}"; do
+    bpath="${codex_baseline_paths[$i]}"
+    bmd5="${codex_baseline_md5s[$i]}"
+
+    actual_path="${CODEX_FAKE_HOME}/${bpath#\~/}"
+
+    if [ ! -f "$actual_path" ]; then
+      _found_removed=false
+      for ri in "${!removed_paths[@]}"; do
+        if [ "${removed_paths[$ri]}" = "$bpath" ]; then
+          _rreason="${removed_reasons[$ri]}"
+          if [ -n "$_rreason" ]; then
+            echo "  ok (removed): $bpath"
+            echo "        reason: $_rreason"
+            pass_count=$((pass_count + 1))
+            _found_removed=true
+          fi
+          break
+        fi
+      done
+      if ! $_found_removed; then
+        echo "  FAIL: $bpath (missing — not in removed-files.txt)"
+        fail_count=$((fail_count + 1))
+        fail_messages+=("MISSING (codex): $bpath")
+      fi
+    else
+      actual_md5=$(file_md5 "$actual_path")
+      if [ "$actual_md5" = "$bmd5" ]; then
+        echo "  ok: $bpath"
+        pass_count=$((pass_count + 1))
+      else
+        _found_intentional=false
+        for ii in "${!intentional_paths[@]}"; do
+          if [ "${intentional_paths[$ii]}" = "$bpath" ]; then
+            _ireason="${intentional_reasons[$ii]}"
+            if [ -n "$_ireason" ]; then
+              echo "  ok (intentional): $bpath"
+              echo "        reason: $_ireason"
+              pass_count=$((pass_count + 1))
+              _found_intentional=true
+            fi
+            break
+          fi
+        done
+        if ! $_found_intentional; then
+          echo "  FAIL: $bpath (md5 mismatch — not in intentional-changes.txt)"
+          echo "        baseline: $bmd5"
+          echo "        actual:   $actual_md5"
+          fail_count=$((fail_count + 1))
+          fail_messages+=("MD5 MISMATCH (codex): $bpath")
+        fi
+      fi
+    fi
+  done
+
+  # Part B — dynamic check for config.toml (not in manifest — HOME-expanded)
+  _codex_toml_actual="${CODEX_FAKE_HOME}/.codex/config.toml"
+  if [ ! -f "$_codex_toml_actual" ]; then
+    echo "  FAIL: ~/.codex/config.toml (missing)"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("MISSING (codex): ~/.codex/config.toml")
+  else
+    _expected_toml_md5=$(sed "s|\$HOME|${CODEX_FAKE_HOME}|g" "${REPO_ROOT}/.codex/config.toml" | \
+      (command -v md5 &>/dev/null && md5 || md5sum | awk '{print $1}'))
+    _actual_toml_md5=$(file_md5 "$_codex_toml_actual")
+    if [ "$_actual_toml_md5" = "$_expected_toml_md5" ]; then
+      echo "  ok (dynamic): ~/.codex/config.toml (\$HOME expansion correct)"
+      pass_count=$((pass_count + 1))
+    else
+      echo "  FAIL: ~/.codex/config.toml (config.toml md5 mismatch)"
+      echo "        expected (dynamic): $_expected_toml_md5"
+      echo "        actual:             $_actual_toml_md5"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("MD5 MISMATCH (codex): ~/.codex/config.toml")
+    fi
+  fi
+fi
+
 # --------------------------------------------------------------------------
 # Orphan scripts/ cleanup tests
 #

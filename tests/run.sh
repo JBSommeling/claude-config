@@ -306,7 +306,7 @@ echo "--- Install regression test ---"
 INSTALL_TEST="$REPO_ROOT/tests/test-install.sh"
 
 if [ -f "$INSTALL_TEST" ]; then
-  run_suite "install" "$INSTALL_TEST" 1
+  run_suite "install" "$INSTALL_TEST" 15
 else
   echo "SKIP install test (tests/test-install.sh not found)"
 fi
@@ -319,7 +319,7 @@ echo "--- Install oracle self-check ---"
 INSTALL_SELFCHECK_TEST="$REPO_ROOT/tests/test-install-selfcheck.sh"
 
 if [ -f "$INSTALL_SELFCHECK_TEST" ]; then
-  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 2
+  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 3
 else
   echo "SKIP install-selfcheck test (tests/test-install-selfcheck.sh not found)"
 fi

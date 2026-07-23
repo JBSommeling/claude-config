@@ -186,5 +186,81 @@ else
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# Scenario 3: codex-oracle-detects-content-mismatch
+#
+# Proves the Codex baseline hash-comparison in test-install.sh actually fires —
+# the oracle must fail when a ~/.codex/ file's MD5 is corrupted in the
+# codex-baseline-manifest.txt. Surgically trips only that check.
+# ---------------------------------------------------------------------------
+_copy3=$(mktemp -d)
+trap 'rm -rf "$_copy" "$_copy2" "$_copy3"' EXIT
+
+if command -v rsync &>/dev/null; then
+  rsync -a --exclude=.git "$_repo/" "$_copy3/"
+else
+  cp -R "$_repo/." "$_copy3/"
+fi
+
+_codex_manifest="$_copy3/tests/codex-baseline-manifest.txt"
+_codex_target_path=""
+
+while IFS= read -r _line; do
+  [[ "$_line" =~ ^# ]] && continue
+  [[ -z "$_line"     ]] && continue
+
+  _bpath="${_line%%  *}"
+
+  # Must start with ~/.codex/  (escape ~ to prevent tilde-expansion in case)
+  case "$_bpath" in
+    \~/.codex/*) ;;
+    *) continue ;;
+  esac
+
+  # Must NOT appear in intentional-changes.txt (format: path | reason)
+  if grep -qF "$_bpath |" "$_copy3/tests/intentional-changes.txt" 2>/dev/null; then
+    continue
+  fi
+
+  # Must NOT appear in removed-files.txt (format: path | reason)
+  if grep -qF "$_bpath |" "$_copy3/tests/removed-files.txt" 2>/dev/null; then
+    continue
+  fi
+
+  _codex_target_path="$_bpath"
+  break
+done < "$_codex_manifest"
+
+if [ -z "$_codex_target_path" ]; then
+  echo "FAIL codex-oracle-detects-content-mismatch: could not find a suitable codex baseline line to corrupt"
+  fail=$((fail + 1))
+else
+  _tmp="$_copy3/.codexmanifest.tmp"
+  while IFS= read -r _line; do
+    _bpath="${_line%%  *}"
+    if [ "$_bpath" = "$_codex_target_path" ]; then
+      printf '%s  %s\n' "$_codex_target_path" "$_bad_md5"
+    else
+      printf '%s\n' "$_line"
+    fi
+  done < "$_codex_manifest" > "$_tmp"
+  cp "$_tmp" "$_codex_manifest"
+
+  _out3=$(bash "$_copy3/tests/test-install.sh" 2>&1); _rc3=$?
+
+  if [ "$_rc3" -ne 0 ]; then
+    if printf '%s\n' "$_out3" | grep -qF "MD5 MISMATCH (codex): $_codex_target_path"; then
+      echo "PASS codex-oracle-detects-content-mismatch ($_codex_target_path)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL codex-oracle-detects-content-mismatch: oracle exited $_rc3 but not via the injected Codex MD5 mismatch for $_codex_target_path — assertion not attributable to the defect"
+      fail=$((fail + 1))
+    fi
+  else
+    echo "FAIL codex-oracle-detects-content-mismatch: real test-install.sh passed despite a corrupted Codex baseline — the Codex content comparison is not firing"
+    fail=$((fail + 1))
+  fi
+fi
+
 echo "$pass/$((pass+fail)) install-selfcheck tests passed"
 [ "$fail" -eq 0 ]
