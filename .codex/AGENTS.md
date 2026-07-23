@@ -73,6 +73,8 @@ Violating this contract — an agent editing files without an active delegation 
 
 On Claude Code, the delegation guard is preventive: a `PreToolUse` hook distinguishes orchestrator from subagent via `agent_id` / `agent_type` in the hook payload and blocks edits from the wrong level. On Codex, those fields are not reliably present in the shipped release (see ADR 0003). Shipping preventive enforcement against unverified fields risks blocking every subagent edit. We therefore ship delegation enforcement as detective: the ledger appends records on `PreToolUse` for `apply_patch` and `spawn_agent`, and reports at `Stop` any edits occurring outside a delegation window.
 
+**Fail-open on unknown callers.** The shared `enforce-delegation.sh` guard denies only when the caller resolves to `root`; both `subagent` and `unknown` callers pass. On Codex in the default (non-strict) mode, `agent_id`/`agent_type` are absent so *every* caller resolves to `unknown` — meaning the preventive path is inert for delegation and the ledger is the sole delegation check. This is intentional (ADR 0003): blocking on unverified identity would break every legitimate subagent edit. Do not read "delegation is enforced on Codex" as "undelegated edits are blocked on Codex" — they are recorded and reported, not prevented.
+
 ---
 
 ## Git Safety
