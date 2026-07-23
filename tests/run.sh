@@ -312,14 +312,14 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Install oracle self-check (S11-S14)
+# Install oracle self-check (end-to-end negative tests: proves the oracle can fail)
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Install oracle self-check ---"
 INSTALL_SELFCHECK_TEST="$REPO_ROOT/tests/test-install-selfcheck.sh"
 
 if [ -f "$INSTALL_SELFCHECK_TEST" ]; then
-  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 4
+  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 2
 else
   echo "SKIP install-selfcheck test (tests/test-install-selfcheck.sh not found)"
 fi

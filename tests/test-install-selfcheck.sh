@@ -1,230 +1,179 @@
 #!/usr/bin/env bash
-# tests/test-install-selfcheck.sh — meta-tests verifying that the install
-# oracle's four comparison checks can actually FAIL on corrupted inputs.
+# tests/test-install-selfcheck.sh — "oracle of the oracle"
 #
-# Each scenario replicates the corresponding comparison logic from test-install.sh
-# and runs it against deliberately bad inputs, asserting a FAIL is raised.
-# This proves the checks are not permanently bypassed (kills S11-S14).
+# Proves that tests/test-install.sh (the real install oracle) actually FAILS
+# when the installed tree does not match the expected baseline. Runs the REAL
+# oracle against a deliberately-corrupted baseline in a throwaway copy of the
+# repo, then asserts a non-zero exit.
 #
-# Scenarios:
-#   S12 — non-hook file corrupted, not listed in intentional-changes → FAIL
-#   S11 — intentional-changes.txt entry with blank reason → FAIL
-#   S13 — removed-files.txt entry with blank reason → FAIL
-#   S14 — settings.json installed with wrong $HOME expansion → FAIL
+# This replaces the former mirror-based self-check, which tested a private
+# copy of the comparison logic rather than the real script.
 
 set -uo pipefail
 
 pass=0
 fail=0
 
+_selfdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_repo="$(cd "$_selfdir/.." && pwd)"
+
 # ---------------------------------------------------------------------------
-# MD5 helper (macOS / Linux compat)
+# Create a throwaway copy of the repo
 # ---------------------------------------------------------------------------
-file_md5() {
-  if command -v md5 &>/dev/null; then
-    md5 -q "$1"
+_copy=$(mktemp -d)
+trap 'rm -rf "$_copy"' EXIT
+
+if command -v rsync &>/dev/null; then
+  rsync -a --exclude=.git "$_repo/" "$_copy/"
+else
+  cp -R "$_repo/." "$_copy/"
+fi
+
+# ---------------------------------------------------------------------------
+# Pick a target line to corrupt programmatically:
+#   - path starts with ~/.claude/
+#   - NOT under ~/.claude/hooks/
+#   - NOT ~/.claude/settings.json
+#   - NOT listed in tests/intentional-changes.txt
+#   - NOT listed in tests/removed-files.txt
+#
+# This guarantees the corruption flows through the plain hash-comparison
+# branch with no allowlist excuse.
+# ---------------------------------------------------------------------------
+_manifest="$_copy/tests/baseline-manifest.txt"
+_ic_file="$_copy/tests/intentional-changes.txt"
+_rf_file="$_copy/tests/removed-files.txt"
+
+_target_path=""
+
+while IFS= read -r _line; do
+  [[ "$_line" =~ ^# ]] && continue
+  [[ -z "$_line"     ]] && continue
+
+  # Format: <path>  <md5>  (two-space separator)
+  _bpath="${_line%%  *}"
+
+  # Must start with ~/.claude/  (escape ~ to prevent tilde-expansion in case)
+  case "$_bpath" in
+    \~/.claude/*) ;;
+    *) continue ;;
+  esac
+
+  # Must NOT be under ~/.claude/hooks/
+  case "$_bpath" in
+    \~/.claude/hooks/*) continue ;;
+  esac
+
+  # Must NOT be settings.json
+  [ "$_bpath" = "~/.claude/settings.json" ] && continue
+
+  # Must NOT appear in intentional-changes.txt (format: path | reason)
+  if grep -qF "$_bpath |" "$_ic_file" 2>/dev/null; then
+    continue
+  fi
+
+  # Must NOT appear in removed-files.txt (format: path | reason)
+  if grep -qF "$_bpath |" "$_rf_file" 2>/dev/null; then
+    continue
+  fi
+
+  _target_path="$_bpath"
+  break
+done < "$_manifest"
+
+if [ -z "$_target_path" ]; then
+  echo "FAIL oracle-detects-baseline-mismatch: could not find a suitable baseline line to corrupt"
+  fail=$((fail + 1))
+  echo "$pass/$((pass+fail)) install-selfcheck tests passed"
+  [ "$fail" -eq 0 ]
+  exit $?
+fi
+
+# ---------------------------------------------------------------------------
+# Corrupt only that line's md5 to a wrong-but-valid 32-char hex value.
+# Write to a temp file first, then cp over (avoids in-place editors).
+# ---------------------------------------------------------------------------
+_bad_md5="00000000000000000000000000000000"
+_tmp_manifest="$_copy/.manifest.tmp"
+
+while IFS= read -r _line; do
+  _bpath="${_line%%  *}"
+  if [ "$_bpath" = "$_target_path" ]; then
+    printf '%s  %s\n' "$_target_path" "$_bad_md5"
   else
-    md5sum "$1" | awk '{print $1}'
+    printf '%s\n' "$_line"
   fi
-}
+done < "$_manifest" > "$_tmp_manifest"
+
+cp "$_tmp_manifest" "$_manifest"
 
 # ---------------------------------------------------------------------------
-# S12: non-hook file corrupted, not in intentional-changes → must FAIL
+# Run the REAL oracle in the copy
 # ---------------------------------------------------------------------------
-# Mirrors the hash-comparison branch in test-install.sh (lines 303-329).
-# If the comparison were replaced with `if true`, _found_intentional would
-# never be set, but the code would count the mismatched file as ok anyway —
-# a different bug. The real survivor is: `if true` replacing the hash check
-# means the else-branch (intentional lookup) is never entered, so the file
-# silently passes. We verify: with a real mismatch and no intentional entry,
-# fail_count increments.
-(
-  _tmpdir=$(mktemp -d)
-  trap 'rm -rf "$_tmpdir"' EXIT
+bash "$_copy/tests/test-install.sh" >/dev/null 2>&1
+_rc=$?
 
-  # Create baseline content and compute its hash.
-  printf 'original content\n' > "$_tmpdir/original.txt"
-  _bmd5=$(file_md5 "$_tmpdir/original.txt")
+# ---------------------------------------------------------------------------
+# Assert non-zero exit
+# ---------------------------------------------------------------------------
+if [ "$_rc" -ne 0 ]; then
+  echo "PASS oracle-detects-baseline-mismatch ($_target_path)"
+  pass=$((pass + 1))
+else
+  echo "FAIL oracle-detects-baseline-mismatch ($_target_path): real test-install.sh passed despite a corrupted expected baseline — the actual-vs-expected comparison is not firing"
+  fail=$((fail + 1))
+fi
 
-  # Install a DIFFERENT (corrupted) file.
-  mkdir -p "$_tmpdir/fake_home/.claude"
-  printf 'corrupted content\n' > "$_tmpdir/fake_home/.claude/somefile.txt"
+# ---------------------------------------------------------------------------
+# Scenario 2: codex-oracle-detects-broken-command
+#
+# Proves the Codex config.toml command-path check in test-install.sh actually
+# fires — the oracle must fail when a command path referenced by config.toml
+# does not exist after `--codex --apply`. Surgically trips only that check.
+# ---------------------------------------------------------------------------
+_copy2=$(mktemp -d)
+trap 'rm -rf "$_copy" "$_copy2"' EXIT
 
-  # Replicate the comparison logic: no intentional-changes entry.
-  _bpath="~/.claude/somefile.txt"
-  _actual_path="$_tmpdir/fake_home/.claude/somefile.txt"
-  _intentional_paths=()
-  _intentional_reasons=()
-  _fail_count=0
+if command -v rsync &>/dev/null; then
+  rsync -a --exclude=.git "$_repo/" "$_copy2/"
+else
+  cp -R "$_repo/." "$_copy2/"
+fi
 
-  _actual_md5=$(file_md5 "$_actual_path")
-  if [ "$_actual_md5" = "$_bmd5" ]; then
-    : # ok — hashes match
+_codex_toml="$_copy2/.codex/config.toml"
+_bogus_path='$HOME/.codex/hooks/__selfcheck_absent_sentinel__.sh'
+_tmp_toml="${_codex_toml}.tmp"
+
+# Rewrite the FIRST matching command line to point at the bogus sentinel.
+# Write to a temp file then cp — no in-place editors.
+_s2_matched=0
+_s2_cmd_display=""
+while IFS= read -r _line; do
+  if [ "$_s2_matched" -eq 0 ] && printf '%s\n' "$_line" | grep -qE '^[[:space:]]*command[[:space:]]*=[[:space:]]*"'; then
+    _s2_matched=1
+    _mutated=$(printf '%s\n' "$_line" | sed "s|\"[^\"]*\"|\"${_bogus_path}\"|")
+    _s2_cmd_display=$(printf '%s\n' "$_mutated" | sed -E 's/^[[:space:]]*command[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+    printf '%s\n' "$_mutated"
   else
-    _found_intentional=false
-    for _ii in "${!_intentional_paths[@]}"; do
-      if [ "${_intentional_paths[$_ii]}" = "$_bpath" ]; then
-        _ireason="${_intentional_reasons[$_ii]}"
-        if [ -n "$_ireason" ]; then
-          _found_intentional=true
-        fi
-        break
-      fi
-    done
-    if ! $_found_intentional; then
-      _fail_count=$((_fail_count + 1))
-    fi
+    printf '%s\n' "$_line"
   fi
+done < "$_codex_toml" > "$_tmp_toml"
+cp "$_tmp_toml" "$_codex_toml"
 
-  if [ "$_fail_count" -gt 0 ]; then
-    echo "PASS s12-hash-mismatch-no-intentional-entry"
-    exit 0
+if [ "$_s2_matched" -eq 0 ]; then
+  echo "FAIL codex-oracle-detects-broken-command: no 'command = \"...\"' line found in .codex/config.toml — cannot perform mutation"
+  fail=$((fail + 1))
+else
+  bash "$_copy2/tests/test-install.sh" >/dev/null 2>&1
+  _rc2=$?
+  if [ "$_rc2" -ne 0 ]; then
+    echo "PASS codex-oracle-detects-broken-command ($_s2_cmd_display)"
+    pass=$((pass + 1))
   else
-    echo "FAIL s12-hash-mismatch-no-intentional-entry (corrupted file not in intentional-changes should raise fail_count)"
-    exit 1
+    echo "FAIL codex-oracle-detects-broken-command: real test-install.sh passed despite a broken Codex config.toml command path — the Codex command-path check is not firing"
+    fail=$((fail + 1))
   fi
-) && pass=$((pass + 1)) || { fail=$((fail + 1)); true; }
+fi
 
-# ---------------------------------------------------------------------------
-# S11: intentional-changes.txt entry with blank reason → must FAIL
-# ---------------------------------------------------------------------------
-# Mirrors lines 310-321 in test-install.sh. If the `if [ -n "$_ireason" ]`
-# guard were removed, a blank reason would silently mark the file as ok even
-# though no human-readable justification was provided.
-(
-  _tmpdir=$(mktemp -d)
-  trap 'rm -rf "$_tmpdir"' EXIT
-
-  printf 'original content\n' > "$_tmpdir/original.txt"
-  _bmd5=$(file_md5 "$_tmpdir/original.txt")
-
-  mkdir -p "$_tmpdir/fake_home/.claude"
-  printf 'changed content\n' > "$_tmpdir/fake_home/.claude/somefile.txt"
-
-  # Intentional-changes entry exists but has a BLANK reason.
-  _bpath="~/.claude/somefile.txt"
-  _actual_path="$_tmpdir/fake_home/.claude/somefile.txt"
-  _intentional_paths=("$_bpath")
-  _intentional_reasons=("")   # ← blank reason (the bug)
-  _fail_count=0
-
-  _actual_md5=$(file_md5 "$_actual_path")
-  if [ "$_actual_md5" = "$_bmd5" ]; then
-    : # ok
-  else
-    _found_intentional=false
-    for _ii in "${!_intentional_paths[@]}"; do
-      if [ "${_intentional_paths[$_ii]}" = "$_bpath" ]; then
-        _ireason="${_intentional_reasons[$_ii]}"
-        if [ -n "$_ireason" ]; then
-          _found_intentional=true
-        fi
-        break
-      fi
-    done
-    if ! $_found_intentional; then
-      _fail_count=$((_fail_count + 1))
-    fi
-  fi
-
-  if [ "$_fail_count" -gt 0 ]; then
-    echo "PASS s11-blank-intentional-reason"
-    exit 0
-  else
-    echo "FAIL s11-blank-intentional-reason (blank reason in intentional-changes should not satisfy the check)"
-    exit 1
-  fi
-) && pass=$((pass + 1)) || { fail=$((fail + 1)); true; }
-
-# ---------------------------------------------------------------------------
-# S13: removed-files.txt entry with blank reason → must FAIL
-# ---------------------------------------------------------------------------
-# Mirrors lines 284-301 in test-install.sh. If the `if [ -n "$_rreason" ]`
-# guard were removed, a blank reason in removed-files.txt would silently
-# excuse a missing baseline file without a human justification.
-(
-  _tmpdir=$(mktemp -d)
-  trap 'rm -rf "$_tmpdir"' EXIT
-
-  # The file is absent from the fake_home (simulating a missing baseline file).
-  _bpath="~/.claude/somefile.txt"
-  _actual_path="$_tmpdir/fake_home/.claude/somefile.txt"
-  # (file intentionally not created)
-
-  # removed-files entry exists but has a BLANK reason.
-  _removed_paths=("$_bpath")
-  _removed_reasons=("")   # ← blank reason (the bug)
-  _fail_count=0
-
-  if [ ! -f "$_actual_path" ]; then
-    _found_removed=false
-    for _ri in "${!_removed_paths[@]}"; do
-      if [ "${_removed_paths[$_ri]}" = "$_bpath" ]; then
-        _rreason="${_removed_reasons[$_ri]}"
-        if [ -n "$_rreason" ]; then
-          _found_removed=true
-        fi
-        break
-      fi
-    done
-    if ! $_found_removed; then
-      _fail_count=$((_fail_count + 1))
-    fi
-  fi
-
-  if [ "$_fail_count" -gt 0 ]; then
-    echo "PASS s13-blank-removed-reason"
-    exit 0
-  else
-    echo "FAIL s13-blank-removed-reason (blank reason in removed-files should not satisfy the check)"
-    exit 1
-  fi
-) && pass=$((pass + 1)) || { fail=$((fail + 1)); true; }
-
-# ---------------------------------------------------------------------------
-# S14: settings.json installed with wrong $HOME expansion → must FAIL
-# ---------------------------------------------------------------------------
-# Mirrors lines 262-276 in test-install.sh. If the dynamic settings.json
-# check were replaced with `if true` (or the expected_md5 computation were
-# skipped), a settings.json with wrong $HOME paths would pass silently.
-(
-  _tmpdir=$(mktemp -d)
-  trap 'rm -rf "$_tmpdir"' EXIT
-
-  _fake_home="$_tmpdir/fake_home"
-  _fake_repo="$_tmpdir/repo"
-  mkdir -p "$_fake_home/.claude"
-  mkdir -p "$_fake_repo/.claude"
-
-  # Source settings.json with a $HOME reference.
-  printf '{"hooks":{"dir":"$HOME/.claude/hooks"}}\n' > "$_fake_repo/.claude/settings.json"
-
-  # Install with WRONG home expansion (attacker used /wrong/home).
-  sed "s|\$HOME|/wrong/home|g" "$_fake_repo/.claude/settings.json" \
-    > "$_fake_home/.claude/settings.json"
-
-  # Compute expected md5 using the CORRECT fake_home expansion
-  # (mirrors the logic in test-install.sh line 263)
-  expected_md5=$(sed "s|\$HOME|${_fake_home}|g" "$_fake_repo/.claude/settings.json" | \
-    (command -v md5 &>/dev/null && md5 || md5sum | awk '{print $1}'))
-  actual_md5=$(file_md5 "$_fake_home/.claude/settings.json")
-
-  _fail_count=0
-  if [ "$actual_md5" = "$expected_md5" ]; then
-    : # ok — expansion is correct
-  else
-    _fail_count=$((_fail_count + 1))
-  fi
-
-  if [ "$_fail_count" -gt 0 ]; then
-    echo "PASS s14-wrong-home-expansion"
-    exit 0
-  else
-    echo "FAIL s14-wrong-home-expansion (wrong \$HOME expansion in settings.json should raise fail_count)"
-    exit 1
-  fi
-) && pass=$((pass + 1)) || { fail=$((fail + 1)); true; }
-
-echo ""
-echo "$pass/$((pass + fail)) install-selfcheck tests passed"
+echo "$pass/$((pass+fail)) install-selfcheck tests passed"
 [ "$fail" -eq 0 ]
