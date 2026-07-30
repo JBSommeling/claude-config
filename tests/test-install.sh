@@ -709,13 +709,16 @@ echo ""
 echo "--- Full-pipeline command install tests ---"
 
 # Pre-seed a stale stub, run install, verify it was overwritten with the real file.
-SUPERSEDED_HOME="$(mktemp -d)"
-trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A" "$ORPHAN_HOME_B" "$CLEANUP_HOME" "$SUPERSEDED_HOME"' EXIT
-mkdir -p "${SUPERSEDED_HOME}/.claude/commands"
-printf '# stale full-pipeline stub\n' > "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md"
-HOME="$SUPERSEDED_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
+FULLPIPE_HOME="$(mktemp -d)"
+trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A" "$ORPHAN_HOME_B" "$CLEANUP_HOME" "$FULLPIPE_HOME"' EXIT
+mkdir -p "${FULLPIPE_HOME}/.claude/commands"
+printf '# stale full-pipeline stub\n' > "${FULLPIPE_HOME}/.claude/commands/full-pipeline.md"
+HOME="$FULLPIPE_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
 
-if [ -e "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md" ]; then
+# NOTE: -e alone is weak here because the file was pre-seeded; it only proves the
+# installer did not DELETE it. The full-pipeline-content-matches assertion below is
+# what proves the real file was actually copied (stale stub would not match source).
+if [ -e "${FULLPIPE_HOME}/.claude/commands/full-pipeline.md" ]; then
   echo "PASS full-pipeline-installed"
   pass_count=$((pass_count + 1))
 else
@@ -725,7 +728,7 @@ else
 fi
 
 _fp_src="${REPO_ROOT}/.agents/workflows/full-pipeline.md"
-_fp_dst="${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md"
+_fp_dst="${FULLPIPE_HOME}/.claude/commands/full-pipeline.md"
 if [ ! -e "$_fp_src" ] || [ ! -e "$_fp_dst" ]; then
   echo "FAIL full-pipeline-content-matches (full-pipeline.md missing — cannot compare)"
   fail_count=$((fail_count + 1))
@@ -739,14 +742,18 @@ else
   fail_messages+=("CONTENT MISMATCH: installed full-pipeline.md does not match .agents/workflows/full-pipeline.md")
 fi
 
-HOME="$SUPERSEDED_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
-if [ -e "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md" ]; then
+HOME="$FULLPIPE_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
+if [ ! -e "$_fp_src" ] || [ ! -e "$_fp_dst" ]; then
+  echo "FAIL full-pipeline-install-idempotent (full-pipeline.md missing — cannot verify idempotency)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("IDEMPOTENCY FAILED: full-pipeline.md missing (src or dst) after second install")
+elif cmp -s "$_fp_src" "$_fp_dst"; then
   echo "PASS full-pipeline-install-idempotent"
   pass_count=$((pass_count + 1))
 else
-  echo "FAIL full-pipeline-install-idempotent (full-pipeline.md removed by second Claude install)"
+  echo "FAIL full-pipeline-install-idempotent (full-pipeline.md removed or corrupted by second Claude install)"
   fail_count=$((fail_count + 1))
-  fail_messages+=("IDEMPOTENCY FAILED: full-pipeline.md removed after second install")
+  fail_messages+=("IDEMPOTENCY FAILED: full-pipeline.md removed or content changed after second install")
 fi
 
 # --------------------------------------------------------------------------

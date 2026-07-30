@@ -70,7 +70,9 @@ This is a single pass, not a loop. Triage the findings:
 
 - **Critical** — fix before proceeding. Always.
 - **Important** — fix if the fix is straightforward; otherwise carry it forward to Step 4 to be posted on the PR.
-- **Minor** — carry forward to Step 4.
+- **Suggestion** — carry forward to Step 4.
+
+Delegate every fix to the `implementer` subagent — pass only the specific findings (file, line, recommendation), never whole files. `/review` reports findings; it does not apply them, so the fixes must be delegated explicitly here. After the implementer returns, verify the diff yourself before continuing.
 
 Record every finding that is carried forward rather than fixed, with its file, line, axis and severity. That carried-forward set is what Step 4 posts.
 
@@ -115,6 +117,7 @@ If Step 1 carried any findings forward, post each one as an inline review commen
 - Build payload with `line` + `side: "RIGHT"` (never `position`)
 - Re-validate each line against the PR diff; drop any that don't match, log the drop
 - Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
+- Record the set actually posted (after drops) — Phase 6 dedupes against this set, not against the carried-forward set
 
 ## Phase 6 — Judge (automatic)
 
@@ -130,7 +133,7 @@ Merge all reports into a GO/NO-GO recommendation with:
 - Acknowledged risks
 - Rollback plan
 
-Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level PR comment.
+Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Because Phase 5 ran a single review pass, unfixed findings are still present in the code and Phase 6 will rediscover them — before posting, drop any finding that duplicates one Step 4 actually posted (same file, same line, same axis) so each issue appears on the PR exactly once. A finding Step 4 dropped as unmatched was never posted, so it is not a duplicate — post it. Post the GO/NO-GO summary as a top-level PR comment.
 
 Present the final ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
 

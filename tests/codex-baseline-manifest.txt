@@ -22,6 +22,7 @@
 ~/.agents/skills/diagnose/scripts/hitl-loop.template.sh  46a2a00761be2785e59661f0e3c11471
 ~/.agents/skills/full-pipeline-cycle-beta/SKILL.md  61e2db29d8f83b7318c2610dc26c9967
 ~/.agents/skills/full-pipeline-cycle/SKILL.md  d5681042f1fac27eaad0f11dbff668f5
+~/.agents/skills/full-pipeline/SKILL.md  d00253d0316bd6bd38c006be347e4a3d
 ~/.agents/skills/grill-with-docs/ADR-FORMAT.md  bb327bab674f400796f64b6e2ef5850c
 ~/.agents/skills/grill-with-docs/CONTEXT-FORMAT.md  c2f41ffc931955b2b8d01322273d75fa
 ~/.agents/skills/grill-with-docs/SKILL.md  8bf29044d7890561fe964b884498ff9e
