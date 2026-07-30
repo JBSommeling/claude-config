@@ -15,9 +15,9 @@
 ~/.agents/skills/code-simplification/SKILL.md  3ebc4b43a9b8f14314d8605af53cc2b1
 ~/.agents/skills/code-simplify/SKILL.md  a16f5e25551c44b0ab570e7a7ba4ea2f
 ~/.agents/skills/diagnose-fix/SKILL.md  96a6fda93433847de1d828c8ecd06630
-~/.agents/skills/diagnose-full-pipeline/SKILL.md  29e787191a17def3799552e561d976a9
 ~/.agents/skills/diagnose-full-pipeline-cycle-beta/SKILL.md  0f25dd6b44d6a1db0057d2a52a4b15e5
 ~/.agents/skills/diagnose-full-pipeline-cycle/SKILL.md  a36d153ac001796acdd9e50fe54311ba
+~/.agents/skills/diagnose-full-pipeline/SKILL.md  8da65b1d3073f2ff82cc18c9b73ddedb
 ~/.agents/skills/diagnose-workflow/SKILL.md  e855c595331cc0fc32d699782977407c
 ~/.agents/skills/diagnose/SKILL.md  95db4e9ff0a8a9bfe50c53e1dfb38148
 ~/.agents/skills/diagnose/scripts/hitl-loop.template.sh  46a2a00761be2785e59661f0e3c11471

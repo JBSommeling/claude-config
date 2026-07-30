@@ -2,6 +2,9 @@
 description: Diagnose a bug, then run the full single-pass pipeline to spec, plan, build, and PR the fix
 ---
 
+> **Single-pass variant of `/diagnose-full-pipeline-cycle`.**
+> One substantive change: Stage 2 chains to `/full-pipeline` instead of `/full-pipeline-cycle`, so the fix gets one `/review` pass rather than a convergence loop capped at five iterations. Everything in Stage 1 is identical. Prefer it when the fix is small enough that the loop is not worth the extra agent cost.
+
 Chain two existing commands to go from a reported bug all the way to a PR'd fix. Stage 1 diagnoses (no fix); Stage 2 specs, plans, builds, and ships the fix.
 
 ## Stage 1 — Diagnose (via `/diagnose`)
