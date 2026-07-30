@@ -31,6 +31,7 @@ Optional sidecar files:
 | File | Contents |
 |------|----------|
 | `<name>.codexenv` | Per-fixture env overrides, e.g. `CODEX_ENFORCE_DELEGATION=1` |
+| `<name>.gitbranch` | Push fixtures only: which scratch-repo branch to run on — `feature` (default) or `default` |
 | `<name>.xfail` | Marks a known limitation; the test is expected to fail (XFAIL) |
 
 The fixture filename prefix determines which hook is exercised and which adapter is used:
@@ -59,6 +60,12 @@ Fixtures with the `codex-` prefix run against the Codex adapter (`adapter-codex.
 
 A `.codexenv` sidecar file can set `CODEX_ENFORCE_DELEGATION=1` to enable strict mode for that fixture. Without it, the Codex adapter defaults to permissive mode (`CODEX_ENFORCE_DELEGATION=0`), which treats an unknown caller as allowed.
 
+## Push fixtures and `.gitbranch`
+
+`block-push.sh` consults the currently checked-out branch when deciding whether to allow a push, so running push fixtures against the developer's real working tree produces results that vary with whatever branch they happen to have checked out — on `main`, two fixtures used to flip from the expected outcome to the opposite, producing spurious failures. To eliminate that dependency, `run.sh` builds a scratch git repo the first time any push fixture runs and removes it on exit. The scratch repo contains a `main` branch and an `implement-codex-adaption` branch but no remote, so `gh repo view` fails and `origin/HEAD` is absent; this causes `block-push.sh` to fall through to its local-branch scan, which deterministically resolves the default branch to `main` regardless of the developer's environment. A `.gitbranch` sidecar controls which branch is checked out before the fixture runs: `feature` selects `implement-codex-adaption`, `default` selects `main`, and an absent sidecar is treated as `feature`. Any unrecognised value is a loud ERROR that fails the fixture immediately — a harness that silently ran fixtures against the wrong branch would let them assert nothing useful.
+
+Because the scratch repo has no remote, push fixtures exercise `block-push.sh`'s local-branch fallback for resolving the default branch, not its primary `gh repo view` path. This is a deliberate tradeoff of hermeticity over coverage: the primary path requires a live GitHub remote and cannot run offline, so it remains deterministic-but-uncovered by fixtures.
+
 ## The `.xfail` mechanism
 
 Mark a fixture as a known limitation by creating `<name>.xfail` (contents ignored):
@@ -78,14 +85,14 @@ In addition to the fixture loop, `run.sh` runs several standalone test scripts:
 | `tests/test-codex-adapter.sh` | Codex adapter path parsing (`hook_edit_path`, `hook_edit_paths`) |
 | `tests/test-codex-transform.sh` | Slash-command→dollar-command transform in adjacent positions |
 | `tests/test-push-guard.sh` | Push guard integration (forged origin/HEAD, metacharacter branch) |
-| `tests/test-install.sh` | Install regression: file manifest and hook command paths |
 
 ## Adding a fixture
 
 1. Create `tests/fixtures/<prefix>-<description>.json` with the hook payload.
 2. Create `tests/fixtures/<prefix>-<description>.expect` containing either `allow` or `deny`.
 3. Optionally create `tests/fixtures/<prefix>-<description>.codexenv` with env overrides.
-4. Run `./tests/run.sh <description>` to verify.
+4. For push fixtures, optionally create `tests/fixtures/<prefix>-<description>.gitbranch` containing `feature` or `default` to select the scratch-repo branch (defaults to `feature` when absent).
+5. Run `./tests/run.sh <description>` to verify.
 
 Use the matching prefix for the hook you want to exercise (see table above).
 
