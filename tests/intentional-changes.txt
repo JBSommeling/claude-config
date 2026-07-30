@@ -10,7 +10,7 @@
 #   3. Do NOT add entries here to paper over unreviewed regressions.
 #      Only record changes that were deliberate and code-reviewed.
 #
-~/.claude/CLAUDE.md | hook filename corrected: block-push-to-default-branch.sh was renamed to block-push.sh (commit 377c8ba)
+~/.claude/CLAUDE.md | hook filename corrected: block-push-to-default-branch.sh was renamed to block-push.sh (commit 377c8ba); also documents the /full-pipeline command
 ~/.claude/agents/Explore.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/agents/code-reviewer.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/agents/implementer.md | T12: shared agent body reworded from a model name to "the orchestrator" so it is true on both platforms
@@ -20,8 +20,10 @@
 ~/.claude/commands/diagnose-fix.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/diagnose.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/full-pipeline-cycle.md | hook filename corrected: block-push-to-default-branch.sh renamed to block-push.sh (commit d2094b6)
+~/.claude/commands/full-pipeline.md | revived as a single-pass-review pipeline: body rewritten (Phase 5 runs /review once instead of the /review-cycle loop), so it no longer matches the deleted baseline version
 ~/.claude/commands/manual-test-plan.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/review-cycle.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/ship.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/zoom-out.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/skills/manual-test-plan/SKILL.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
+~/.codex/AGENTS.md | diverged from baseline in commit c543b93 (Codex fail-open enforcement documented) without an allowlist entry; now also documents the $full-pipeline command

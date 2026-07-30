@@ -13,4 +13,3 @@
 #   3. Do NOT add entries here to paper over unreviewed removals.
 #      Only record removals that were deliberate and code-reviewed.
 #
-~/.claude/commands/full-pipeline.md | removed: superseded by full-pipeline-cycle, which is self-contained and does not invoke it
