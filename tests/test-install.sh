@@ -536,6 +536,7 @@ else
   echo ""
   echo "--- Codex orphan sweep (installed files not in manifest) ---"
   _orphan_found=false
+  _swept_count=0
   while IFS= read -r _installed; do
     # Convert absolute path back to the manifest's ~ form, matching the
     # inverse of the `actual_path="${bpath/#\~/$CODEX_FAKE_HOME}"` expansion
@@ -543,6 +544,10 @@ else
     # shell-expanded inside a parameter substitution, so this yields a literal
     # leading ~.
     _tilde_path="~${_installed#"$CODEX_FAKE_HOME"}"
+
+    # Count every file seen, including exempt ones, so a zero count after the
+    # loop indicates find enumerated nothing and the sweep proved nothing.
+    _swept_count=$((_swept_count + 1))
 
     # Exempt ~/.codex/config.toml — it is deliberately absent from the
     # manifest because it requires $HOME expansion at install time.  It is
@@ -568,8 +573,12 @@ else
     fi
   done < <(find "$CODEX_FAKE_HOME" -type f)
 
-  if ! $_orphan_found; then
-    echo "  ok: no orphaned installed files (all covered by manifest or exempt)"
+  if [ "$_swept_count" -eq 0 ]; then
+    echo "  FAIL: orphan sweep enumerated 0 files under CODEX_FAKE_HOME — the check proves nothing"
+    fail_count=$((fail_count + 1))
+    fail_messages+=("SWEEP VACUOUS (codex): orphan sweep enumerated 0 files under CODEX_FAKE_HOME — the check proves nothing")
+  elif ! $_orphan_found; then
+    echo "  ok: no orphaned installed files ($_swept_count examined, all covered by manifest or exempt)"
     pass_count=$((pass_count + 1))
   fi
 

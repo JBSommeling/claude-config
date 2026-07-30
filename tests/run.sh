@@ -29,10 +29,10 @@ _PUSH_SCRATCH=""
 _ensure_push_scratch_repo() {
   [ -n "$_PUSH_SCRATCH" ] && return 0
   _PUSH_SCRATCH=$(mktemp -d)
-  git -C "$_PUSH_SCRATCH" init -q
+  git -C "$_PUSH_SCRATCH" init -q --template=
   git -C "$_PUSH_SCRATCH" config user.email "test@example.com"
   git -C "$_PUSH_SCRATCH" config user.name "Test Runner"
-  git -C "$_PUSH_SCRATCH" commit --allow-empty -m init -q
+  git -C "$_PUSH_SCRATCH" -c commit.gpgsign=false -c core.hooksPath=/dev/null commit --allow-empty -m init -q
   git -C "$_PUSH_SCRATCH" branch -M main
   git -C "$_PUSH_SCRATCH" branch implement-codex-adaption
 }
@@ -175,25 +175,20 @@ for json_file in "$FIXTURES_DIR"/*.json; do
   # default is also "feature".
   _PUSH_BRANCH=""
   if [ "$hook" = "$PUSH_HOOK" ]; then
-    if [[ "$name" == push-* ]]; then
-      gitbranch_file="$FIXTURES_DIR/${name}.gitbranch"
-      if [ -f "$gitbranch_file" ]; then
-        _gitbranch=$(tr -d '[:space:]' < "$gitbranch_file")
-        case "$_gitbranch" in
-          default) _PUSH_BRANCH="main" ;;
-          feature) _PUSH_BRANCH="implement-codex-adaption" ;;
-          *)
-            echo "ERROR $name (unrecognised .gitbranch value: '$_gitbranch')"
-            fail=$((fail + 1))
-            total=$((total + 1))
-            continue
-            ;;
-        esac
-      else
-        _PUSH_BRANCH="implement-codex-adaption"
-      fi
+    gitbranch_file="$FIXTURES_DIR/${name}.gitbranch"
+    if [ -f "$gitbranch_file" ]; then
+      _gitbranch=$(tr -d '[:space:]' < "$gitbranch_file")
+      case "$_gitbranch" in
+        default) _PUSH_BRANCH="main" ;;
+        feature) _PUSH_BRANCH="implement-codex-adaption" ;;
+        *)
+          echo "ERROR $name (unrecognised .gitbranch value: '$_gitbranch')"
+          fail=$((fail + 1))
+          total=$((total + 1))
+          continue
+          ;;
+      esac
     else
-      # codex-push-* and similar: no sidecar convention, default to feature branch
       _PUSH_BRANCH="implement-codex-adaption"
     fi
     _ensure_push_scratch_repo

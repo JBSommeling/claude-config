@@ -64,6 +64,8 @@ A `.codexenv` sidecar file can set `CODEX_ENFORCE_DELEGATION=1` to enable strict
 
 `block-push.sh` consults the currently checked-out branch when deciding whether to allow a push, so running push fixtures against the developer's real working tree produces results that vary with whatever branch they happen to have checked out — on `main`, two fixtures used to flip from the expected outcome to the opposite, producing spurious failures. To eliminate that dependency, `run.sh` builds a scratch git repo the first time any push fixture runs and removes it on exit. The scratch repo contains a `main` branch and an `implement-codex-adaption` branch but no remote, so `gh repo view` fails and `origin/HEAD` is absent; this causes `block-push.sh` to fall through to its local-branch scan, which deterministically resolves the default branch to `main` regardless of the developer's environment. A `.gitbranch` sidecar controls which branch is checked out before the fixture runs: `feature` selects `implement-codex-adaption`, `default` selects `main`, and an absent sidecar is treated as `feature`. Any unrecognised value is a loud ERROR that fails the fixture immediately — a harness that silently ran fixtures against the wrong branch would let them assert nothing useful.
 
+Because the scratch repo has no remote, push fixtures exercise `block-push.sh`'s local-branch fallback for resolving the default branch, not its primary `gh repo view` path. This is a deliberate tradeoff of hermeticity over coverage: the primary path requires a live GitHub remote and cannot run offline, so it remains deterministic-but-uncovered by fixtures.
+
 ## The `.xfail` mechanism
 
 Mark a fixture as a known limitation by creating `<name>.xfail` (contents ignored):
