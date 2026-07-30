@@ -103,4 +103,6 @@ Invoke a skill via `$skillname` — for example, `$full-pipeline-cycle` to run t
 
 `$diagnose-full-pipeline-cycle` chains diagnosis and delivery: it runs `$diagnose` (diagnose-only) to confirm the bug's root cause, then feeds that diagnosis into `$full-pipeline-cycle` to spec, plan, build, and open a PR with the fix.
 
-All three save the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
+`$diagnose-full-pipeline` is the same chain with the single-pass pipeline: it runs `$diagnose`, then feeds the confirmed diagnosis into `$full-pipeline` rather than `$full-pipeline-cycle`.
+
+All four save the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.

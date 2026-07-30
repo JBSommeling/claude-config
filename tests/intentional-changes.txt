@@ -10,7 +10,7 @@
 #   3. Do NOT add entries here to paper over unreviewed regressions.
 #      Only record changes that were deliberate and code-reviewed.
 #
-~/.claude/CLAUDE.md | hook filename corrected: block-push-to-default-branch.sh was renamed to block-push.sh (commit 377c8ba); also documents the /full-pipeline command
+~/.claude/CLAUDE.md | hook filename corrected: block-push-to-default-branch.sh was renamed to block-push.sh (commit 377c8ba); also documents the /full-pipeline and /diagnose-full-pipeline commands
 ~/.claude/agents/Explore.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/agents/code-reviewer.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/agents/implementer.md | T12: shared agent body reworded from a model name to "the orchestrator" so it is true on both platforms
@@ -26,4 +26,4 @@
 ~/.claude/commands/ship.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/zoom-out.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/skills/manual-test-plan/SKILL.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
-~/.codex/AGENTS.md | diverged from baseline in commit c543b93 (Codex fail-open enforcement documented) without an allowlist entry; now also documents the $full-pipeline command
+~/.codex/AGENTS.md | diverged from baseline in commit c543b93 (Codex fail-open enforcement documented) without an allowlist entry; now also documents the $full-pipeline and $diagnose-full-pipeline commands
