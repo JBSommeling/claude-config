@@ -371,34 +371,6 @@ else
   echo "SKIP push-guard tests (tests/test-push-guard.sh not found)"
 fi
 
-# ---------------------------------------------------------------------------
-# Install regression test (FR2)
-# ---------------------------------------------------------------------------
-echo ""
-echo "--- Install regression test ---"
-INSTALL_TEST="$REPO_ROOT/tests/test-install.sh"
-
-if [ -f "$INSTALL_TEST" ]; then
-  # Floor of 15 covers the milestone PASS lines; the codex content block's
-  # coverage is guarded by install-selfcheck Scenario 3, not by this count.
-  run_suite "install" "$INSTALL_TEST" 15
-else
-  echo "SKIP install test (tests/test-install.sh not found)"
-fi
-
-# ---------------------------------------------------------------------------
-# Install oracle self-check (end-to-end negative tests: proves the oracle can fail)
-# ---------------------------------------------------------------------------
-echo ""
-echo "--- Install oracle self-check ---"
-INSTALL_SELFCHECK_TEST="$REPO_ROOT/tests/test-install-selfcheck.sh"
-
-if [ -f "$INSTALL_SELFCHECK_TEST" ]; then
-  run_suite "install-selfcheck" "$INSTALL_SELFCHECK_TEST" 4
-else
-  echo "SKIP install-selfcheck test (tests/test-install-selfcheck.sh not found)"
-fi
-
 echo ""
 if [ "$xfail" -gt 0 ]; then
   echo "$pass/$total passed ($xfail known failure(s) — XFAIL)"

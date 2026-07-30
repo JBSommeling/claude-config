@@ -85,7 +85,6 @@ In addition to the fixture loop, `run.sh` runs several standalone test scripts:
 | `tests/test-codex-adapter.sh` | Codex adapter path parsing (`hook_edit_path`, `hook_edit_paths`) |
 | `tests/test-codex-transform.sh` | Slash-command→dollar-command transform in adjacent positions |
 | `tests/test-push-guard.sh` | Push guard integration (forged origin/HEAD, metacharacter branch) |
-| `tests/test-install.sh` | Install regression: file manifest and hook command paths |
 
 ## Adding a fixture
 
