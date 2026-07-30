@@ -19,6 +19,7 @@
 ~/.claude/commands/code-simplify.md  087674c8e08bb488ed8d030dc94ef2e6
 ~/.claude/commands/diagnose-fix.md  94610b512c07f783e9143ca4c6bc64d2
 ~/.claude/commands/diagnose-full-pipeline-cycle.md  78dba50dd7a72ebf663e94ef53afab61
+~/.claude/commands/diagnose-full-pipeline.md  fcd774fd443729bfc437de8a66a5b770
 ~/.claude/commands/diagnose.md  d780b5c9fe0ceb6e405442cec84af03e
 ~/.claude/commands/full-pipeline-cycle.md  a2f5927deabc3a9091f54e628db18ff4
 ~/.claude/commands/full-pipeline.md  b51bfd6b1a04489b0598247990d59ccc
