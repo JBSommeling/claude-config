@@ -698,28 +698,55 @@ else
 fi
 
 # --------------------------------------------------------------------------
-# Superseded-command cleanup tests
+# Full-pipeline command install tests
 #
-# full-pipeline.md is no longer installed (superseded by full-pipeline-cycle).
-# A user who ran an older install may still have it at ~/.claude/commands/.
-# The installer must remove it.
+# full-pipeline.md is a shipped workflow command. A stale stub from an older
+# install must be OVERWRITTEN by the real file, and a second install must not
+# remove it. Note: install.sh previously deleted this file (when it was
+# considered superseded); these tests guard against that regression returning.
 # --------------------------------------------------------------------------
 echo ""
-echo "--- Superseded-command cleanup tests ---"
+echo "--- Full-pipeline command install tests ---"
 
-# Pre-seed ~/.claude/commands/full-pipeline.md, run install, verify it is gone.
+# Pre-seed a stale stub, run install, verify it was overwritten with the real file.
 SUPERSEDED_HOME="$(mktemp -d)"
 trap 'rm -rf "$FAKE_HOME" "$CODEX_FAKE_HOME" "$ORPHAN_HOME_A" "$ORPHAN_HOME_B" "$CLEANUP_HOME" "$SUPERSEDED_HOME"' EXIT
 mkdir -p "${SUPERSEDED_HOME}/.claude/commands"
 printf '# stale full-pipeline stub\n' > "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md"
 HOME="$SUPERSEDED_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
+
 if [ -e "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md" ]; then
-  echo "FAIL superseded-full-pipeline-removed (pre-seeded full-pipeline.md was not removed by Claude install)"
-  fail_count=$((fail_count + 1))
-  fail_messages+=("SUPERSEDED COMMAND NOT REMOVED: ~/.claude/commands/full-pipeline.md still present after Claude install")
-else
-  echo "PASS superseded-full-pipeline-removed"
+  echo "PASS full-pipeline-installed"
   pass_count=$((pass_count + 1))
+else
+  echo "FAIL full-pipeline-installed (full-pipeline.md is missing after Claude install)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("COMMAND NOT INSTALLED: full-pipeline.md missing from ~/.claude/commands/")
+fi
+
+_fp_src="${REPO_ROOT}/.agents/workflows/full-pipeline.md"
+_fp_dst="${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md"
+if [ ! -e "$_fp_src" ] || [ ! -e "$_fp_dst" ]; then
+  echo "FAIL full-pipeline-content-matches (full-pipeline.md missing — cannot compare)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("CONTENT CHECK FAILED: full-pipeline.md missing (src or dst) — cannot verify full-pipeline.md was genuinely copied")
+elif cmp -s "$_fp_src" "$_fp_dst"; then
+  echo "PASS full-pipeline-content-matches"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL full-pipeline-content-matches (full-pipeline.md does not match source)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("CONTENT MISMATCH: installed full-pipeline.md does not match .agents/workflows/full-pipeline.md")
+fi
+
+HOME="$SUPERSEDED_HOME" bash "$INSTALL" --claude > /dev/null 2>&1
+if [ -e "${SUPERSEDED_HOME}/.claude/commands/full-pipeline.md" ]; then
+  echo "PASS full-pipeline-install-idempotent"
+  pass_count=$((pass_count + 1))
+else
+  echo "FAIL full-pipeline-install-idempotent (full-pipeline.md removed by second Claude install)"
+  fail_count=$((fail_count + 1))
+  fail_messages+=("IDEMPOTENCY FAILED: full-pipeline.md removed after second install")
 fi
 
 # --------------------------------------------------------------------------

@@ -20,6 +20,7 @@
 ~/.claude/commands/diagnose-fix.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/diagnose.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/full-pipeline-cycle.md | hook filename corrected: block-push-to-default-branch.sh renamed to block-push.sh (commit d2094b6)
+~/.claude/commands/full-pipeline.md | revived as a single-pass-review pipeline: body rewritten (Phase 5 runs /review once instead of the /review-cycle loop), so it no longer matches the deleted baseline version
 ~/.claude/commands/manual-test-plan.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/review-cycle.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
 ~/.claude/commands/ship.md | T13: platform-neutrality rewording so shared content is correct on both Claude and Codex
