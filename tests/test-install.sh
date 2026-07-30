@@ -528,6 +528,51 @@ else
     fi
   fi
 
+  # Codex orphan sweep — checks the reverse direction: every file actually
+  # installed under CODEX_FAKE_HOME must have a manifest entry.  The forward
+  # direction (manifest → installed) is checked by the loop above, but a new
+  # file can be installed without any manifest entry and that loop will never
+  # notice it.
+  echo ""
+  echo "--- Codex orphan sweep (installed files not in manifest) ---"
+  _orphan_found=false
+  while IFS= read -r _installed; do
+    # Convert absolute path back to the manifest's ~ form, matching the
+    # inverse of the `actual_path="${bpath/#\~/$CODEX_FAKE_HOME}"` expansion
+    # used in the forward loop above.  The ~ in the replacement string is NOT
+    # shell-expanded inside a parameter substitution, so this yields a literal
+    # leading ~.
+    _tilde_path="~${_installed#"$CODEX_FAKE_HOME"}"
+
+    # Exempt ~/.codex/config.toml — it is deliberately absent from the
+    # manifest because it requires $HOME expansion at install time.  It is
+    # already covered by the dedicated dynamic check in Part B immediately
+    # above.
+    if [ "$_tilde_path" = "~/.codex/config.toml" ]; then
+      continue
+    fi
+
+    _covered=false
+    for _bi in "${!codex_baseline_paths[@]}"; do
+      if [ "${codex_baseline_paths[$_bi]}" = "$_tilde_path" ]; then
+        _covered=true
+        break
+      fi
+    done
+
+    if ! $_covered; then
+      echo "  FAIL: $_tilde_path (installed but not in codex-baseline-manifest.txt)"
+      fail_count=$((fail_count + 1))
+      fail_messages+=("UNPINNED (codex): $_tilde_path is installed but has no entry in codex-baseline-manifest.txt")
+      _orphan_found=true
+    fi
+  done < <(find "$CODEX_FAKE_HOME" -type f)
+
+  if ! $_orphan_found; then
+    echo "  ok: no orphaned installed files (all covered by manifest or exempt)"
+    pass_count=$((pass_count + 1))
+  fi
+
   # ------------------------------------------------------------------------
   # Staleness checks — Codex half. Mirror the Claude staleness checks
   # (see the "--- Intentional-changes staleness check ---" / "--- Removed-files
