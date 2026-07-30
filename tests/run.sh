@@ -371,6 +371,19 @@ else
   echo "SKIP push-guard tests (tests/test-push-guard.sh not found)"
 fi
 
+# ---------------------------------------------------------------------------
+# Install coverage tests (dynamic enumeration — no hashes or manifests)
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Install coverage tests ---"
+INSTALL_COVERAGE_TEST="$REPO_ROOT/tests/test-install-coverage.sh"
+
+if [ -f "$INSTALL_COVERAGE_TEST" ]; then
+  run_suite "install-coverage" "$INSTALL_COVERAGE_TEST" 5
+else
+  echo "SKIP install-coverage tests (tests/test-install-coverage.sh not found)"
+fi
+
 echo ""
 if [ "$xfail" -gt 0 ]; then
   echo "$pass/$total passed ($xfail known failure(s) — XFAIL)"
