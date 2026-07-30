@@ -123,7 +123,7 @@ Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain s
 | `/diagnose` | Reproduce → minimise → hypothesise → instrument — **without** applying a fix. |
 | `/diagnose-fix` | Diagnose **and** fix — the full loop through the fix plus a regression test. |
 | `/diagnose-full-pipeline` | Diagnose the root cause, then drive the fix through the single-pass `/full-pipeline` to an open PR — cheaper than the `-cycle` variant. |
-| `/diagnose-full-pipeline-cycle` | Diagnose the root cause, then drive the fix through the full pipeline to an open PR. |
+| `/diagnose-full-pipeline-cycle` | Diagnose the root cause, then drive the fix through the converging `/full-pipeline-cycle` to an open PR. |
 | `/diagnose-full-pipeline-cycle-beta` | Same, but with adversarial test lenses in judging (costs more agents). |
 
 ### Review & test
