@@ -17,6 +17,28 @@ COMMIT_HOOK="$REPO_ROOT/.agents/hooks/enforce-commit-ownership.sh"
 
 FILTER="${1:-}"
 
+# ---------------------------------------------------------------------------
+# Scratch repo for push-hook fixtures — built lazily the first time a push-*
+# fixture needs it so filtered runs (e.g. `bash tests/run.sh delegation`) pay
+# nothing.  No remote is configured: with no remote, `gh repo view` fails and
+# `refs/remotes/origin/HEAD` is absent, so block-push.sh falls through to its
+# local-branch scan and deterministically resolves DEFAULT_BRANCH=main.
+# ---------------------------------------------------------------------------
+_PUSH_SCRATCH=""
+
+_ensure_push_scratch_repo() {
+  [ -n "$_PUSH_SCRATCH" ] && return 0
+  _PUSH_SCRATCH=$(mktemp -d)
+  git -C "$_PUSH_SCRATCH" init -q
+  git -C "$_PUSH_SCRATCH" config user.email "test@example.com"
+  git -C "$_PUSH_SCRATCH" config user.name "Test Runner"
+  git -C "$_PUSH_SCRATCH" commit --allow-empty -m init -q
+  git -C "$_PUSH_SCRATCH" branch -M main
+  git -C "$_PUSH_SCRATCH" branch implement-codex-adaption
+}
+
+trap '[ -n "$_PUSH_SCRATCH" ] && rm -rf "$_PUSH_SCRATCH"' EXIT
+
 pass=0
 fail=0
 xfail=0
@@ -142,6 +164,54 @@ for json_file in "$FIXTURES_DIR"/*.json; do
     [ -n "$_override" ] && _CODEX_ENFORCE_DELEGATION="$_override"
   fi
 
+  # Per-fixture git-branch sidecar for push-hook fixtures: gives each push test
+  # a hermetic git context so the suite result is branch-independent.
+  # For push-* fixtures, read an optional <name>.gitbranch sidecar:
+  #   content "default" → check out main in the scratch repo
+  #   content "feature" → check out implement-codex-adaption
+  #   absent            → default to "feature"
+  #   unrecognised      → ERROR (fails the fixture loudly)
+  # For codex-push-* and other push-hook fixtures without a sidecar, the
+  # default is also "feature".
+  _PUSH_BRANCH=""
+  if [ "$hook" = "$PUSH_HOOK" ]; then
+    if [[ "$name" == push-* ]]; then
+      gitbranch_file="$FIXTURES_DIR/${name}.gitbranch"
+      if [ -f "$gitbranch_file" ]; then
+        _gitbranch=$(tr -d '[:space:]' < "$gitbranch_file")
+        case "$_gitbranch" in
+          default) _PUSH_BRANCH="main" ;;
+          feature) _PUSH_BRANCH="implement-codex-adaption" ;;
+          *)
+            echo "ERROR $name (unrecognised .gitbranch value: '$_gitbranch')"
+            fail=$((fail + 1))
+            total=$((total + 1))
+            continue
+            ;;
+        esac
+      else
+        _PUSH_BRANCH="implement-codex-adaption"
+      fi
+    else
+      # codex-push-* and similar: no sidecar convention, default to feature branch
+      _PUSH_BRANCH="implement-codex-adaption"
+    fi
+    _ensure_push_scratch_repo
+    if ! git -C "$_PUSH_SCRATCH" checkout -q "$_PUSH_BRANCH" 2>/dev/null; then
+      echo "ERROR $name (could not check out '$_PUSH_BRANCH' in scratch repo)"
+      fail=$((fail + 1))
+      total=$((total + 1))
+      continue
+    fi
+    _actual_branch=$(git -C "$_PUSH_SCRATCH" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ "$_actual_branch" != "$_PUSH_BRANCH" ]; then
+      echo "ERROR $name (scratch repo on '$_actual_branch', expected '$_PUSH_BRANCH')"
+      fail=$((fail + 1))
+      total=$((total + 1))
+      continue
+    fi
+  fi
+
   # Run the hook with bypass env vars forced off so developer's env can't skew results.
   # HOOK_ADAPTER selects the platform adapter; empty string means use the default (Claude Code).
   # HOOK_ADAPTER_ALLOW_OVERRIDE=1 is set whenever HOOK_ADAPTER is non-empty (C1 fix):
@@ -149,10 +219,18 @@ for json_file in "$FIXTURES_DIR"/*.json; do
   # an override channel, while still allowing the test runner's deliberate overrides.
   _HOOK_ADAPTER_ALLOW_OVERRIDE=0
   [ -n "$HOOK_ADAPTER_VALUE" ] && _HOOK_ADAPTER_ALLOW_OVERRIDE=1
-  stdout=$(CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 CLAUDE_BYPASS_COMMIT_GUARD=0 \
-    CODEX_ENFORCE_DELEGATION="$_CODEX_ENFORCE_DELEGATION" HOOK_ADAPTER="$HOOK_ADAPTER_VALUE" \
-    HOOK_ADAPTER_ALLOW_OVERRIDE="$_HOOK_ADAPTER_ALLOW_OVERRIDE" \
-    $invoke < "$json_file" 2>/dev/null)
+  if [ -n "$_PUSH_BRANCH" ]; then
+    stdout=$( cd "$_PUSH_SCRATCH" && \
+      CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 CLAUDE_BYPASS_COMMIT_GUARD=0 \
+      CODEX_ENFORCE_DELEGATION="$_CODEX_ENFORCE_DELEGATION" HOOK_ADAPTER="$HOOK_ADAPTER_VALUE" \
+      HOOK_ADAPTER_ALLOW_OVERRIDE="$_HOOK_ADAPTER_ALLOW_OVERRIDE" \
+      $invoke < "$json_file" 2>/dev/null )
+  else
+    stdout=$(CLAUDE_BYPASS_DELEGATION=0 CLAUDE_BYPASS_PUSH_GUARD=0 CLAUDE_BYPASS_COMMIT_GUARD=0 \
+      CODEX_ENFORCE_DELEGATION="$_CODEX_ENFORCE_DELEGATION" HOOK_ADAPTER="$HOOK_ADAPTER_VALUE" \
+      HOOK_ADAPTER_ALLOW_OVERRIDE="$_HOOK_ADAPTER_ALLOW_OVERRIDE" \
+      $invoke < "$json_file" 2>/dev/null)
+  fi
   exit_code=$?
 
   # Decision rule:
