@@ -147,6 +147,7 @@ Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain s
 
 | Command | What it does |
 |---|---|
+| `/full-pipeline` | spec → plan → build → validate. Phase 5 runs `/review` once, opens a PR with any unfixed findings as inline comments, Phase 6 judges via three parallel subagents. Cheaper than `/full-pipeline-cycle`; same checkpoints, same PR. |
 | `/full-pipeline-cycle` | spec → plan → build → validate. Phase 5 auto-fixes via `/review-cycle` (capped at 5 iterations), opens a PR with residuals as inline comments, Phase 6 judges via three parallel subagents. Spec and plan are the only checkpoints. |
 | `/full-pipeline-cycle-beta` | Same pipeline with adversarial test lenses in the judging phase. |
 
