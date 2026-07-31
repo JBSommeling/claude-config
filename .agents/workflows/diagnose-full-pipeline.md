@@ -1,9 +1,9 @@
 ---
-description: Diagnose a bug, then run the full single-pass pipeline to spec, plan, build, and PR the fix
+description: Diagnose a bug, then run the no-review-round pipeline to spec, plan, build, and PR the fix
 ---
 
-> **Single-pass variant of `/diagnose-full-pipeline-cycle`.**
-> One substantive change: Stage 2 chains to `/full-pipeline` instead of `/full-pipeline-cycle`, so the fix gets one `/review` pass rather than a convergence loop capped at five iterations. Everything in Stage 1 is identical. Prefer it when the fix is small enough that the loop is not worth the extra agent cost.
+> **No-review-round variant of `/diagnose-full-pipeline-cycle`.**
+> One substantive change: Stage 2 chains to `/full-pipeline` instead of `/full-pipeline-cycle`, so the fix gets no local review pass at all — the Phase 6 judges review the PR once, their blockers get fixed, and the pipeline stops. Everything in Stage 1 is identical. Prefer it when the fix is small enough that a local review loop is not worth the extra agent cost.
 
 Chain two existing commands to go from a reported bug all the way to a PR'd fix. Stage 1 diagnoses (no fix); Stage 2 specs, plans, builds, and ships the fix.
 
@@ -25,4 +25,4 @@ Run `/full-pipeline`, using the Stage 1 diagnosis as the feature request. The di
 
 - **Phase 1 — Spec (checkpoint):** Specify the fix. Objective = eliminate the confirmed root cause. Acceptance criteria MUST include: the Stage 1 reproduction no longer reproduces, and a regression test exists at the correct seam. Feed in the affected files and the diagnosis evidence. Pauses for your approval, then saves `spec.md` to the Desktop folder.
 - **Phase 2 — Plan (checkpoint):** Break the fix into ordered tasks. Pauses for your approval, then saves `plan.md` to the same Desktop folder.
-- **Phases 3–6 (automatic):** Build (TDD — reuse the Stage 1 feedback loop as the failing test wherever possible), validate, review (single `/review` pass → push → open PR), and judge. No further pauses; ends at an open PR for human merge.
+- **Phases 3–6 (automatic):** Build (TDD — reuse the Stage 1 feedback loop as the failing test wherever possible), validate, push → open PR, and judge the PR once (blockers fixed, no re-review). No further pauses; ends at an open PR for human merge.

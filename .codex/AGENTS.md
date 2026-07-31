@@ -99,10 +99,10 @@ Invoke a skill via `$skillname` — for example, `$full-pipeline-cycle` to run t
 
 `$full-pipeline-cycle` runs the full development pipeline with a convergence-based review loop: spec, plan, build, validate, then Phase 5 auto-fixes until clean (or capped), opens a PR, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only — everything after the plan, including push and PR creation, runs automatically.
 
-`$full-pipeline` is the same pipeline with a single-pass review: Phase 5 runs `$review` once — fixing Critical findings and carrying the rest to the PR as inline comments — instead of looping until convergence. Use it when the change is small enough that the convergence loop is not worth the extra agent cost.
+`$full-pipeline` is the same pipeline with no local review round: Phase 5 just pushes and opens the PR, and Phase 6 judges the PR once via three parallel subagents, fixes the blockers, and stops. Use it when the change is small enough that a local review loop is not worth the extra agent cost.
 
 `$diagnose-full-pipeline-cycle` chains diagnosis and delivery: it runs `$diagnose` (diagnose-only) to confirm the bug's root cause, then feeds that diagnosis into `$full-pipeline-cycle` to spec, plan, build, and open a PR with the fix.
 
-`$diagnose-full-pipeline` is the same chain with the single-pass pipeline: it runs `$diagnose`, then feeds the confirmed diagnosis into `$full-pipeline` rather than `$full-pipeline-cycle`.
+`$diagnose-full-pipeline` is the same chain with the no-review-round pipeline: it runs `$diagnose`, then feeds the confirmed diagnosis into `$full-pipeline` rather than `$full-pipeline-cycle`.
 
 All four save the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.

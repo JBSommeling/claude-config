@@ -122,7 +122,7 @@ Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain s
 |---|---|
 | `/diagnose` | Reproduce → minimise → hypothesise → instrument — **without** applying a fix. |
 | `/diagnose-fix` | Diagnose **and** fix — the full loop through the fix plus a regression test. |
-| `/diagnose-full-pipeline` | Diagnose the root cause, then drive the fix through the single-pass `/full-pipeline` to an open PR — cheaper than the `-cycle` variant. |
+| `/diagnose-full-pipeline` | Diagnose the root cause, then drive the fix through `/full-pipeline` (no local review round) to an open PR — cheaper than the `-cycle` variant. |
 | `/diagnose-full-pipeline-cycle` | Diagnose the root cause, then drive the fix through the converging `/full-pipeline-cycle` to an open PR. |
 | `/diagnose-full-pipeline-cycle-beta` | Same, but with adversarial test lenses in judging (costs more agents). |
 
@@ -148,7 +148,7 @@ Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain s
 
 | Command | What it does |
 |---|---|
-| `/full-pipeline` | spec → plan → build → validate. Phase 5 runs `/review` once, opens a PR with any unfixed findings as inline comments, Phase 6 judges via three parallel subagents. Cheaper than `/full-pipeline-cycle`; same checkpoints, same PR. |
+| `/full-pipeline` | spec → plan → build → validate → push → PR. No local review round: Phase 6 judges the PR once via three parallel subagents, fixes the blockers, and stops. Cheaper than `/full-pipeline-cycle`; same checkpoints, same PR. |
 | `/full-pipeline-cycle` | spec → plan → build → validate. Phase 5 auto-fixes via `/review-cycle` (capped at 5 iterations), opens a PR with residuals as inline comments, Phase 6 judges via three parallel subagents. Spec and plan are the only checkpoints. |
 | `/full-pipeline-cycle-beta` | Same pipeline with adversarial test lenses in the judging phase. |
 
