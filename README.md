@@ -64,7 +64,6 @@ The Sonnet tier is pinned to `claude-sonnet-4-6` (not the bare `sonnet` alias, w
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          6 architecture decision records
-tests/             test suite
 install.sh
 ```
 
@@ -200,14 +199,6 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | [0004](docs/adr/0004-orchestrator-holds-exclusive-commit-rights.md) | Only the orchestrator commits; `enforce-commit-ownership.sh` mirrors the delegation guard in the other direction. |
 | [0005](docs/adr/0005-workflows-install-as-codex-skills-not-prompts.md) | Workflows install as Codex skills, not prompts (which are deprecated and non-shareable). |
 | [0006](docs/adr/0006-no-central-policy-engine-extract-harness-instead.md) | No shared `policy.sh`; per-hook authorization is ~6 lines and doesn't warrant extraction — `lib/common.sh` extracts harness boilerplate instead. |
-
-## Tests
-
-```bash
-./tests/run.sh
-```
-
-157 checks covering hook fixtures (delegation, push guard, commit ownership), platform neutrality, agent assembly, the ledger, Codex skill install, and an install regression test against a pre-restructure baseline.
 
 ## .claudeignore
 
