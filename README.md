@@ -64,7 +64,6 @@ The Sonnet tier is pinned to `claude-sonnet-4-6` (not the bare `sonnet` alias, w
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          6 architecture decision records
-tests/             test suite
 install.sh
 ```
 
@@ -122,7 +121,7 @@ Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain s
 |---|---|
 | `/diagnose` | Reproduce → minimise → hypothesise → instrument — **without** applying a fix. |
 | `/diagnose-fix` | Diagnose **and** fix — the full loop through the fix plus a regression test. |
-| `/diagnose-full-pipeline` | Diagnose the root cause, then drive the fix through the single-pass `/full-pipeline` to an open PR — cheaper than the `-cycle` variant. |
+| `/diagnose-full-pipeline` | Diagnose the root cause, then drive the fix through `/full-pipeline` (no local review round) to an open PR — cheaper than the `-cycle` variant. |
 | `/diagnose-full-pipeline-cycle` | Diagnose the root cause, then drive the fix through the converging `/full-pipeline-cycle` to an open PR. |
 | `/diagnose-full-pipeline-cycle-beta` | Same, but with adversarial test lenses in judging (costs more agents). |
 
@@ -148,7 +147,7 @@ Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain s
 
 | Command | What it does |
 |---|---|
-| `/full-pipeline` | spec → plan → build → validate. Phase 5 runs `/review` once, opens a PR with any unfixed findings as inline comments, Phase 6 judges via three parallel subagents. Cheaper than `/full-pipeline-cycle`; same checkpoints, same PR. |
+| `/full-pipeline` | spec → plan → build → validate → push → PR. No local review round: Phase 6 judges the PR once via three parallel subagents, fixes the blockers, and stops. Cheaper than `/full-pipeline-cycle`; same checkpoints, same PR. |
 | `/full-pipeline-cycle` | spec → plan → build → validate. Phase 5 auto-fixes via `/review-cycle` (capped at 5 iterations), opens a PR with residuals as inline comments, Phase 6 judges via three parallel subagents. Spec and plan are the only checkpoints. |
 | `/full-pipeline-cycle-beta` | Same pipeline with adversarial test lenses in the judging phase. |
 
@@ -200,14 +199,6 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | [0004](docs/adr/0004-orchestrator-holds-exclusive-commit-rights.md) | Only the orchestrator commits; `enforce-commit-ownership.sh` mirrors the delegation guard in the other direction. |
 | [0005](docs/adr/0005-workflows-install-as-codex-skills-not-prompts.md) | Workflows install as Codex skills, not prompts (which are deprecated and non-shareable). |
 | [0006](docs/adr/0006-no-central-policy-engine-extract-harness-instead.md) | No shared `policy.sh`; per-hook authorization is ~6 lines and doesn't warrant extraction — `lib/common.sh` extracts harness boilerplate instead. |
-
-## Tests
-
-```bash
-./tests/run.sh
-```
-
-157 checks covering hook fixtures (delegation, push guard, commit ownership), platform neutrality, agent assembly, the ledger, Codex skill install, and an install regression test against a pre-restructure baseline.
 
 ## .claudeignore
 

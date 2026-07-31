@@ -1,8 +1,8 @@
 ---
-description: Full pipeline with a single-pass review — spec, plan, build, validate, review, PR, judge
+description: Full pipeline with no local review round — spec, plan, build, validate, PR, judge
 ---
 
-Run the full development pipeline with a single-pass review — spec, plan, build, validate — where Phase 5 reviews once, fixes what it must, opens a PR, and Phase 6 judges the result.
+Run the full development pipeline — spec, plan, build, validate — then open a PR and let Phase 6 judge it. There is no local review round: the review on the PR branch is the only one, and after its blockers are fixed the pipeline stops.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -45,9 +45,11 @@ After all tasks are built, run a full validation pass:
 
 If any step fails, fix the issue and re-run validation until everything passes. Orchestrator commits each fix directly inline via `git add` / `git commit` (Bash) — separate commit per fix, do not spawn a subagent solely to commit.
 
-Do not proceed to review until validation is fully green.
+Do not proceed to Phase 5 until validation is fully green.
 
-## Phase 5 — Review (automatic)
+## Phase 5 — Push and open PR (automatic)
+
+No review runs here. Phase 6 reviews the PR — that is the pipeline's only review pass.
 
 ### Step 0 — Branch safety precheck
 
@@ -62,48 +64,18 @@ If `current_branch == default_branch`, automatically create a feature branch (`g
 
 **Fail-closed.** If `gh repo view` errors (not authenticated, no remote, no GitHub repo) or returns an empty default branch, treat that as unsafe and stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
 
-### Step 1 — Review once
-
-Invoke `/review`. Run the five-axis review (correctness, readability, architecture, security, performance) over all changes since the branch diverged from the default branch.
-
-This is a single pass, not a loop. Triage the findings:
-
-- **Critical** — fix before proceeding. Always.
-- **Important** — fix if the fix is straightforward; otherwise carry it forward to Step 4 to be posted on the PR.
-- **Suggestion** — carry forward to Step 4.
-
-Delegate every fix to the `implementer` subagent — pass only the specific findings (file, line, recommendation), never whole files. `/review` reports findings; it does not apply them, so the fixes must be delegated explicitly here. After the implementer returns, verify the diff yourself before continuing.
-
-Record every finding that is carried forward rather than fixed, with its file, line, axis and severity. That carried-forward set is what Step 4 posts.
-
-### Step 1b — Commit review fixes
-
-Fixes delegated to the implementer subagent are left uncommitted in the working tree. After the review pass, check if the tree is dirty:
-
-```bash
-if [ -n "$(git status --porcelain)" ]; then
-  # commit the review fixes as one tidy commit
-  git add <specific files touched by the review>
-  git commit -m "review fixes (<N> fixed, <M> carried forward)"
-fi
-```
-
-This maintains the invariant — like Phases 3 and 4 — that every step ends with a clean tree. After Step 1b, no further commits happen in Phase 5.
-
-### Step 2 — Report and prepare PR
+### Step 1 — Report and prepare PR
 
 Present to the user as a report (do not pause or wait for input):
-- Findings fixed in Step 1, by axis and severity
-- Findings carried forward (if any) — these will be posted as PR comments
 - PR title (derived from the Phase 1 spec — describes the feature, not just the last commit)
 - PR body (derived from the spec + the accumulated commit log since the branch diverged from the default branch)
 - Target branch (always the repo default branch)
 
-Then continue directly to Step 3 without waiting for approval.
+Then continue directly to Step 2 without waiting for approval.
 
-### Step 3 — Push and open PR
+### Step 2 — Push and open PR
 
-Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits, Phase 5 Step 1b review-fix commit). Step 3 is pure publication:
+Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits). Step 2 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
 2. `gh pr create --title "<derived title>" --body "<derived body>"`
@@ -111,15 +83,9 @@ Everything is already committed by this point (Phase 3 task commits, Phase 4 val
 
 Do not run `git add` or `git commit` here — the tree must already be clean.
 
-### Step 4 — Post carried-forward findings (if any)
+## Phase 6 — Judge the PR and fix blockers (automatic)
 
-If Step 1 carried any findings forward, post each one as an inline review comment on the new PR using the `/review-pr` posting mechanism:
-- Build payload with `line` + `side: "RIGHT"` (never `position`)
-- Re-validate each line against the PR diff; drop any that don't match, log the drop
-- Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
-- Record the set actually posted (after drops) — Phase 6 dedupes against this set, not against the carried-forward set
-
-## Phase 6 — Judge (automatic)
+### Step 1 — Judge
 
 Spawn three subagents in parallel against the **PR's current state** (not the local working tree):
 
@@ -133,15 +99,37 @@ Merge all reports into a GO/NO-GO recommendation with:
 - Acknowledged risks
 - Rollback plan
 
-Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Because Phase 5 ran a single review pass, unfixed findings are still present in the code and Phase 6 will rediscover them — before posting, drop any finding that duplicates one Step 4 actually posted (same file, same line, same axis) so each issue appears on the PR exactly once. A finding Step 4 dropped as unmatched was never posted, so it is not a duplicate — post it. Post the GO/NO-GO summary as a top-level PR comment.
+Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the `/review-pr` posting mechanism:
+- Build payload with `line` + `side: "RIGHT"` (never `position`)
+- Re-validate each line against the PR diff; drop any that don't match, log the drop
+- Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
+
+Post the GO/NO-GO summary as a top-level PR comment.
+
+### Step 2 — Fix the important findings
+
+Fix every **Blocker**, plus any **Recommended fix** that is straightforward and low-risk. Leave the rest on the PR for the human reviewer — they are already posted as inline comments.
+
+Delegate every fix to the `implementer` subagent — pass only the specific findings (file, line, recommendation), never whole files. After the implementer returns, verify the diff yourself, then commit and push to the PR branch:
+
+```bash
+git add <specific files touched by the fixes>
+git commit -m "judge fixes (<N> blockers, <M> recommended)"
+git push
+```
+
+Re-run the test suite before pushing — the fixes must not regress Phase 4's green state.
+
+**Stop here.** Do not re-run the judges, do not run `/review`, do not loop. One review pass against the PR is the whole review budget for this pipeline. If a fix in Step 2 is too large or too risky to land safely, do not fix it — say so in a reply on its PR comment and leave it for the human.
 
 Present the final ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
 
 ## Rules
 
-1. Always run phases in order: spec → plan → build → validate → review → judge.
+1. Always run phases in order: spec → plan → build → validate → PR → judge.
 2. Checkpoint phases (spec, plan) require explicit user approval before continuing.
 3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and PR creation.
 4. If the user provides a spec or plan upfront, skip to the appropriate phase.
 5. Commit after each task in the build phase, not at the end.
-6. Phase 6 never auto-merges. The PR stays open for human review and merge.
+6. There is no local review round. Phase 6 is the only review, it runs exactly once, and the pipeline ends after its blockers are fixed — never re-review, never loop.
+7. Phase 6 never auto-merges. The PR stays open for human review and merge.

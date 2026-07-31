@@ -1,1 +1,0 @@
-{"tool_name":"Bash","tool_input":{"command":"cat <<A\nx\nA\ncat <<B\ny\nB\necho hi > two.txt"}}
