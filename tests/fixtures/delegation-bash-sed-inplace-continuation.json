@@ -1,1 +1,0 @@
-{"tool_name":"Bash","tool_input":{"command":"sed \\\n-i 's/old/new/' file.txt"}}
