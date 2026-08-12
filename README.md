@@ -1,10 +1,6 @@
 # claude-config
 
-A shared configuration for **Claude Code** and **OpenAI Codex** that installs to both platforms from a single source of truth, routing each task to the right model tier.
-
-## Why
-
-Sharing config across both platforms avoids vendor lock-in and keeps the option to switch later.
+A shared configuration for **Claude Code** and **OpenAI Codex** — one source of truth, installed to both platforms, routing each task to the right model tier. Sharing config across both avoids vendor lock-in.
 
 ## Quick start
 
@@ -14,25 +10,11 @@ cd claude-config
 chmod +x install.sh && ./install.sh
 ```
 
-```
-install.sh [--claude] [--codex] [--dry-run] [--apply]
-```
+`install.sh [--claude] [--codex] [--dry-run] [--apply]` — no platform flag installs both; `--dry-run` writes nothing; Codex needs `--apply` to write files.
 
-- No platform flag installs **both** Claude Code and Codex.
-- `--dry-run` prints every action without writing anything.
-- Codex requires `--apply` to write files; without it you get a dry run.
+Start Claude with `claude --model claude-opus-4-8`, then check `/status` for both CLAUDE.md files plus every agent, skill, and command. After a Codex `--apply`, run `/hooks` inside Codex to approve the hook scripts — trust is hash-pinned, so hooks silently no-op until approved and after any hook edit.
 
-**Start Claude Code:**
-
-```bash
-claude --model claude-opus-4-8
-```
-
-Verify with `/status` — you should see both CLAUDE.md files plus every agent, skill, and command.
-
-**Codex — trust the hooks.** After a Codex `--apply` install, run `/hooks` inside Codex to review and approve the installed hook scripts. Trust is hash-pinned: hooks silently do nothing until approved, and you must re-run `/hooks` after any hook edit.
-
-**Per-project context (optional).** Routing is global, so each repo needs only a minimal file with codebase facts — no need to repeat routing rules:
+Routing is global, so a per-project file needs only codebase facts:
 
 ```markdown
 ## Project context
@@ -43,173 +25,99 @@ Verify with `/status` — you should see both CLAUDE.md files plus every agent, 
 
 ## How it works
 
-All platform-neutral content lives in `.agents/` (agent bodies, skills, workflows, hooks). At install time, `install.sh` assembles each agent by concatenating a per-platform header (`*.header.md` / `*.header.toml`) with the shared body. Platform-specific overrides in `.claude/workflows/` or `.codex/workflows/` replace the shared copy for that platform.
+Platform-neutral content lives in `.agents/`. `install.sh` assembles each agent from a per-platform header (`*.header.md` / `*.header.toml`) plus the shared body; anything in `.claude/workflows/` or `.codex/workflows/` overrides the shared copy for that platform.
 
-The orchestrator stays in the main session and delegates every subtask to a cheaper subagent:
+The orchestrator stays in the main session and delegates every subtask to a cheaper tier:
 
-| Tier | Claude | Handles |
-|---|---|---|
-| **Orchestrator** | Opus | Planning, debugging, reviewing, deciding |
-| **Implementer** | Sonnet (`claude-sonnet-4-6`) | Writing code, fixing tests, refactoring |
-| **Reader** | Haiku | Reading files, searching, boilerplate |
+| Tier | Claude | Codex | Handles |
+|---|---|---|---|
+| **Orchestrator** | Opus | gpt-5.6-sol | Planning, debugging, reviewing, deciding |
+| **Implementer** | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Writing code, fixing tests, refactoring |
+| **Reader** | Haiku | gpt-5.6-luna | Reading files, searching, boilerplate |
 
-The Sonnet tier is pinned to `claude-sonnet-4-6` (not the bare `sonnet` alias, which now resolves to Sonnet 5 with ~30% higher token costs). `Explore` is likewise pinned to `haiku` via a local `.claude/agents/Explore.md`.
+Sonnet is pinned to `claude-sonnet-4-6`; the bare `sonnet` alias now resolves to Sonnet 5 with ~30% higher token cost. `Explore` is pinned to `haiku`.
 
 ```
-.agents/           shared, platform-neutral content (installs to both)
-  agents/          6 shared agent instruction bodies
-  workflows/       21 command / workflow definitions
-  skills/          14 skill directories
-  hooks/           guard + ledger scripts, lib/ (common.sh + adapters)
-  conventions.md   shared code conventions appended to both platform instruction files at install time
+.agents/           shared content: 6 agent bodies, 21 workflows, 14 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          6 architecture decision records
 install.sh
 ```
 
-Workflows install as `~/.claude/commands/<name>.md` for Claude Code (invoked as `/name`) and `~/.agents/skills/<name>/SKILL.md` for Codex (invoked as `$name`). Invocation syntax is rewritten at install time.
+Workflows install as `~/.claude/commands/<name>.md` (invoked `/name`) and `~/.agents/skills/<name>/SKILL.md` for Codex (invoked `$name`); invocation syntax is rewritten at install time. Design rationale lives in [`docs/adr/`](docs/adr).
+
+## Agents
+
+| Agent | Claude | Codex | Purpose |
+|---|---|---|---|
+| `reader` | Haiku | gpt-5.6-luna | File reading, search, summarization |
+| `Explore` | Haiku | gpt-5.6-luna | Read-only broad search / fan-out |
+| `implementer` | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Writing code, fixing tests, refactoring |
+| `test-engineer` | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Test writing and coverage |
+| `code-reviewer` | Opus | gpt-5.6-sol | Code review — used by `/review`, `/review-pr`, `/ship` |
+| `security-auditor` | Opus | gpt-5.6-sol | Security review |
 
 ## Codex specifics
 
-**Tier mapping.** The main session runs `gpt-5.6-sol` (orchestrator tier). Subagents:
-
-| Agent | Model | Effort | Purpose |
-|---|---|---|---|
-| `reader` | gpt-5.6-luna ($1.00/$6.00/1M) | low | File reading, search, summarization |
-| `explore` | gpt-5.6-luna ($1.00/$6.00/1M) | low | Broad codebase search / fan-out |
-| `implementer` | gpt-5.6-terra ($2.50/$15.00/1M) | medium | Writing code, fixing tests, refactoring |
-| `test-engineer` | gpt-5.6-terra ($2.50/$15.00/1M) | medium | Test writing and coverage |
-| `code-reviewer` | gpt-5.6-sol ($5.00/$30.00/1M) | medium | Code review |
-| `security-auditor` | gpt-5.6-sol ($5.00/$30.00/1M) | medium | Security review |
-
-Reasoning effort is capped at medium across all Codex agents.
-
-**Enforcement.** Push protection is preventive. Delegation and commit-ownership enforcement are *detective* rather than preventive because worker-identity fields (`agent_id`/`agent_type`) are not reliably present in the shipped release ([ADR 0003](docs/adr/0003-detective-delegation-enforcement-on-codex.md)). They ship enabled and act as no-ops until Codex populates those fields, at which point enforcement becomes preventive automatically with no config change.
-
-**Workflow naming.** Four workflows share a name with a skill (`diagnose`, `manual-test-plan`, `tdd`, `zoom-out`). Codex has one namespace, so these install with a `-workflow` suffix (e.g. `diagnose-workflow`).
+- **Effort** is capped at medium across all Codex agents.
+- **Enforcement** of delegation and commit ownership is *detective*, not preventive: `agent_id`/`agent_type` aren't reliably present in the shipped release ([ADR 0003](docs/adr/0003-detective-delegation-enforcement-on-codex.md)). Both ship enabled, no-op until Codex populates those fields, then become preventive with no config change. Push protection is preventive.
+- **Naming** — `diagnose`, `manual-test-plan`, `tdd`, and `zoom-out` collide with skill names in Codex's single namespace, so they install with a `-workflow` suffix.
 
 ## Guardrails
 
-Three `PreToolUse` hooks enforce routing discipline. All are session-bypassable via environment variables.
+Three `PreToolUse` hooks enforce routing discipline, each session-bypassable:
 
-- **Delegation enforcement** — `Edit`, `Write`, `MultiEdit`, and `NotebookEdit` from the main orchestrator session are blocked, as are Bash commands that write files (`>`/`>>` redirects, `sed -i`, `perl -i`, `tee`, heredocs, `python -c`/`node -e`). Edits must go through the `implementer` subagent. Subagent calls, memory writes, and temp-path redirects are exempt. Bypass: `CLAUDE_BYPASS_DELEGATION=1`.
-- **Commit ownership** — only the orchestrator commits; `git commit` from a subagent is blocked. Bypass: `CLAUDE_BYPASS_DELEGATION=1` (Claude).
-- **Default-branch push protection** — any `git push` whose target resolves to the repo default branch is blocked. Resolution order: `gh repo view` → `origin/HEAD` → conventional names; fails closed if unresolved. Bypass: `CLAUDE_BYPASS_PUSH_GUARD=1` (Claude) / `CODEX_BYPASS_PUSH_GUARD=1` (Codex).
+- **Delegation** — blocks `Edit`/`Write`/`MultiEdit`/`NotebookEdit` and file-writing Bash (`>`/`>>`, `sed -i`, `perl -i`, `tee`, heredocs, `python -c`/`node -e`) from the orchestrator; edits go through `implementer`. Subagent calls, memory writes, and temp-path redirects are exempt. `CLAUDE_BYPASS_DELEGATION=1`.
+- **Commit ownership** — only the orchestrator commits; `git commit` from a subagent is blocked. `CLAUDE_BYPASS_DELEGATION=1`.
+- **Push protection** — blocks any `git push` resolving to the default branch (`gh repo view` → `origin/HEAD` → conventional names; fails closed if unresolved). `CLAUDE_BYPASS_PUSH_GUARD=1` / `CODEX_BYPASS_PUSH_GUARD=1`.
 
 ## Commands
 
-Invoked as `/name` in Claude Code or `$name` in Codex. Pipeline commands chain several skills and subagents; others load a single skill.
+`/name` in Claude Code, `$name` in Codex. Pipelines chain several skills and subagents; the rest load a single skill.
 
-### Plan & specify
+**Plan** — `/spec` write a spec before code · `/plan` break work into verifiable tasks with acceptance criteria · `/grill` stress-test a plan against your domain model, updating `CONTEXT.md` and ADRs inline
 
-| Command | What it does |
-|---|---|
-| `/spec` | Write a structured specification before any code — the starting point for spec-driven development. |
-| `/plan` | Break work into small, verifiable tasks with acceptance criteria and dependency ordering. |
-| `/grill` | Stress-test a plan against your domain model; sharpens terminology and updates `CONTEXT.md` and ADRs inline as decisions settle. |
+**Build** — `/build` implement the next task incrementally · `/tdd` · `/test` red-green-refactor, Prove-It pattern for bugs
 
-### Build
+**Debug** — `/diagnose` root cause without a fix · `/diagnose-fix` diagnose and fix, plus a regression test · `/diagnose-full-pipeline` · `/diagnose-full-pipeline-cycle` · `/diagnose-full-pipeline-cycle-beta` diagnose, then drive the fix to an open PR
 
-| Command | What it does |
-|---|---|
-| `/build` | Implement the next task incrementally — build, test, verify, commit. |
-| `/tdd` · `/test` | Red-green-refactor loop: write a failing test, implement, verify. For bugs, uses the Prove-It pattern (a failing test that reproduces the bug first). |
+**Review & test** — `/review` five-axis review (correctness, readability, architecture, security, performance) · `/review-cycle` loop until green, emitting residuals · `/review-pr` inline comments on a GitHub PR · `/test-adversarial` coverage gaps with proof, ranked by blast radius · `/manual-test-plan` per-step plan with literal expected outputs · `/ship` pre-launch checklist, go/no-go
 
-### Debug
+**Refactor** — `/code-simplify` cut complexity without changing behavior · `/improve-architecture` deepening candidates as an HTML report, then grill the one you pick
 
-| Command | What it does |
-|---|---|
-| `/diagnose` | Reproduce → minimise → hypothesise → instrument — **without** applying a fix. |
-| `/diagnose-fix` | Diagnose **and** fix — the full loop through the fix plus a regression test. |
-| `/diagnose-full-pipeline` | Diagnose the root cause, then drive the fix through `/full-pipeline` (no local review round) to an open PR — cheaper than the `-cycle` variant. |
-| `/diagnose-full-pipeline-cycle` | Diagnose the root cause, then drive the fix through the converging `/full-pipeline-cycle` to an open PR. |
-| `/diagnose-full-pipeline-cycle-beta` | Same, but with adversarial test lenses in judging (costs more agents). |
+**Pipelines** — `/full-pipeline` spec → plan → build → validate → PR, judged once by three parallel subagents · `/full-pipeline-cycle` adds an auto-fixing `/review-cycle` round (capped at 5) before the PR · `/full-pipeline-cycle-beta` adds adversarial test lenses to judging. Spec and plan are the only checkpoints.
 
-### Review & test
-
-| Command | What it does |
-|---|---|
-| `/review` | Five-axis code review — correctness, readability, architecture, security, performance. |
-| `/review-cycle` | Loop `/review` → fix findings until all five axes are green (or a cap is hit); emits structured residuals. |
-| `/review-pr` | Review a GitHub PR and post inline comments with correct line references. |
-| `/test-adversarial` | Run adversarial test lenses in parallel to find coverage gaps with proof, ranked by blast radius. |
-| `/manual-test-plan` | Generate a manual test plan with literal expected outputs (JSON payloads, log lines, exit codes). |
-| `/ship` | Run the pre-launch checklist via parallel fan-out to specialist personas; synthesize a go/no-go decision. |
-
-### Refactor
-
-| Command | What it does |
-|---|---|
-| `/code-simplify` | Reduce complexity for clarity — without changing behavior. |
-| `/improve-architecture` | Surface deepening opportunities; present candidates as an HTML report with before/after diagrams, then grill the one you pick. |
-
-### Full pipelines
-
-| Command | What it does |
-|---|---|
-| `/full-pipeline` | spec → plan → build → validate → push → PR. No local review round: Phase 6 judges the PR once via three parallel subagents, fixes the blockers, and stops. Cheaper than `/full-pipeline-cycle`; same checkpoints, same PR. |
-| `/full-pipeline-cycle` | spec → plan → build → validate. Phase 5 auto-fixes via `/review-cycle` (capped at 5 iterations), opens a PR with residuals as inline comments, Phase 6 judges via three parallel subagents. Spec and plan are the only checkpoints. |
-| `/full-pipeline-cycle-beta` | Same pipeline with adversarial test lenses in the judging phase. |
-
-### Meta
-
-| Command | What it does |
-|---|---|
-| `/zoom-out` | Step back for broader, higher-level context. |
+**Meta** — `/zoom-out` step back for higher-level context
 
 ## Skills
 
-Methodology playbooks the orchestrator reads before acting and delegates within. Many commands are thin entry points that load the matching skill.
+Methodology playbooks the orchestrator reads before acting and delegates within. Most commands are thin entry points onto one of these.
 
-| Skill | What it's for |
+| Skill | For |
 |---|---|
-| `spec-driven-development` | Create a specification before coding. Use when starting new work with unclear or vague requirements. |
-| `planning-and-task-breakdown` | Break a spec into ordered, implementable tasks. Use when work is too large to start or parallelizable. |
-| `incremental-implementation` | Deliver changes incrementally. Use for any change touching more than one file. |
-| `tdd` | Test-driven development with the red-green-refactor loop. Use for test-first feature and bug work. |
-| `diagnose` | Disciplined diagnosis loop: reproduce → minimise → hypothesise → instrument → fix → regression-test. |
-| `code-review` | Conduct code review inline or via a dispatched subagent. Use before merging or after a major feature. |
-| `code-simplification` | Simplify working-but-messy code without changing behavior. |
-| `improve-codebase-architecture` | Find deepening opportunities — consolidate coupled modules, make the codebase more testable and AI-navigable. |
-| `security-and-hardening` | Harden code against vulnerabilities — untrusted input, auth, sessions, storage, third-party integrations. |
-| `manual-test-plan` | Produce a per-step manual test plan with literal expected outputs. |
-| `grill-with-docs` | Challenge a plan against the domain model; update `CONTEXT.md` and ADRs inline as decisions crystallise. |
-| `idea-refine` | Refine an idea through structured divergent and convergent thinking. Trigger with "idea-refine" or "ideate". |
-| `zoom-out` | Zoom out for broader context or a higher-level perspective on unfamiliar code. |
-| `write-a-skill` | Author new skills with proper structure, progressive disclosure, and bundled resources. |
-
-## Agents (Claude Code)
-
-| Agent | Model | Purpose |
-|---|---|---|
-| `reader` | Haiku | File reading, codebase search, summarization |
-| `Explore` | Haiku | Read-only broad search / fan-out (pinned) |
-| `implementer` | Sonnet (`claude-sonnet-4-6`) | Writing code, fixing tests, refactoring |
-| `test-engineer` | Sonnet (`claude-sonnet-4-6`) | Test writing and coverage |
-| `code-reviewer` | Opus | Code review — used by `/review`, `/review-pr`, `/ship` |
-| `security-auditor` | Opus | Security review |
-
-## Architecture decisions
-
-| ADR | Summary |
-|---|---|
-| [0001](docs/adr/0001-shared-agents-layout-for-multi-platform-config.md) | Top-level `.agents/` as the single source of truth; platform wiring in `.claude/` and `.codex/`. |
-| [0002](docs/adr/0002-adapter-based-hook-portability.md) | Hook policy scripts carry zero platform I/O; differences isolated behind `lib/adapter-claude.sh` / `lib/adapter-codex.sh`. |
-| [0003](docs/adr/0003-detective-delegation-enforcement-on-codex.md) | Codex delegation enforcement is detective because `agent_id`/`agent_type` aren't reliably present in the shipped release. |
-| [0004](docs/adr/0004-orchestrator-holds-exclusive-commit-rights.md) | Only the orchestrator commits; `enforce-commit-ownership.sh` mirrors the delegation guard in the other direction. |
-| [0005](docs/adr/0005-workflows-install-as-codex-skills-not-prompts.md) | Workflows install as Codex skills, not prompts (which are deprecated and non-shareable). |
-| [0006](docs/adr/0006-no-central-policy-engine-extract-harness-instead.md) | No shared `policy.sh`; per-hook authorization is ~6 lines and doesn't warrant extraction — `lib/common.sh` extracts harness boilerplate instead. |
+| `spec-driven-development` | A spec before code, when requirements are vague |
+| `planning-and-task-breakdown` | Splitting a spec into ordered, implementable tasks |
+| `incremental-implementation` | Any change touching more than one file |
+| `tdd` | Test-first feature and bug work |
+| `diagnose` | Reproduce → minimise → hypothesise → instrument → fix → regression-test |
+| `code-review` | Review inline or via a dispatched subagent |
+| `code-simplification` | Working-but-messy code, behavior unchanged |
+| `improve-codebase-architecture` | Consolidating coupled modules; more testable, AI-navigable code |
+| `security-and-hardening` | Untrusted input, auth, sessions, storage, third-party integrations |
+| `manual-test-plan` | Per-step manual plan with literal expected outputs |
+| `grill-with-docs` | Challenging a plan against the domain model, updating `CONTEXT.md` and ADRs |
+| `idea-refine` | Structured divergent/convergent thinking on an idea |
+| `zoom-out` | Broader context on unfamiliar code |
+| `write-a-skill` | Authoring new skills with progressive disclosure |
 
 ## .claudeignore
 
-A universal `.claudeignore` is included. Copy it into any project to stop the agent from reading token-wasting files:
+Copy the included `.claudeignore` into any project to stop the agent reading token-wasting files — `node_modules/`, `vendor/`, lock files, `.env` and `*.key`, logs, build output.
 
 ```bash
 cp .claudeignore /your/project/.claudeignore
 ```
-
-Highlights: `node_modules/`, `vendor/`, lock files, `.env` and `*.key`, `storage/logs/` and `*.log`, build output.
 
 ## License
 
