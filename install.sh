@@ -174,8 +174,9 @@ install_claude() {
   do_mkdir "${HOME}/.claude/hooks"
   do_mkdir "${HOME}/.claude/hooks/lib"
 
-  # CLAUDE.md
-  do_cp "${SCRIPT_DIR}/.claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
+  # CLAUDE.md — assembled from platform instructions + shared conventions
+  action "assemble claude instructions: CLAUDE.md"
+  $dry_run || { cat "${SCRIPT_DIR}/.claude/CLAUDE.md"; printf '\n'; cat "${SCRIPT_DIR}/.agents/conventions.md"; } > "${HOME}/.claude/CLAUDE.md"
 
   # Agents — assemble from header + shared body
   # Guard: abort if any shared body contains ''' (would break Codex TOML literal strings)
@@ -321,8 +322,11 @@ install_codex() {
   do_mkdir "${HOME}/.codex/hooks/lib"
   do_mkdir "${HOME}/.agents/skills"
 
-  # AGENTS.md
-  do_cp "${SCRIPT_DIR}/.codex/AGENTS.md" "${HOME}/.codex/AGENTS.md"
+  # AGENTS.md — assembled from platform instructions + shared conventions
+  action "assemble codex instructions: AGENTS.md"
+  if ! $dry_run; then
+    { cat "${SCRIPT_DIR}/.codex/AGENTS.md"; printf '\n'; cat "${SCRIPT_DIR}/.agents/conventions.md"; } > "${HOME}/.codex/AGENTS.md"
+  fi
 
   # config.toml — expand $HOME so hook command paths are absolute
   do_sed_expand_home "${SCRIPT_DIR}/.codex/config.toml" \

@@ -61,6 +61,7 @@ The Sonnet tier is pinned to `claude-sonnet-4-6` (not the bare `sonnet` alias, w
   workflows/       21 command / workflow definitions
   skills/          14 skill directories
   hooks/           guard + ledger scripts, lib/ (common.sh + adapters)
+  conventions.md   shared code conventions appended to both platform instruction files at install time
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          6 architecture decision records
