@@ -49,9 +49,11 @@ If any task fails, follow debugging-and-error-recovery. Do not stop the pipeline
 
 **Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
 
+Before iterating repos, resolve every `[repo: <name>]` tag in the plan against the Repo Allocation approved at the spec checkpoint. If any tag has no match in the approved allocation, stop and report — do not create a branch or write in any repo not listed there.
+
 When the plan carries `[repo: <name>]` tags, iterate repos in the plan's dependency order. For each repo:
 
-1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation means one rule covers all commands. The `block-push.sh` hook also reads the raw push command before expansion, so `git -C "$REPO" push` fails closed; the same literal-path rule prevents that failure.
+1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation provide uniformity (one rule covers all commands) and compatibility with the push guard's whitespace tokeniser. Cross-repo pushes (`git -C /path push`) are not matched by the push guard, so the Phase 5 per-repo precheck is the only barrier for sibling repos.
 2. Delegate that repo's tasks to the implementer subagent.
 3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
 4. Run the Phase 4 validation steps for that repo before advancing to the next.
@@ -82,18 +84,24 @@ When the plan carries `[repo: <name>]` tags, run the validation steps above in e
 Before running the loop, verify the current branch is not the repository's default branch (typically `main` or `master`):
 
 ```bash
-default_branch=$(git ls-remote --symref origin HEAD 2>/dev/null \
+remote_url=$(git remote get-url origin 2>/dev/null)
+remote_host=$(printf '%s' "$remote_url" \
+  | sed 's|^[a-z]*://||; s|^[^@]*@||; s|[:/].*||')
+default_branch=$(GIT_TERMINAL_PROMPT=0 git ls-remote --symref origin HEAD 2>/dev/null \
   | awk '/^ref:/ { sub("^refs/heads/", "", $2); print $2; exit }')
-if [ -z "$default_branch" ]; then
-  remote_url=$(git remote get-url origin 2>/dev/null)
-  if echo "$remote_url" | grep -qE '(^|[@/])github\.com[:/]'; then
+if [ -z "$default_branch" ] && [ -n "$remote_host" ]; then
+  if [ "$remote_host" = "github.com" ] || gh auth status --hostname "$remote_host" >/dev/null 2>&1; then
     default_branch=$(gh repo view --json defaultBranchRef \
       -q .defaultBranchRef.name 2>/dev/null)
   fi
 fi
 if [ -z "$default_branch" ]; then
-  default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+  local_ref=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
     | awk '{ sub("^refs/remotes/origin/", "", $1); print $1; exit }')
+  if [ -n "$local_ref" ]; then
+    echo "REFUSED: default branch resolved only from local cache (refs/remotes/origin/HEAD) — ls-remote and gh both failed; cannot authorise push." >&2
+    exit 1
+  fi
 fi
 if [ -z "$default_branch" ]; then
   echo "FAIL-CLOSED: cannot determine default branch" >&2
@@ -102,22 +110,37 @@ fi
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 ```
 
-`git ls-remote --symref` resolves the default branch host-agnostically; the `gh` fallback runs only for GitHub remotes, because `gh repo view` always errors on Azure DevOps ("none of the git remotes … point to a known GitHub host"). The third arm (`git symbolic-ref refs/remotes/origin/HEAD`) reads the cached remote-tracking ref — it works offline and prevents a stall when origin is unreachable.
+`git ls-remote --symref` (with `GIT_TERMINAL_PROMPT=0` to prevent a prompt hang) resolves the default branch host-agnostically. The `gh` fallback runs only when `remote_host` is non-empty and `gh auth status` confirms authentication — this covers `github.com` and GitHub Enterprise; it does not run for Azure DevOps or when `origin` is absent. The `symbolic-ref` arm is advisory: if it is the sole source, the precheck refuses rather than trusting a stale cache.
 
 If `current_branch == default_branch`, automatically create a feature branch (`git checkout -b <suggested-name>`, deriving the name from the Phase 1 spec) and continue Phase 5 on the new branch. Do not push a PR from the default branch into itself.
 
-**Fail-closed.** If all three arms fail — `git ls-remote` returns no `ref:` line, the remote is not GitHub or `gh repo view` errors, and `git symbolic-ref` finds no cached tracking ref — stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
+**Fail-closed.** If all three arms fail — `git ls-remote` returns no `ref:` line, `gh` is not authenticated for this host, and `git symbolic-ref` finds no cached tracking ref — stop the pipeline. Do not fall back to assuming `main`. For single-repo runs, `block-push.sh` provides a second layer of protection at the harness level; for cross-repo pushes, the push guard does not intercept `git -C /path push`, so the precheck is the sole barrier. Either way, the precheck must refuse on indeterminate state.
 
 **Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
 
-Run the precheck for every participating repo before any push proceeds. `gh repo view` has no `-C` equivalent and `cd` is forbidden here — `ls-remote` (plus the local tracking-ref fallback) is the only resolution path for participating repos. For each repo, run the complete guard using literal absolute paths — never shell variables:
+Run the precheck for every participating repo before any push proceeds. `gh repo view OWNER/REPO` accepts an owner/repo positional argument and works from any directory — derive it from the repo's remote URL; both `repo_host` and `repo_slug` must be non-empty before invoking it (an empty positional argument silently resolves the session directory's repository instead). For each repo, run the complete guard using literal absolute paths — never shell variables:
 
 ```bash
-default_branch=$(git -C /absolute/path/to/repo ls-remote --symref origin HEAD 2>/dev/null \
+repo_remote_url=$(git -C /absolute/path/to/repo remote get-url origin 2>/dev/null)
+repo_host=$(printf '%s' "$repo_remote_url" \
+  | sed 's|^[a-z]*://||; s|^[^@]*@||; s|[:/].*||')
+repo_slug=$(printf '%s' "$repo_remote_url" \
+  | sed 's|^[a-z]*://[^/]*/||; s|^[^@]*@[^:/]*[:/]||; s|\.git$||')
+default_branch=$(GIT_TERMINAL_PROMPT=0 git -C /absolute/path/to/repo ls-remote --symref origin HEAD 2>/dev/null \
   | awk '/^ref:/ { sub("^refs/heads/", "", $2); print $2; exit }')
+if [ -z "$default_branch" ] && [ -n "$repo_host" ] && [ -n "$repo_slug" ]; then
+  if [ "$repo_host" = "github.com" ] || gh auth status --hostname "$repo_host" >/dev/null 2>&1; then
+    default_branch=$(gh repo view "$repo_slug" --json defaultBranchRef \
+      -q .defaultBranchRef.name 2>/dev/null)
+  fi
+fi
 if [ -z "$default_branch" ]; then
-  default_branch=$(git -C /absolute/path/to/repo symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+  local_ref=$(git -C /absolute/path/to/repo symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
     | awk '{ sub("^refs/remotes/origin/", "", $1); print $1; exit }')
+  if [ -n "$local_ref" ]; then
+    echo "REFUSED: default branch for /absolute/path/to/repo resolved only from local cache — ls-remote and gh both failed; cannot authorise push." >&2
+    exit 1
+  fi
 fi
 if [ -z "$default_branch" ]; then
   echo "FAIL-CLOSED: cannot determine default branch for /absolute/path/to/repo" >&2
@@ -127,7 +150,8 @@ current_branch=$(git -C /absolute/path/to/repo rev-parse --abbrev-ref HEAD)
 ```
 
 Apply the fail-closed rule per repo:
-- If the default branch cannot be determined: stop the pipeline.
+- If `ls-remote` and `gh` both fail and only the local cache (`symbolic-ref`) responded: refuse — the cached ref can be stale or forged.
+- If all arms fail and no default branch is determined: stop the pipeline.
 - If `current_branch == default_branch`: stop the pipeline and report — do not auto-create a branch. Phase 3 already committed to this sibling repo; running `checkout -b` now would leave the default branch carrying those commits and diverged from origin.
 
 No repo is pushed until every participating repo passes its own precheck.
@@ -166,9 +190,9 @@ Then continue directly to Step 3 without waiting for approval.
 Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits, Phase 5 Step 1b review-fix commit). Step 3 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
-2. Detect the remote host: `git remote get-url origin`. Open a draft PR — **always `--draft`**, no exceptions:
-   - `github.com` → `gh pr create --draft --title "<derived title>" --body "<derived body>"`
-   - `dev.azure.com`, `<org>.visualstudio.com`, or `vs-ssh.visualstudio.com` → `az repos pr create --draft true --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "<derived title>" --description "<derived body>"`. Requires `--organization` and `--project` unless `az devops configure --defaults` has been set.
+2. Derive `$pr_title` from the Phase 1 spec and write the PR body to a temporary file `$pr_body_file`. Parse the remote host: `remote_host=$(git remote get-url origin | sed 's|^[a-z]*://||; s|^[^@]*@||; s|[:/].*||')`. Open a draft PR — **always `--draft`**, no exceptions. Derived titles and bodies are passed via files or variables, never interpolated into the command string:
+   - `remote_host` is `github.com`, or `gh auth status --hostname "$remote_host"` exits 0 → `gh pr create --draft --title "$pr_title" --body-file "$pr_body_file"`
+   - `remote_host` is `dev.azure.com`, ends with `.visualstudio.com`, or is `vs-ssh.visualstudio.com` → `pr_body=$(cat "$pr_body_file")`, then `az repos pr create --draft true --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "$pr_title" --description "$pr_body"`. Requires `--organization` and `--project` unless `az devops configure --defaults` has been set.
    - Any other host → stop and report. Do not improvise a PR command; draft-PR creation is not defined for this host.
 3. Capture the PR number and URL for Phase 6.
 
@@ -182,7 +206,7 @@ The PR is opened as a draft and stays a draft — never mark it ready for review
 When the plan carries `[repo: <name>]` tags:
 - Repeat items 1–3 above for each participating repo in dependency order.
 - Use a literal absolute path in every git command: `git -C /absolute/path/to/repo push ...` — never a shell variable (same reason as Phase 3).
-- PR bodies must cross-link all participating repos and include "N of M — depends on <PR URL>" for each repo with upstream dependencies.
+- PR bodies cross-link only repos sharing the same host and organisation: use "N of M — depends on <PR URL>" for same-domain repos. For repos on a different host or org, substitute an opaque ordinal ("N of M") with no URL or repo name — publishing internal endpoints into an external PR body is irreversible. Flag a mixed-host run at the spec checkpoint.
 - Merge order is stated in the PR body, never enforced automatically.
 
 ### Step 4 — Post residuals (if any)
@@ -196,6 +220,8 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 ## Phase 6 — Judge (automatic)
 
 **Scope.** Phase 6 judges the primary repo's PR only. Automated comment posting via `gh api` is GitHub-only and does not apply to Azure DevOps PRs. To review sibling-repo PRs, run the pipeline from inside that repo.
+
+**Cross-repo warning (when `repos=` is present).** After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run that received no automated review pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
 
 Spawn all six agents in a single turn so they execute in parallel. **Issue all six Agent tool calls in one assistant turn — sequential calls defeat the purpose of parallel judging.**
 
