@@ -8,7 +8,9 @@ The pipeline operated only on the repository it was launched from, silently isol
 ## Considered Options
 
 **Always scan sibling repositories** — Rejected: imposes discovery cost and context on every run; the majority are single-repo.
+
 **Read-only context with a separate write-authorisation flag** — Rejected for v1; the allocation checkpoint already puts a human in the loop before anything is written.
+
 **A write-scoping PreToolUse hook restricting edits to the approved repo set** — Rejected for v1; duplicates a trust model that already governs single-repo runs on the same reasoning.
 
 ## Consequences
