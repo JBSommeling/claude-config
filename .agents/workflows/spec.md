@@ -4,6 +4,10 @@ description: Start spec-driven development — write a structured specification 
 
 Invoke the spec-driven-development skill.
 
+## Arguments
+
+`$ARGUMENTS` may include `repos=<path>` to make the spec phase aware of sibling repositories under that path. When present, the resulting spec gains a Repo Allocation section that distributes work across repos. Relative paths resolve against `$HOME`; absolute and `~/` paths are used as given.
+
 Begin by understanding what the user wants to build. Ask clarifying questions about:
 1. The objective and target users
 2. Core features and acceptance criteria

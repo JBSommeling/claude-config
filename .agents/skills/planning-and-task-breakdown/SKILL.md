@@ -80,6 +80,32 @@ Break a task down when: >3 acceptance criteria, touches 2+ independent subsystem
 - **Sequential:** Migrations, shared state, dependency chains
 - **Needs coordination:** Features sharing an API contract (define contract first)
 
+## Cross-Repo Task Breakdown (optional)
+
+**Skip this section entirely when the spec has no Repo Allocation.** Output is unchanged — single-repo task lists need none of this. This is the most important rule.
+
+When a Repo Allocation is present, apply these rules to the task list:
+
+- **Tag every task** with `[repo: <name>]` identifying which repository it lands in, so placement is unambiguous without reading the acceptance criteria.
+- **Order contract-first.** A shared interface or contract must land before the code that consumes it. The consumer cannot be verified against an interface that does not yet exist, so the producing repo's tasks precede its consumers'.
+- **State merge-order dependencies explicitly.** Record which repo's change must merge before another's. This cannot be inferred later from task metadata and is the most expensive cross-repo dependency to reconstruct mid-flight.
+- **Group by repo.** Within the constraint of contract-first ordering, cluster each repo's tasks together so they can be executed as a unit.
+
+**Example:**
+
+```markdown
+## Task 1 [repo: api]: Expose /events endpoint
+**Dependencies:** None
+
+## Task 2 [repo: worker]: Consume /events endpoint
+**Dependencies:** Task 1
+**Merge-order:** api must merge before worker
+
+## Task 3 [repo: web]: Display events list
+**Dependencies:** Task 1
+**Merge-order:** api must merge before web
+```
+
 ## Red Flags
 
 - Starting implementation without a written task list
