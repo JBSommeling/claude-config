@@ -1,8 +1,8 @@
 ---
-description: Full pipeline with auto-converging review loop — spec, plan, build, validate, converge (loop + PR), judge
+description: Full pipeline with auto-converging review loop — spec, plan, build, validate, converge (loop + draft PR), judge
 ---
 
-Run the full development pipeline with a convergence-based review loop — spec, plan, build, validate — where Phase 5 auto-fixes until clean (or capped), opens a PR, and Phase 6 judges the cleaned-up state.
+Run the full development pipeline with a convergence-based review loop — spec, plan, build, validate — where Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges the cleaned-up state.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -91,15 +91,16 @@ Parse the residuals block if present (it is only emitted when residuals are non-
 
 Then continue directly to Step 3 without waiting for approval.
 
-### Step 3 — Push and open PR
+### Step 3 — Push and open draft PR
 
 Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits, Phase 5 Step 1b review-fix commit). Step 3 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
-2. `gh pr create --title "<derived title>" --body "<derived body>"`
+2. `gh pr create --draft --title "<derived title>" --body "<derived body>"` — **always `--draft`**, no exceptions
 3. Capture the PR number and URL for Phase 6.
 
 Do not run `git add` or `git commit` here — the tree must already be clean.
+The PR is opened as a draft and stays a draft — never mark it ready for review.
 
 ### Step 4 — Post residuals (if any)
 
@@ -131,7 +132,7 @@ Present the final ship decision and PR URL to the user. Do not auto-merge — me
 
 1. Always run phases in order: spec → plan → build → validate → converge → judge.
 2. Checkpoint phases (spec, plan) require explicit user approval before continuing.
-3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and PR creation.
+3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and draft-PR creation.
 4. If the user provides a spec or plan upfront, skip to the appropriate phase.
 5. Commit after each task in the build phase, not at the end.
-6. Phase 6 never auto-merges. The PR stays open for human review and merge.
+6. Phase 6 never auto-merges and never un-drafts. The draft PR stays open for the human to promote, review, and merge.

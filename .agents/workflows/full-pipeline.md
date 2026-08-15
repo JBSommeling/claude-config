@@ -1,8 +1,8 @@
 ---
-description: Full pipeline with no local review round — spec, plan, build, validate, PR, judge
+description: Full pipeline with no local review round — spec, plan, build, validate, draft PR, judge
 ---
 
-Run the full development pipeline — spec, plan, build, validate — then open a PR and let Phase 6 judge it. There is no local review round: the review on the PR branch is the only one, and after its blockers are fixed the pipeline stops.
+Run the full development pipeline — spec, plan, build, validate — then open a draft PR and let Phase 6 judge it. There is no local review round: the review on the PR branch is the only one, and after its blockers are fixed the pipeline stops.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -47,7 +47,7 @@ If any step fails, fix the issue and re-run validation until everything passes. 
 
 Do not proceed to Phase 5 until validation is fully green.
 
-## Phase 5 — Push and open PR (automatic)
+## Phase 5 — Push and open draft PR (automatic)
 
 No review runs here. Phase 6 reviews the PR — that is the pipeline's only review pass.
 
@@ -73,15 +73,16 @@ Present to the user as a report (do not pause or wait for input):
 
 Then continue directly to Step 2 without waiting for approval.
 
-### Step 2 — Push and open PR
+### Step 2 — Push and open draft PR
 
 Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits). Step 2 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
-2. `gh pr create --title "<derived title>" --body "<derived body>"`
+2. `gh pr create --draft --title "<derived title>" --body "<derived body>"` — **always `--draft`**, no exceptions
 3. Capture the PR number and URL for Phase 6.
 
 Do not run `git add` or `git commit` here — the tree must already be clean.
+The PR is opened as a draft and stays a draft — never mark it ready for review.
 
 ## Phase 6 — Judge the PR and fix blockers (automatic)
 
@@ -128,8 +129,8 @@ Present the final ship decision and PR URL to the user. Do not auto-merge — me
 
 1. Always run phases in order: spec → plan → build → validate → PR → judge.
 2. Checkpoint phases (spec, plan) require explicit user approval before continuing.
-3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and PR creation.
+3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and draft-PR creation.
 4. If the user provides a spec or plan upfront, skip to the appropriate phase.
 5. Commit after each task in the build phase, not at the end.
 6. There is no local review round. Phase 6 is the only review, it runs exactly once, and the pipeline ends after its blockers are fixed — never re-review, never loop.
-7. Phase 6 never auto-merges. The PR stays open for human review and merge.
+7. Phase 6 never auto-merges and never un-drafts. The draft PR stays open for the human to promote, review, and merge.

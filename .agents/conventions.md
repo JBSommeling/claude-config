@@ -25,3 +25,23 @@ as long as their tags require.
 
 Comments earn their lines by explaining *why*. Never pad to the cap, and never restate
 what the code already says.
+
+### Comment content
+
+Comments describe the code as it stands, never how it got there. Never reference commit
+SHAs, earlier commits, ticket or issue IDs, PR numbers, or "changed in <X>" history in
+inline comments or docblocks.
+
+**Applies to:** every comment form covered above, including structured docblocks — a
+`@deprecated` or `@see` tag carries no ticket reference either.
+
+That history lives in the commit message, the PR, and the tracker, where it stays
+accurate. Copied into a comment it rots on the first refactor and tells the next reader
+nothing about what the code does.
+
+### Pull requests
+
+Every pull request is opened as a draft — `gh pr create --draft ...` — with no exceptions.
+
+Promoting a PR out of draft is the human's call. No agent marks a PR ready for review, and
+no workflow does it automatically.

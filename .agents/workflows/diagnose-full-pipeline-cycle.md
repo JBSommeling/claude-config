@@ -22,4 +22,4 @@ Run `/full-pipeline-cycle`, using the Stage 1 diagnosis as the feature request. 
 
 - **Phase 1 — Spec (checkpoint):** Specify the fix. Objective = eliminate the confirmed root cause. Acceptance criteria MUST include: the Stage 1 reproduction no longer reproduces, and a regression test exists at the correct seam. Feed in the affected files and the diagnosis evidence. Pauses for your approval, then saves `spec.md` to the Desktop folder.
 - **Phase 2 — Plan (checkpoint):** Break the fix into ordered tasks. Pauses for your approval, then saves `plan.md` to the same Desktop folder.
-- **Phases 3–6 (automatic):** Build (TDD — reuse the Stage 1 feedback loop as the failing test wherever possible), validate, converge (`/review-cycle` → push → open PR), and judge. No further pauses; ends at an open PR for human merge.
+- **Phases 3–6 (automatic):** Build (TDD — reuse the Stage 1 feedback loop as the failing test wherever possible), validate, converge (`/review-cycle` → push → open draft PR), and judge. No further pauses; ends at an open draft PR for human merge.
