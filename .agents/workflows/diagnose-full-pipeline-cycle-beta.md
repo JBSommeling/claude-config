@@ -9,7 +9,7 @@ Chain two existing commands to go from a reported bug all the way to a PR'd fix.
 
 ## Arguments
 
-`$ARGUMENTS` may include `repos=<path>`. It passes straight through to the Stage 2 pipeline, where it takes effect for spec, plan, build, and PR phases. Stage 1 diagnosis runs against the current working directory only and is unaffected.
+`$ARGUMENTS` may include `repos=<path>`. It passes straight through to the Stage 2 pipeline, where it takes effect for spec, plan, build, and PR phases. Stage 1 diagnosis runs against the repository containing the current working directory only and is unaffected.
 
 ## Stage 1 — Diagnose (via `/diagnose`)
 

@@ -6,7 +6,7 @@ Run the full development pipeline — spec, plan, build, validate — then open 
 
 ## Arguments
 
-`$ARGUMENTS` may include `repos=<path>` to make the pipeline aware of sibling repositories under that path. Only one path is supported. Relative paths resolve against `$HOME`; absolute and `~/` paths are used as given. The primary repo is always the current working directory.
+`$ARGUMENTS` may include `repos=<path>` to make the pipeline aware of sibling repositories under that path. Only one path is supported. Relative paths resolve against `$HOME`; absolute and `~/` paths are used as given. The primary repo is always the repository containing the current working directory.
 
 When present:
 - Sibling repos are discovered as direct children of `<path>` that contain a `.git` entry.
@@ -127,7 +127,7 @@ current_branch=$(git -C /absolute/path/to/repo rev-parse --abbrev-ref HEAD)
 
 Apply the fail-closed rule per repo:
 - If the default branch cannot be determined: stop the pipeline.
-- If `current_branch == default_branch`: stop the pipeline and report — do not auto-create a branch. Phase 3 already committed to this repo; running `checkout -b` now would leave the default branch carrying those commits and diverged from origin.
+- If `current_branch == default_branch`: stop the pipeline and report — do not auto-create a branch. Phase 3 already committed to this sibling repo; running `checkout -b` now would leave the default branch carrying those commits and diverged from origin.
 
 No repo is pushed until every participating repo passes its own precheck.
 

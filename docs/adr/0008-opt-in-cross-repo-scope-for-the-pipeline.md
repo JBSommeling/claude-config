@@ -5,7 +5,7 @@
 
 The pipeline operated only on the repository it was launched from, silently isolating every feature there even when the change genuinely spanned repositories. An optional `repos=<path>` parameter makes sibling repositories — identified as direct children holding a `.git` entry, excluding worktree containers without special-casing — visible to the spec phase, which allocates work across them; the plan orders tasks contract-first; build and PR phases run per repo, with PR creation dispatching on the remote host (`gh` for GitHub, `az repos` for Azure DevOps).
 
-A single parameter grants both context and write access; a separate read-only mode was judged unnecessary surface for v1. The primary repo is the current working directory and is not overridable, reducing invocation complexity.
+A single parameter grants both context and write access; a separate read-only mode was judged unnecessary surface for v1. The primary repo is the repository containing the current working directory and is not overridable, reducing invocation complexity.
 
 Absent the parameter, behaviour is unchanged with no added cost — the governing constraint. Enforcement is by convention: agent tool grants are unchanged and the spec checkpoint, where the allocation is confirmed, is the control point.
 
