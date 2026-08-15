@@ -12,7 +12,7 @@ When present:
 - Sibling repos are discovered as direct children of `<path>` that contain a `.git` entry.
 - The spec allocates work across repos; the plan tags each task with its target repo; build and PR phases run per repo.
 
-When absent, the pipeline behaves exactly as it does today — no discovery, no added cost.
+When absent, no discovery runs and no cross-repo work is performed — the pipeline is otherwise unaffected.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -48,7 +48,7 @@ If any task fails, follow debugging-and-error-recovery. Do not stop the pipeline
 
 When the plan carries `[repo: <name>]` tags, iterate repos in the plan's dependency order. For each repo:
 
-1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — the `block-push.sh` hook reads the raw command string before expansion, so `git -C "$REPO" push` fails closed with "Cannot determine repository default branch".
+1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation means one rule covers all commands. The `block-push.sh` hook also reads the raw push command before expansion, so `git -C "$REPO" push` fails closed; the same literal-path rule prevents that failure.
 2. Delegate that repo's tasks to the implementer subagent.
 3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
 4. Run the Phase 4 validation steps for that repo before advancing to the next.
@@ -89,28 +89,45 @@ if [ -z "$default_branch" ]; then
   fi
 fi
 if [ -z "$default_branch" ]; then
+  default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+    | awk '{ sub("^refs/remotes/origin/", "", $1); print $1; exit }')
+fi
+if [ -z "$default_branch" ]; then
   echo "FAIL-CLOSED: cannot determine default branch" >&2
   exit 1
 fi
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 ```
 
-`git ls-remote --symref` resolves the default branch host-agnostically; the `gh` fallback runs only for GitHub remotes, because `gh repo view` always errors on Azure DevOps ("none of the git remotes … point to a known GitHub host").
+`git ls-remote --symref` resolves the default branch host-agnostically; the `gh` fallback runs only for GitHub remotes, because `gh repo view` always errors on Azure DevOps ("none of the git remotes … point to a known GitHub host"). The third arm (`git symbolic-ref refs/remotes/origin/HEAD`) reads the cached remote-tracking ref — it works offline and prevents a stall when origin is unreachable.
 
 If `current_branch == default_branch`, automatically create a feature branch (`git checkout -b <suggested-name>`, deriving the name from the Phase 1 spec) and continue Phase 5 on the new branch. Do not push a PR from the default branch into itself.
 
-**Fail-closed.** If neither method resolves the default branch — `git ls-remote` returns no `ref:` line and either the remote is not GitHub or `gh repo view` errors — treat that as unsafe and stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
+**Fail-closed.** If all three arms fail — `git ls-remote` returns no `ref:` line, the remote is not GitHub or `gh repo view` errors, and `git symbolic-ref` finds no cached tracking ref — stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
 
 **Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
 
-Run the precheck for every participating repo before any push proceeds. For each repo, resolve its default branch and current branch using literal absolute paths — never shell variables:
+Run the precheck for every participating repo before any push proceeds. `gh repo view` has no `-C` equivalent and `cd` is forbidden here — `ls-remote` (plus the local tracking-ref fallback) is the only resolution path for participating repos. For each repo, run the complete guard using literal absolute paths — never shell variables:
 
 ```bash
-git -C /absolute/path/to/repo ls-remote --symref origin HEAD
-git -C /absolute/path/to/repo rev-parse --abbrev-ref HEAD
+default_branch=$(git -C /absolute/path/to/repo ls-remote --symref origin HEAD 2>/dev/null \
+  | awk '/^ref:/ { sub("^refs/heads/", "", $2); print $2; exit }')
+if [ -z "$default_branch" ]; then
+  default_branch=$(git -C /absolute/path/to/repo symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+    | awk '{ sub("^refs/remotes/origin/", "", $1); print $1; exit }')
+fi
+if [ -z "$default_branch" ]; then
+  echo "FAIL-CLOSED: cannot determine default branch for /absolute/path/to/repo" >&2
+  exit 1
+fi
+current_branch=$(git -C /absolute/path/to/repo rev-parse --abbrev-ref HEAD)
 ```
 
-Apply the same fail-closed rule: if the default branch cannot be determined for any repo, stop the pipeline. No repo is pushed until its own precheck passes.
+Apply the fail-closed rule per repo:
+- If the default branch cannot be determined: stop the pipeline.
+- If `current_branch == default_branch`: stop the pipeline and report — do not auto-create a branch. Phase 3 already committed to this repo; running `checkout -b` now would leave the default branch carrying those commits and diverged from origin.
+
+No repo is pushed until every participating repo passes its own precheck.
 
 ### Step 1 — Loop
 
@@ -148,7 +165,7 @@ Everything is already committed by this point (Phase 3 task commits, Phase 4 val
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
 2. Detect the remote host: `git remote get-url origin`. Open a draft PR — **always `--draft`**, no exceptions:
    - `github.com` → `gh pr create --draft --title "<derived title>" --body "<derived body>"`
-   - `dev.azure.com` → `az repos pr create --draft true --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "<derived title>" --description "<derived body>"`. Requires `--organization` and `--project` unless `az devops configure --defaults` has been set.
+   - `dev.azure.com`, `<org>.visualstudio.com`, or `vs-ssh.visualstudio.com` → `az repos pr create --draft true --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "<derived title>" --description "<derived body>"`. Requires `--organization` and `--project` unless `az devops configure --defaults` has been set.
    - Any other host → stop and report. Do not improvise a PR command; draft-PR creation is not defined for this host.
 3. Capture the PR number and URL for Phase 6.
 
@@ -160,7 +177,7 @@ The PR is opened as a draft and stays a draft — never mark it ready for review
 **Partial-failure policy:** All commits are already in from Phases 3 and 4. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
 
 When the plan carries `[repo: <name>]` tags:
-- Repeat steps 1–3 for each participating repo in dependency order.
+- Repeat items 1–3 above for each participating repo in dependency order.
 - Use a literal absolute path in every git command: `git -C /absolute/path/to/repo push ...` — never a shell variable (same reason as Phase 3).
 - PR bodies must cross-link all participating repos and include "N of M — depends on <PR URL>" for each repo with upstream dependencies.
 - Merge order is stated in the PR body, never enforced automatically.

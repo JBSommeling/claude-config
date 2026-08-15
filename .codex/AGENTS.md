@@ -105,6 +105,6 @@ Invoke a skill via `$skillname` — for example, `$full-pipeline-cycle` to run t
 
 `$diagnose-full-pipeline` is the same chain with the no-review-round pipeline: it runs `$diagnose`, then feeds the confirmed diagnosis into `$full-pipeline` rather than `$full-pipeline-cycle`.
 
-All four save the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
+Every pipeline command saves the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
 
-All four accept an optional `repos=<path>` parameter. A single path is supported in v1: relative paths resolve against `$HOME`, absolute and `~/` paths are used as-is. The primary repo is always the current working directory; sibling repos are direct children of the `repos=` path holding a `.git` entry. When present, the spec allocates work across repos, the plan tags tasks per repo, and build and PR phases run per repo — PRs dispatch to `gh` for GitHub or `az repos` for Azure DevOps. Absent the parameter, behaviour is unchanged.
+Every pipeline command accepts an optional `repos=<path>` parameter. A single path is supported in v1: relative paths resolve against `$HOME`, absolute and `~/` paths are used as-is. The primary repo is always the current working directory; sibling repos are direct children of the `repos=` path holding a `.git` entry. When present, the spec allocates work across repos, the plan tags tasks per repo, and build and PR phases run per repo — PRs dispatch to `gh` for GitHub or `az repos` for Azure DevOps. Absent the parameter, behaviour is unchanged.

@@ -25,15 +25,15 @@ When `repos=<path>` appears in `$ARGUMENTS`:
 
 - Relative paths resolve against `$HOME` (`Development/tba` → `$HOME/Development/tba`); absolute and `~/`-prefixed paths are used as-is. The path is used exactly as given — on case-sensitive filesystems the case must match exactly.
 - If the resolved path does not exist or contains no git repositories, skip discovery and continue as a single-repo run without failing.
-- The primary repo is always `$PWD`; it is not overridable.
-- Discover candidates: direct children of `<path>` that contain a `.git` entry at their own root. `*.worktrees` directories have no `.git` at their own root and are excluded without special-casing. `$PWD` is always excluded from candidates — it is the primary repo and always participates.
+- The primary repo root is resolved via `git rev-parse --show-toplevel`; it is not overridable.
+- Discover candidates: direct children of `<path>` that contain a `.git` entry at their own root. `*.worktrees` directories have no `.git` at their own root and are excluded without special-casing. The primary repo root (resolved via `git rev-parse --show-toplevel`) is always excluded from candidates — it always participates and is never dropped, even if a `none` scan verdict is returned.
 
 **Scan — up to 10 read-only subagents in parallel, on the cheap search tier:**
 
 - Pass feature keywords extracted from the user's request; each scanner greps for them. Keyword-scoped grep keeps output bounded — scanners do not summarise the whole repo.
 - Each scanner returns: repo name, one-line purpose, stack, public surface (API routes, exported packages, published or consumed events), and a relevance verdict of `none` / `low` / `high` with supporting evidence.
 - Drop `none` repos immediately. They do not appear in the spec or any downstream phase.
-- If the candidate count exceeds 10, scan the first 10 and report the remainder as unscanned — they are not silently dropped.
+- If the candidate count exceeds 10, sort candidates lexicographically by directory name and scan the first 10; list the remainder as unscanned in the spec so the user sees them at the checkpoint — they are not silently dropped.
 - Scanners are read-only: they report, they do not edit.
 
 ### Phase 1: Specify
