@@ -7,6 +7,10 @@ description: Diagnose a bug, then run the no-review-round pipeline to spec, plan
 
 Chain two existing commands to go from a reported bug all the way to a PR'd fix. Stage 1 diagnoses (no fix); Stage 2 specs, plans, builds, and ships the fix.
 
+## Arguments
+
+`$ARGUMENTS` may include `repos=<path>`. It passes straight through to the Stage 2 pipeline, where it takes effect for spec, plan, build, and PR phases. Stage 1 diagnosis runs against the current working directory only and is unaffected.
+
 ## Stage 1 — Diagnose (via `/diagnose`)
 
 Run `/diagnose` in its diagnose-only mode. Build a feedback loop, confirm the root cause through Phases 1–4, and run Phase 6 cleanup. Do NOT fix the bug here — Stage 2 owns the fix.

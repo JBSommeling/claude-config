@@ -7,6 +7,16 @@ description: BETA — Full pipeline with adversarial test lenses in the judging 
 
 Run the full development pipeline with a convergence-based review loop — spec, plan, build, validate — where Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges the cleaned-up state with adversarial test lenses.
 
+## Arguments
+
+`$ARGUMENTS` may include `repos=<path>` to make the pipeline aware of sibling repositories under that path. Only one path is supported. Relative paths resolve against `$HOME`; absolute and `~/` paths are used as given. The primary repo is always the current working directory.
+
+When present:
+- Sibling repos are discovered as direct children of `<path>` that contain a `.git` entry.
+- The spec allocates work across repos; the plan tags each task with its target repo; build and PR phases run per repo.
+
+When absent, the pipeline behaves exactly as it does today — no discovery, no added cost.
+
 ## Phase 1 — Spec (checkpoint)
 
 Invoke the spec-driven-development skill. Write a structured specification for the requested feature.

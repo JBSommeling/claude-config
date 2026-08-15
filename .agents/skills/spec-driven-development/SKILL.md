@@ -17,6 +17,24 @@ SPECIFY → PLAN → TASKS → IMPLEMENT
  Review   Review  Review   Review
 ```
 
+## Cross-Repo Context (optional)
+
+**Skip this section entirely when `repos=` is absent.** No discovery, no subagents, no extra spec sections — this is the most important rule.
+
+When `repos=<path>` appears in `$ARGUMENTS`:
+
+- Relative paths resolve against `$HOME` (`Development/tba` → `$HOME/Development/tba`); absolute and `~/`-prefixed paths are used as-is. The path is used exactly as given — on case-sensitive filesystems the case must match exactly.
+- If the resolved path does not exist or contains no git repositories, skip discovery and continue as a single-repo run without failing.
+- The primary repo is always `$PWD`; it is not overridable.
+- Discover candidates: direct children of `<path>` that contain a `.git` entry at their own root. `*.worktrees` directories have no `.git` at their own root and are excluded without special-casing.
+
+**Scan — one read-only subagent per candidate, all in parallel:**
+
+- Pass feature keywords extracted from the user's request; each scanner greps for them. Keyword-scoped grep keeps output bounded — scanners do not summarise the whole repo.
+- Each scanner returns: repo name, one-line purpose, stack, public surface (API routes, exported packages, published or consumed events), and a relevance verdict of `none` / `low` / `high` with supporting evidence.
+- Drop `none` repos immediately. They do not appear in the spec or any downstream phase.
+- Scanners are read-only: they report, they do not edit.
+
 ### Phase 1: Specify
 
 **Surface assumptions immediately:**
@@ -28,7 +46,7 @@ ASSUMPTIONS I'M MAKING:
 → Correct me now or I'll proceed with these.
 ```
 
-**Write a spec covering six areas:**
+**Write a spec. Areas 1–6 always apply; include area 7 when `repos=` was supplied:**
 
 1. **Objective** — What, why, for whom, success criteria
 2. **Commands** — Full executable commands (build, test, lint, dev)
@@ -39,6 +57,9 @@ ASSUMPTIONS I'M MAKING:
    - Always do: [non-negotiable rules]
    - Ask first: [needs human approval]
    - Never do: [hard constraints]
+7. **Repo Allocation** *(when `repos=` was supplied)* — per participating repo: what changes there, why it belongs there rather than elsewhere, and the contract it exposes or consumes.
+
+When a Repo Allocation is present, tag acceptance criteria per repo so "done" is defined for each one. The spec checkpoint is where the user confirms the allocation — it is the architectural decision in the change.
 
 **Reframe vague requirements as testable success criteria:**
 ```

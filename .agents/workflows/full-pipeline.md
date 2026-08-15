@@ -4,6 +4,16 @@ description: Full pipeline with no local review round — spec, plan, build, val
 
 Run the full development pipeline — spec, plan, build, validate — then open a draft PR and let Phase 6 judge it. There is no local review round: the review on the PR branch is the only one, and after its blockers are fixed the pipeline stops.
 
+## Arguments
+
+`$ARGUMENTS` may include `repos=<path>` to make the pipeline aware of sibling repositories under that path. Only one path is supported. Relative paths resolve against `$HOME`; absolute and `~/` paths are used as given. The primary repo is always the current working directory.
+
+When present:
+- Sibling repos are discovered as direct children of `<path>` that contain a `.git` entry.
+- The spec allocates work across repos; the plan tags each task with its target repo; build and PR phases run per repo.
+
+When absent, the pipeline behaves exactly as it does today — no discovery, no added cost.
+
 ## Phase 1 — Spec (checkpoint)
 
 Invoke the spec-driven-development skill. Write a structured specification for the requested feature.
