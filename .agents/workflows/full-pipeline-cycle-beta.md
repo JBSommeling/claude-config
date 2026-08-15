@@ -3,7 +3,7 @@ description: BETA — Full pipeline with adversarial test lenses in the judging 
 ---
 
 > **BETA variant of `/full-pipeline-cycle`.**
-> One substantive change: Phase 6 replaces the single `test-engineer` judge with four adversarial lenses, running six judging agents in parallel instead of three. This costs more agent invocations. Everything else — Phases 1 to 5, the checkpoints, the branch precheck, and the residual posting — is identical to the original.
+> One substantive change: Phase 6 replaces the single `test-engineer` judge with four adversarial lenses, running seven judging agents in parallel instead of four. This costs more agent invocations. Everything else — Phases 1 to 5, the checkpoints, the branch precheck, and the residual posting — is identical to the original.
 
 Run the full development pipeline with a convergence-based review loop — spec, plan, build, validate — where Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges the cleaned-up state with adversarial test lenses.
 
@@ -115,7 +115,7 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 
 ## Phase 6 — Judge (automatic)
 
-Spawn all six agents in a single turn so they execute in parallel. **Issue all six Agent tool calls in one assistant turn — sequential calls defeat the purpose of parallel judging.**
+Spawn all seven agents in a single turn so they execute in parallel. **Issue all seven Agent tool calls in one assistant turn — sequential calls defeat the purpose of parallel judging.**
 
 Agents operate against the **PR's current state** (not the local working tree):
 
@@ -125,6 +125,7 @@ Agents operate against the **PR's current state** (not the local working tree):
 4. **test-engineer** with the **vacuity lens** — for each test, determine whether it exercises the path its name claims, or reaches the expected result via an early return, a default, or an unrelated branch. List every test that passes for the wrong reason.
 5. **test-engineer** with the **oracle distrust lens** — audit every baseline, golden file, and fixture. Flag any that were regenerated during the same change under review — they may encode a bug rather than the correct behaviour. Report what would have to be true for each oracle to be wrong.
 6. **test-engineer** with the **blast radius lens** — map untested paths to the damage a failure in each would cause. Rank gaps by blast radius, not line count. A five-line auth check outranks a fifty-line formatter.
+7. **maintainer-reviewer** — the five-year maintenance lens and the house-consistency lens (unchanged from the original pipeline)
 
 ### Merge and report
 
@@ -135,6 +136,8 @@ Merge all agent reports into a GO/NO-GO recommendation. The merged report must:
 - List **Recommended fixes**
 - List **Acknowledged risks**
 - Include a **Rollback plan**
+
+`maintainer-reviewer` overlaps `code-reviewer`'s architecture axis at the edges — count a shared finding once, keeping whichever report cites a precedent. Its "existing practice worth revisiting" observations are never blockers for this PR; carry them into the report as follow-up suggestions.
 
 Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level PR comment.
 
