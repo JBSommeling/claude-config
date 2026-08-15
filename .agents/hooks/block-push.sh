@@ -32,6 +32,13 @@
 #
 # Bounded waits use background + poll (not GNU `timeout`) for macOS portability.
 #
+# Known limitations:
+#   - Shell variables in -C paths are not expanded before inspection. `git -C "$REPO" push`
+#     fails closed ("Cannot determine repository default branch") because `$REPO` is a literal
+#     string — safe, but a false deny. Workaround: pass a literal path or `cd` first.
+#   - A command that merely quotes a push (echo, PR body, inline comment) is also denied.
+#     The hook matches the raw command string; intent and context cannot be inferred.
+#
 # Override: set CLAUDE_BYPASS_PUSH_GUARD=1 to disable for a single session.
 
 set -uo pipefail
