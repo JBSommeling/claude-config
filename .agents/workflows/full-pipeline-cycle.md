@@ -112,17 +112,20 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 
 ## Phase 6 — Judge (automatic)
 
-Spawn three subagents in parallel against the **PR's current state** (not the local working tree):
+Spawn four subagents in parallel against the **PR's current state** (not the local working tree). **Issue all four Agent tool calls in one assistant turn** — sequential calls defeat the purpose of parallel judging.
 
 1. **code-reviewer** — five-axis review on the PR diff
 2. **security-auditor** — vulnerability and threat-model pass
 3. **test-engineer** — coverage gap analysis
+4. **maintainer-reviewer** — the five-year maintenance lens and the house-consistency lens
 
 Merge all reports into a GO/NO-GO recommendation with:
 - Blockers (must fix before merge)
 - Recommended fixes
 - Acknowledged risks
 - Rollback plan
+
+`maintainer-reviewer` overlaps `code-reviewer`'s architecture axis at the edges — count a shared finding once, keeping whichever report cites a precedent. Its "existing practice worth revisiting" observations are never blockers for this PR; carry them into the report as follow-up suggestions.
 
 Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level PR comment.
 
