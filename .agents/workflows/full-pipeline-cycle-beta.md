@@ -83,13 +83,17 @@ Before running the loop, verify the current branch is not the repository's defau
 
 ```bash
 default_branch=$(git ls-remote --symref origin HEAD 2>/dev/null \
-  | awk '/^ref:/ { gsub("refs/heads/", "", $2); print $2; exit }')
+  | awk '/^ref:/ { sub("^refs/heads/", "", $2); print $2; exit }')
 if [ -z "$default_branch" ]; then
   remote_url=$(git remote get-url origin 2>/dev/null)
-  if echo "$remote_url" | grep -q "github.com"; then
+  if echo "$remote_url" | grep -qE '(^|[@/])github\.com[:/]'; then
     default_branch=$(gh repo view --json defaultBranchRef \
       -q .defaultBranchRef.name 2>/dev/null)
   fi
+fi
+if [ -z "$default_branch" ]; then
+  echo "FAIL-CLOSED: cannot determine default branch" >&2
+  exit 1
 fi
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 ```
@@ -100,9 +104,20 @@ If `current_branch == default_branch`, automatically create a feature branch (`g
 
 **Fail-closed.** If neither method resolves the default branch — `git ls-remote` returns no `ref:` line and either the remote is not GitHub or `gh repo view` errors — treat that as unsafe and stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
 
+**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
+
+Run the precheck for every participating repo before any push proceeds. For each repo, resolve its default branch and current branch using literal absolute paths — never shell variables:
+
+```bash
+git -C /absolute/path/to/repo ls-remote --symref origin HEAD
+git -C /absolute/path/to/repo rev-parse --abbrev-ref HEAD
+```
+
+Apply the same fail-closed rule: if the default branch cannot be determined for any repo, stop the pipeline. No repo is pushed until its own precheck passes.
+
 ### Step 1 — Loop
 
-Invoke `/review-cycle cap=5`. The cycle runs the five-axis review → fix loop, capped at 5 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached.
+Invoke `/review-cycle cap=5`. The cycle runs the five-axis review → fix loop, capped at 5 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached. The review round covers the primary repo's working tree only.
 
 ### Step 1b — Commit review fixes
 
@@ -136,7 +151,8 @@ Everything is already committed by this point (Phase 3 task commits, Phase 4 val
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
 2. Detect the remote host: `git remote get-url origin`. Open a draft PR — **always `--draft`**, no exceptions:
    - `github.com` → `gh pr create --draft --title "<derived title>" --body "<derived body>"`
-   - `dev.azure.com` → `az repos pr create --draft --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "<derived title>" --description "<derived body>"`
+   - `dev.azure.com` → `az repos pr create --draft true --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "<derived title>" --description "<derived body>"`. Requires `--organization` and `--project` unless `az devops configure --defaults` has been set.
+   - Any other host → stop and report. Do not improvise a PR command; draft-PR creation is not defined for this host.
 3. Capture the PR number and URL for Phase 6.
 
 Do not run `git add` or `git commit` here — the tree must already be clean.
@@ -146,7 +162,11 @@ The PR is opened as a draft and stays a draft — never mark it ready for review
 
 **Partial-failure policy:** All commits are already in from Phases 3 and 4. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
 
-When the plan carries `[repo: <name>]` tags, repeat steps 1–3 for each participating repo in dependency order. Use a literal absolute path in every git command: `git -C /absolute/path/to/repo push ...` — never a shell variable (same reason as Phase 3). PR bodies must cross-link all participating repos, state the merge order, and include "N of M — depends on <PR URL>" for each repo with upstream dependencies. Merge order is stated, never enforced.
+When the plan carries `[repo: <name>]` tags:
+- Repeat steps 1–3 for each participating repo in dependency order.
+- Use a literal absolute path in every git command: `git -C /absolute/path/to/repo push ...` — never a shell variable (same reason as Phase 3).
+- PR bodies must cross-link all participating repos and include "N of M — depends on <PR URL>" for each repo with upstream dependencies.
+- Merge order is stated in the PR body, never enforced automatically.
 
 ### Step 4 — Post residuals (if any)
 
@@ -157,6 +177,8 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 - Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
 
 ## Phase 6 — Judge (automatic)
+
+**Scope.** Phase 6 judges the primary repo's PR only. Automated comment posting via `gh api` is GitHub-only and does not apply to Azure DevOps PRs. To review sibling-repo PRs, run the pipeline from inside that repo.
 
 Spawn all six agents in a single turn so they execute in parallel. **Issue all six Agent tool calls in one assistant turn — sequential calls defeat the purpose of parallel judging.**
 
