@@ -50,7 +50,7 @@ Before iterating repos, resolve every `[repo: <name>]` tag in the plan against t
 
 When the plan carries `[repo: <name>]` tags, iterate repos in the plan's dependency order. For each repo:
 
-1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation provide uniformity (one rule covers all commands) and compatibility with the push guard's whitespace tokeniser. Cross-repo pushes (`git -C /path push`) are not matched by the push guard, so the Phase 5 per-repo precheck is the only barrier for sibling repos.
+1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation provide uniformity (one rule covers all commands) and compatibility with the push guard's whitespace tokeniser. The guard inspects the raw command before the shell expands it, so a path held in a variable cannot resolve and the push is refused — a literal path avoids that.
 2. Delegate that repo's tasks to the implementer subagent.
 3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
 4. Run the Phase 4 validation steps for that repo before advancing to the next.
@@ -111,7 +111,7 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 If `current_branch == default_branch`, automatically create a feature branch (`git checkout -b <suggested-name>`, deriving the name from the Phase 1 spec) and continue Phase 5 on the new branch. Do not push a PR from the default branch into itself.
 
-**Fail-closed.** If all three arms fail — `git ls-remote` returns no `ref:` line, `gh` is not authenticated for this host, and `git symbolic-ref` finds no cached tracking ref — stop the pipeline. Do not fall back to assuming `main`. For single-repo runs, `block-push.sh` provides a second layer of protection at the harness level; for cross-repo pushes, the push guard does not intercept `git -C /path push`, so the precheck is the sole barrier. Either way, the precheck must refuse on indeterminate state.
+**Fail-closed.** If all three arms fail — `git ls-remote` returns no `ref:` line, `gh` is not authenticated for this host, and `git symbolic-ref` finds no cached tracking ref — stop the pipeline. Do not fall back to assuming `main`. `block-push.sh` provides a second layer of protection at the harness level for both single-repo and cross-repo pushes — the guard resolves `-C` and evaluates the repository actually being pushed. The precheck must still refuse on indeterminate state.
 
 **Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
 
@@ -220,17 +220,20 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 
 **Cross-repo warning (when `repos=` is present).** After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run that received no automated review pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
 
-Spawn three subagents in parallel against the **PR's current state** (not the local working tree):
+Spawn four subagents in parallel against the **PR's current state** (not the local working tree). **Issue all four Agent tool calls in one assistant turn** — sequential calls defeat the purpose of parallel judging.
 
 1. **code-reviewer** — five-axis review on the PR diff
 2. **security-auditor** — vulnerability and threat-model pass
 3. **test-engineer** — coverage gap analysis
+4. **maintainer-reviewer** — the five-year maintenance lens and the house-consistency lens
 
 Merge all reports into a GO/NO-GO recommendation with:
 - Blockers (must fix before merge)
 - Recommended fixes
 - Acknowledged risks
 - Rollback plan
+
+`maintainer-reviewer` overlaps `code-reviewer`'s architecture axis at the edges — count a shared finding once, keeping whichever report cites a precedent. Its "existing practice worth revisiting" observations are never blockers for this PR; carry them into the report as follow-up suggestions.
 
 Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level PR comment.
 

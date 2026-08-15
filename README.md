@@ -38,10 +38,10 @@ The orchestrator stays in the main session and delegates every subtask to a chea
 Sonnet is pinned to `claude-sonnet-4-6`; the bare `sonnet` alias now resolves to Sonnet 5 with ~30% higher token cost. `Explore` is pinned to `haiku`.
 
 ```
-.agents/           shared content: 6 agent bodies, 21 workflows, 14 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 21 workflows, 14 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
-docs/adr/          6 architecture decision records
+docs/adr/          7 architecture decision records
 install.sh
 ```
 
@@ -57,6 +57,7 @@ Workflows install as `~/.claude/commands/<name>.md` (invoked `/name`) and `~/.ag
 | `test-engineer` | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Test writing and coverage |
 | `code-reviewer` | Opus | gpt-5.6-sol | Code review — used by `/review`, `/review-pr`, `/ship` |
 | `security-auditor` | Opus | gpt-5.6-sol | Security review |
+| `maintainer-reviewer` | Opus | gpt-5.6-sol | Five-year maintainability and house-style consistency — used by the pipelines and `/ship` |
 
 ## Codex specifics
 
@@ -86,7 +87,7 @@ Three `PreToolUse` hooks enforce routing discipline, each session-bypassable:
 
 **Refactor** — `/code-simplify` cut complexity without changing behavior · `/improve-architecture` deepening candidates as an HTML report, then grill the one you pick
 
-**Pipelines** — `/full-pipeline` spec → plan → build → validate → PR, judged once by three parallel subagents · `/full-pipeline-cycle` adds an auto-fixing `/review-cycle` round (capped at 5) before the PR · `/full-pipeline-cycle-beta` adds adversarial test lenses to judging. Spec and plan are the only checkpoints. All pipeline commands accept an optional `repos=<path>`: sibling repositories under that path (direct children with a `.git` entry) become visible — the spec allocates work across them, the plan orders tasks contract-first, and build and PR phases run per repo. Absent the parameter, behaviour is unchanged.
+**Pipelines** — `/full-pipeline` spec → plan → build → validate → PR, judged once by four parallel subagents · `/full-pipeline-cycle` adds an auto-fixing `/review-cycle` round (capped at 5) before the PR · `/full-pipeline-cycle-beta` adds adversarial test lenses to judging. Spec and plan are the only checkpoints. All pipeline commands accept an optional `repos=<path>`: sibling repositories under that path (direct children with a `.git` directory) become visible — the spec allocates work across them, the plan orders tasks contract-first, and build and PR phases run per repo. Absent the parameter, behaviour is unchanged.
 
 **Meta** — `/zoom-out` step back for higher-level context
 
