@@ -44,6 +44,17 @@ Invoke the incremental-implementation and tdd skills. For each task in the appro
 
 If any task fails, follow debugging-and-error-recovery. Do not stop the pipeline — fix and continue.
 
+**Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
+
+When the plan carries `[repo: <name>]` tags, iterate repos in the plan's dependency order. For each repo:
+
+1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — the `block-push.sh` hook reads the raw command string before expansion, so `git -C "$REPO" push` fails closed with "Cannot determine repository default branch".
+2. Delegate that repo's tasks to the implementer subagent.
+3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
+4. Run the Phase 4 validation steps for that repo before advancing to the next.
+
+Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` — this does not change per repo.
+
 ## Phase 4 — Validate (automatic)
 
 After all tasks are built, run a full validation pass:
@@ -57,6 +68,10 @@ If any step fails, fix the issue and re-run validation until everything passes. 
 
 Do not proceed to Phase 5 until validation is fully green.
 
+**Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
+
+When the plan carries `[repo: <name>]` tags, run the validation steps above in each participating repo. Every repo must be fully green before the pipeline proceeds to Phase 5.
+
 ## Phase 5 — Push and open draft PR (automatic)
 
 No review runs here. Phase 6 reviews the PR — that is the pipeline's only review pass.
@@ -66,13 +81,23 @@ No review runs here. Phase 6 reviews the PR — that is the pipeline's only revi
 Before reviewing, verify the current branch is not the repository's default branch (typically `main` or `master`):
 
 ```bash
-default_branch=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+default_branch=$(git ls-remote --symref origin HEAD 2>/dev/null \
+  | awk '/^ref:/ { gsub("refs/heads/", "", $2); print $2; exit }')
+if [ -z "$default_branch" ]; then
+  remote_url=$(git remote get-url origin 2>/dev/null)
+  if echo "$remote_url" | grep -q "github.com"; then
+    default_branch=$(gh repo view --json defaultBranchRef \
+      -q .defaultBranchRef.name 2>/dev/null)
+  fi
+fi
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 ```
 
+`git ls-remote --symref` resolves the default branch host-agnostically; the `gh` fallback runs only for GitHub remotes, because `gh repo view` always errors on Azure DevOps ("none of the git remotes … point to a known GitHub host").
+
 If `current_branch == default_branch`, automatically create a feature branch (`git checkout -b <suggested-name>`, deriving the name from the Phase 1 spec) and continue Phase 5 on the new branch. Do not push a PR from the default branch into itself.
 
-**Fail-closed.** If `gh repo view` errors (not authenticated, no remote, no GitHub repo) or returns an empty default branch, treat that as unsafe and stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
+**Fail-closed.** If neither method resolves the default branch — `git ls-remote` returns no `ref:` line and either the remote is not GitHub or `gh repo view` errors — treat that as unsafe and stop the pipeline. Do not fall back to assuming `main`. The PreToolUse hook `block-push.sh` provides a second layer of protection at the harness level, but the precheck must still refuse on indeterminate state.
 
 ### Step 1 — Report and prepare PR
 
@@ -88,11 +113,19 @@ Then continue directly to Step 2 without waiting for approval.
 Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits). Step 2 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
-2. `gh pr create --draft --title "<derived title>" --body "<derived body>"` — **always `--draft`**, no exceptions
+2. Detect the remote host: `git remote get-url origin`. Open a draft PR — **always `--draft`**, no exceptions:
+   - `github.com` → `gh pr create --draft --title "<derived title>" --body "<derived body>"`
+   - `dev.azure.com` → `az repos pr create --draft --repository <repo-name> --source-branch <branch> --target-branch <default-branch> --title "<derived title>" --description "<derived body>"`
 3. Capture the PR number and URL for Phase 6.
 
 Do not run `git add` or `git commit` here — the tree must already be clean.
 The PR is opened as a draft and stays a draft — never mark it ready for review.
+
+**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
+
+**Partial-failure policy:** All commits are already in from Phases 3 and 4. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
+
+When the plan carries `[repo: <name>]` tags, repeat steps 1–3 for each participating repo in dependency order. Use a literal absolute path in every git command: `git -C /absolute/path/to/repo push ...` — never a shell variable (same reason as Phase 3). PR bodies must cross-link all participating repos, state the merge order, and include "N of M — depends on <PR URL>" for each repo with upstream dependencies. Merge order is stated, never enforced.
 
 ## Phase 6 — Judge the PR and fix blockers (automatic)
 
