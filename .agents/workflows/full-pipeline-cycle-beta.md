@@ -76,17 +76,20 @@ Invoke `/branch-preflight` again to re-verify every participating repo before pu
 
 Invoke `/review-cycle cap=5`. The cycle runs the five-axis review → fix loop, capped at 5 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached. The review round covers the primary repo's working tree only.
 
-### Step 1b — Commit review fixes
+### Step 1b — Validate and commit review fixes
 
 `/review-cycle` delegates fixes to the implementer subagent, which leaves changes uncommitted in the working tree. After the loop returns, check if the tree is dirty:
 
 ```bash
 if [ -n "$(git status --porcelain)" ]; then
-  # commit the review-cycle fixes as one tidy commit
+  # the loop changed code — re-validate before committing
+  # invoke /validate here, fix any failure, then commit
   git add <specific files touched by the loop>
   git commit -m "review-cycle fixes (<iterations> iterations, <N> residuals)"
 fi
 ```
+
+When the tree is dirty, invoke `/validate` before committing and do not proceed until it reports fully green. Phase 4's green result covers the code as it stood before the review loop — the fixes the loop applied have been validated by nothing. When the tree is clean the loop changed no code, Phase 4's result still holds, and no re-run is needed.
 
 This maintains the invariant — like Phases 3 and 4 — that every step ends with a clean tree. After Step 1b, no further commits happen in Phase 5.
 
@@ -139,11 +142,11 @@ If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each f
 
 **Cross-repo warning (when `repos=` is present).** After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run that received no automated review pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
 
-Spawn all seven agents in a single turn so they execute in parallel. **Issue all seven Agent tool calls in one assistant turn — sequential calls defeat the purpose of parallel judging.**
+Spawn the judging subagents in parallel against the **PR's current state** (not the local working tree) — seven, or six when `code-reviewer` is skipped per the note below. **Issue every Agent tool call in one assistant turn — sequential calls defeat the purpose of parallel judging.**
 
 Agents operate against the **PR's current state** (not the local working tree):
 
-1. **code-reviewer** — five-axis review on the PR diff (unchanged from the original pipeline)
+1. **code-reviewer** — five-axis review on the PR diff (unchanged from the original pipeline). **Skip this agent when Phase 5 Step 1 converged with zero Critical and zero Important findings** — the same agent passed this code moments earlier and the PR diff has not changed since. Run it whenever the loop hit its cap or left residuals.
 2. **security-auditor** — vulnerability and threat-model pass (unchanged from the original pipeline)
 3. **test-engineer** with the **mutation lens** — mutate safety-critical lines so their behaviour is wrong; confirm the suite goes red. Report every surviving mutation with the exact line mutated and the test that should have caught it. Do not modify tracked files — mutate only copies in a temporary directory; confirm the repository is clean after mutation work.
 4. **test-engineer** with the **vacuity lens** — for each test, determine whether it exercises the path its name claims, or reaches the expected result via an early return, a default, or an unrelated branch. List every test that passes for the wrong reason.
