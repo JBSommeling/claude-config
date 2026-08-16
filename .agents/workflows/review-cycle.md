@@ -6,7 +6,10 @@ Run the five-axis code review on the current changes, then fix findings and re-r
 
 ## Arguments
 
-`$ARGUMENTS` may include `cap=N` to override the default iteration cap (default: 5).
+`$ARGUMENTS` may include:
+
+- `cap=N` — override the default iteration cap (default: 5).
+- `repo=<absolute path>` — review that repository instead of the current working directory. Every git command in the loop then uses `git -C <absolute path>`, written as a literal path and never a shell variable, so the push guard can resolve the target repository. Paths reported in findings and residuals stay relative to that repository's root.
 
 ## Loop
 
@@ -40,6 +43,7 @@ Then, **only if residuals are non-empty**, emit a structured residuals block for
 <review-cycle-residuals>
 [
   {
+    "repo": "<absolute path — omit entirely unless repo= was passed>",
     "severity": "Critical | Important",
     "axis": "correctness | readability | architecture | security | performance",
     "path": "relative/file/path",

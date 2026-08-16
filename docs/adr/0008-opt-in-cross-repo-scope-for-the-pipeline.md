@@ -1,6 +1,6 @@
 # Opt-in cross-repo scope for the pipeline
 
-**Status:** Accepted
+**Status:** Accepted — review- and judging-scope consequences superseded by [ADR-0009](0009-review-and-judging-cover-every-participating-repository.md)
 **Date:** 2026-08-15
 
 The pipeline operated only on the repository it was launched from, silently isolating every feature there even when the change genuinely spanned repositories. An optional `repos=<path>` parameter makes sibling repositories — identified as direct children holding a `.git` entry, excluding worktree containers without special-casing — visible to the spec phase, which allocates work across them; the plan orders tasks contract-first; build and PR phases run per repo, with PR creation dispatching on the remote host (`gh` for GitHub, `az repos` for Azure DevOps).

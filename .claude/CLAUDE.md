@@ -74,9 +74,9 @@ Available commands: check `~/.claude/commands/`
 
 ### Full pipeline
 
-`/full-pipeline-cycle` runs the full development pipeline with a convergence-based review loop: spec, plan, build, validate, then Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only — everything after the plan, including push and draft-PR creation, runs automatically.
+`/full-pipeline-cycle` runs the full development pipeline with a convergence-based review loop: spec, plan, build, validate, then Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges via four parallel subagents (three when the review loop converged clean). Spec and plan checkpoints only — everything after the plan, including push and draft-PR creation, runs automatically.
 
-`/full-pipeline` is the same pipeline with no local review round: Phase 5 just pushes and opens the draft PR, and Phase 6 judges the PR once via three parallel subagents, fixes the blockers, and stops. Use it when the change is small enough that a local review loop is not worth the extra agent cost.
+`/full-pipeline` is the same pipeline with no local review round: Phase 5 just pushes and opens the draft PR, and Phase 6 judges the PR once via four parallel subagents, fixes the blockers, and stops. Use it when the change is small enough that a local review loop is not worth the extra agent cost.
 
 `/diagnose-full-pipeline-cycle` chains diagnosis and delivery: it runs `/diagnose` (diagnose-only) to confirm the bug's root cause, then feeds that diagnosis into `/full-pipeline-cycle` to spec, plan, build, and open a draft PR with the fix.
 
@@ -84,4 +84,4 @@ Available commands: check `~/.claude/commands/`
 
 Every pipeline command saves the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
 
-Every pipeline command accepts an optional `repos=<path>` parameter. A single path is supported in v1: relative paths resolve against `$HOME`, absolute and `~/` paths are used as-is. The primary repo is always the repository containing the current working directory; sibling repos are direct children of the `repos=` path holding a `.git` entry. When present, the spec allocates work across repos, the plan tags tasks per repo, and build and PR phases run per repo — PRs dispatch to `gh` for GitHub or `az repos` for Azure DevOps. Absent the parameter, behaviour is unchanged.
+Every pipeline command accepts an optional `repos=<path>` parameter. A single path is supported in v1: relative paths resolve against `$HOME`, absolute and `~/` paths are used as-is. The primary repo is always the repository containing the current working directory; sibling repos are direct children of the `repos=` path holding a `.git` entry. When present, the spec allocates work across repos, the plan tags tasks per repo, and the build, PR, review, and judging phases all run per repo — PRs dispatch to `gh` for GitHub or `az repos` for Azure DevOps. Absent the parameter, behaviour is unchanged.
