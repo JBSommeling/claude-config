@@ -35,6 +35,8 @@ Once approved, save the approved plan as `plan.md` in the same `~/Desktop/<slug>
 
 ## Phase 3 — Build (automatic)
 
+Before committing anything, invoke `/branch-preflight` for the primary repo. If it refuses or fails closed, stop the pipeline. Sibling repos get their feature branches in the cross-repo block below.
+
 Invoke the incremental-implementation and tdd skills. For each task in the approved plan:
 
 1. Read the task's acceptance criteria
@@ -68,7 +70,7 @@ After all tasks are built, invoke `/validate`. Do not proceed until it reports f
 
 ### Step 0 — Branch safety precheck
 
-Invoke `/branch-preflight`. If it refuses or fails closed, stop the pipeline.
+Invoke `/branch-preflight` again to re-verify every participating repo before pushing. If it refuses or fails closed, stop the pipeline.
 
 ### Step 1 — Loop
 
