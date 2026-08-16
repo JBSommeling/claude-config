@@ -59,20 +59,7 @@ Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` �
 
 ## Phase 4 — Validate (automatic)
 
-After all tasks are built, run a full validation pass:
-
-1. Run the complete test suite — all tests must pass, not just per-task tests
-2. Run build/compile check — verify the project builds cleanly
-3. Run linter/formatter if configured in the project
-4. Check for type errors if the project uses a type system
-
-If any step fails, fix the issue and re-run validation until everything passes. Orchestrator commits each fix directly inline via `git add` / `git commit` (Bash) — separate commit per fix, do not spawn a subagent solely to commit.
-
-Do not proceed to Phase 5 until validation is fully green.
-
-**Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
-
-When the plan carries `[repo: <name>]` tags, run the validation steps above in each participating repo. Every repo must be fully green before the pipeline proceeds to Phase 5.
+After all tasks are built, invoke `/validate`. Do not proceed until it reports fully green.
 
 ## Phase 5 — Push and open draft PR (automatic)
 
