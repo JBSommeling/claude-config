@@ -2,7 +2,7 @@
 description: Full pipeline with no local review round — spec, plan, build, validate, draft PR, judge
 ---
 
-Run the full development pipeline — spec, plan, build, validate — then open a draft PR and let Phase 6 judge it. There is no local review round: the review on the PR branch is the only one, and after its blockers are fixed the pipeline stops.
+Run the full development pipeline — spec, plan, build, validate, simplify — then open a draft PR and let Phase 6 judge it. There is no local review round: the review on the PR branch is the only one, and after its blockers are fixed the pipeline stops.
 
 ## Arguments
 
@@ -55,7 +55,7 @@ When the plan carries `[repo: <name>]` tags, iterate repos in the plan's depende
 1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation provide uniformity (one rule covers all commands) and compatibility with the push guard's whitespace tokeniser. The guard inspects the raw command before the shell expands it, so a path held in a variable cannot resolve and the push is refused — a literal path avoids that.
 2. Delegate that repo's tasks to the implementer subagent.
 3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
-4. Run the Phase 4 validation steps for that repo before advancing to the next.
+4. Invoke `/validate` for that repo before advancing to the next.
 
 Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` — this does not change per repo.
 
@@ -94,7 +94,7 @@ Then continue directly to Step 2 without waiting for approval.
 
 ### Step 2 — Push and open draft PR
 
-Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits). Step 2 is pure publication:
+Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits, Phase 4b simplification commit). Step 2 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
 2. Derive `$pr_title` from the Phase 1 spec and write the PR body to a temporary file `$pr_body_file`. Parse the remote host: `remote_host=$(git remote get-url origin | sed 's|^[a-z]*://||; s|^[^@]*@||; s|[:/].*||')`. Open a draft PR — **always `--draft`**, no exceptions. Derived titles and bodies are passed via files or variables, never interpolated into the command string:
@@ -108,7 +108,7 @@ The PR is opened as a draft and stays a draft — never mark it ready for review
 
 **Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
 
-**Partial-failure policy:** All commits are already in from Phases 3 and 4. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
+**Partial-failure policy:** All commits are already in from Phases 3, 4, and 4b. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
 
 When the plan carries `[repo: <name>]` tags:
 - Repeat items 1–3 above for each participating repo in dependency order.
@@ -166,7 +166,7 @@ Present the final ship decision and PR URL to the user. Do not auto-merge — me
 
 ## Rules
 
-1. Always run phases in order: spec → plan → build → validate → PR → judge.
+1. Always run phases in order: spec → plan → build → validate → simplify → PR → judge.
 2. Checkpoint phases (spec, plan) require explicit user approval before continuing.
 3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and draft-PR creation.
 4. If the user provides a spec or plan upfront, skip to the appropriate phase.
