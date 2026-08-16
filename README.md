@@ -89,7 +89,7 @@ Three `PreToolUse` hooks enforce routing discipline, each session-bypassable:
 
 **Pipelines** — `/full-pipeline` spec → plan → build → validate → PR, judged once by four parallel subagents · `/full-pipeline-cycle` adds an auto-fixing `/review-cycle` round (capped at 5) before the PR · `/full-pipeline-cycle-beta` adds adversarial test lenses to judging. Spec and plan are the only checkpoints. All pipeline commands accept an optional `repos=<path>`: sibling repositories under that path (direct children with a `.git` directory) become visible — the spec allocates work across them, the plan orders tasks contract-first, and build and PR phases run per repo. Absent the parameter, behaviour is unchanged.
 
-**Meta** — `/zoom-out` step back for higher-level context
+**Meta** — `/plain` re-explain the last answer in plain English · `/zoom-out` step back for higher-level context
 
 ## Skills
 
