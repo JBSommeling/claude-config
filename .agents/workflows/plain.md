@@ -25,9 +25,14 @@ Rules for the rewrite:
    wherever a mechanism is being explained.
 7. **Cut the throat-clearing.** No restating the question, no preamble, no closing
    summary.
+8. **Simplify the shape, not the facts.** Order the ideas so each rests on the one
+   before it. Name the part that matters most rather than giving every part equal
+   weight. Detail that does not bear on the answer moves to the end — it is never
+   deleted. The mechanism itself never changes: no rough approximation standing in
+   for the real behaviour, no caveat dropped to make a sentence land cleanly.
 
-Plain means plain sentences, not simplified concepts. Do not talk down, do not add
-analogies the reader did not ask for, and do not pad with reassurance.
+An analogy is allowed when it sits beside the real mechanism, never in place of it.
+Do not talk down and do not pad with reassurance.
 
 If restating something plainly exposes a claim that was hand-waved or wrong, say so
 rather than restating it faithfully.
