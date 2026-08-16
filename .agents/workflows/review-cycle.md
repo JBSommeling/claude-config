@@ -8,7 +8,7 @@ Run the five-axis code review on the current changes, then fix findings and re-r
 
 `$ARGUMENTS` may include:
 
-- `cap=N` — override the default iteration cap (default: 5).
+- `cap=N` — override the default iteration cap (default: 3).
 - `repo=<absolute path>` — review that repository instead of the current working directory. Every git command in the loop then uses `git -C <absolute path>`, written as a literal path and never a shell variable, so the push guard can resolve the target repository. Paths reported in findings and residuals stay relative to that repository's root.
 
 ## Loop

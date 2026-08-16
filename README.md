@@ -81,13 +81,13 @@ Three `PreToolUse` hooks enforce routing discipline, each session-bypassable:
 
 **Build** — `/build` implement the next task incrementally · `/tdd` · `/test` red-green-refactor, Prove-It pattern for bugs
 
-**Debug** — `/diagnose` root cause without a fix · `/diagnose-fix` diagnose and fix, plus a regression test · `/diagnose-full-pipeline` · `/diagnose-full-pipeline-cycle` · `/diagnose-full-pipeline-cycle-beta` diagnose, then drive the fix to an open PR
+**Debug** — `/diagnose` root cause without a fix · `/diagnose-fix` diagnose and fix, plus a regression test · `/diagnose-full-pipeline` · `/diagnose-full-pipeline-cycle` diagnose, then drive the fix to an open PR
 
 **Review & test** — `/review` five-axis review (correctness, readability, architecture, security, performance) · `/review-cycle` loop until green, emitting residuals · `/review-pr` inline comments on a GitHub PR · `/test-adversarial` coverage gaps with proof, ranked by blast radius · `/manual-test-plan` per-step plan with literal expected outputs · `/ship` pre-launch checklist, go/no-go
 
 **Refactor** — `/code-simplify` cut complexity without changing behavior · `/improve-architecture` deepening candidates as an HTML report, then grill the one you pick
 
-**Pipelines** — `/full-pipeline` spec → plan → build → validate → PR, judged once by four parallel subagents · `/full-pipeline-cycle` adds an auto-fixing `/review-cycle` round (capped at 5) before the PR · `/full-pipeline-cycle-beta` adds adversarial test lenses to judging. Every pipeline runs `/branch-preflight` before Phase 3 commits, `/validate` after the build, and `/code-simplify` at Phase 4b before review. Spec and plan are the only checkpoints. All pipeline commands accept an optional `repos=<path>`: sibling repositories under that path (direct children with a `.git` directory) become visible — the spec allocates work across them, the plan orders tasks contract-first, and the build, PR, review, and judging phases all run per repo. Absent the parameter, behaviour is unchanged.
+**Pipelines** — `/full-pipeline` spec → plan → build → validate → PR, judged once by four parallel subagents · `/full-pipeline-cycle` adds an auto-fixing `/review-cycle` round (capped at 3) before the PR. Every pipeline runs `/branch-preflight` before Phase 3 commits, `/validate` after the build, and `/code-simplify` at Phase 4b before review. Spec and plan are the only checkpoints. All pipeline commands accept an optional `repos=<path>`: sibling repositories under that path (direct children with a `.git` directory) become visible — the spec allocates work across them, the plan orders tasks contract-first, and the build, PR, review, and judging phases all run per repo. Absent the parameter, behaviour is unchanged.
 
 **Pipeline steps** — `/branch-preflight` refuse to proceed on the default branch, fail closed when it cannot tell · `/validate` test suite, build, linter, type check, fixing until green
 

@@ -83,11 +83,11 @@ Invoke `/branch-preflight` again to re-verify every participating repo before pu
 
 ### Step 1 — Loop
 
-Invoke `/review-cycle cap=5` for the primary repo. The cycle runs the five-axis review → fix loop, capped at 5 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached.
+Invoke `/review-cycle cap=3` for the primary repo. The cycle runs the five-axis review → fix loop, capped at 3 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached.
 
 **Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
 
-When the plan carries `[repo: <name>]` tags, run the loop once per participating repo in the plan's dependency order, naming the repo explicitly: `/review-cycle cap=5 repo=/absolute/path/to/repo`. Use a literal absolute path, never a shell variable — same reason as Phase 3.
+When the plan carries `[repo: <name>]` tags, run the loop once per participating repo in the plan's dependency order, naming the repo explicitly: `/review-cycle cap=3 repo=/absolute/path/to/repo`. Use a literal absolute path, never a shell variable — same reason as Phase 3.
 
 Each run returns its own residuals block. Keep them separate and tagged by repo: they belong to different pull requests. Every participating repo completes its loop before Step 2. A repo that caps with residuals does not stop the pipeline — its residuals travel to its own PR in Step 4.
 
