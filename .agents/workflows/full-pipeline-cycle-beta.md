@@ -66,6 +66,18 @@ Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` �
 
 After all tasks are built, invoke `/validate`. Do not proceed until it reports fully green.
 
+## Phase 4b — Simplify (automatic)
+
+Invoke `/code-simplify`, scoped to the code this pipeline run produced. Commit the result separately from the task commits — a reviewer can then read the feature commits without the cleanup mixed in.
+
+No validation gate follows this phase. The `code-simplification` skill runs the test suite after each individual change and reverts any change that fails, so it can only finish on a green suite. If it reports anything other than green, stop the pipeline.
+
+If the skill made no changes, there is nothing to commit and nothing to check.
+
+**Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
+
+When the plan carries `[repo: <name>]` tags, run the simplification pass in each participating repo, committing per repo using the literal-absolute-path form from Phase 3.
+
 ## Phase 5 — Converge (automatic)
 
 ### Step 0 — Branch safety precheck
