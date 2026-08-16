@@ -86,24 +86,32 @@ Invoke `/branch-preflight` again to re-verify every participating repo before pu
 
 ### Step 1 — Loop
 
-Invoke `/review-cycle cap=5`. The cycle runs the five-axis review → fix loop, capped at 5 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached. The review round covers the primary repo's working tree only.
+Invoke `/review-cycle cap=5` for the primary repo. The cycle runs the five-axis review → fix loop, capped at 5 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached.
+
+**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
+
+When the plan carries `[repo: <name>]` tags, run the loop once per participating repo in the plan's dependency order, naming the repo explicitly: `/review-cycle cap=5 repo=/absolute/path/to/repo`. Use a literal absolute path, never a shell variable — same reason as Phase 3.
+
+Each run returns its own residuals block. Keep them separate and tagged by repo: they belong to different pull requests. Every participating repo completes its loop before Step 2. A repo that caps with residuals does not stop the pipeline — its residuals travel to its own PR in Step 4.
 
 ### Step 1b — Validate and commit review fixes
 
-`/review-cycle` delegates fixes to the implementer subagent, which leaves changes uncommitted in the working tree. After the loop returns, check if the tree is dirty:
+`/review-cycle` delegates fixes to the implementer subagent, which leaves changes uncommitted in the working tree. After each repo's loop returns, check whether that repo's tree is dirty:
 
 ```bash
-if [ -n "$(git status --porcelain)" ]; then
-  # the loop changed code — re-validate before committing
-  # invoke /validate here, fix any failure, then commit
-  git add <specific files touched by the loop>
-  git commit -m "review-cycle fixes (<iterations> iterations, <N> residuals)"
+if [ -n "$(git -C /absolute/path/to/repo status --porcelain)" ]; then
+  # the loop changed code — re-validate that repo before committing
+  # invoke /validate for it, fix any failure, then commit
+  git -C /absolute/path/to/repo add <specific files touched by the loop>
+  git -C /absolute/path/to/repo commit -m "review-cycle fixes (<iterations> iterations, <N> residuals)"
 fi
 ```
 
-When the tree is dirty, invoke `/validate` before committing and do not proceed until it reports fully green. Phase 4's green result covers the code as it stood before the review loop — the fixes the loop applied have been validated by nothing. When the tree is clean the loop changed no code, Phase 4's result still holds, and no re-run is needed.
+The `-C` flag may be omitted for the primary repo. For sibling repos it is required and must be a literal absolute path, never a shell variable — same reason as Phase 3.
 
-This maintains the invariant — like Phases 3 and 4 — that every step ends with a clean tree. After Step 1b, no further commits happen in Phase 5.
+When a repo's tree is dirty, invoke `/validate` for that repo before committing and do not proceed until it reports fully green. Phase 4's green result covers the code as it stood before the review loop — the fixes the loop applied have been validated by nothing. When a repo's tree is clean the loop changed no code there, Phase 4's result still holds, and no re-run is needed.
+
+This maintains the invariant — like Phases 3, 4, and 4b — that every step ends with a clean tree in every participating repo. After Step 1b, no further commits happen in Phase 5.
 
 ### Step 2 — Report and prepare PR
 
@@ -142,17 +150,21 @@ When the plan carries `[repo: <name>]` tags:
 
 ### Step 4 — Post residuals (if any)
 
-If a `<review-cycle-residuals>` block was emitted by Phase 5 Step 1, post each finding as an inline review comment on the new PR using the `/review-pr` posting mechanism:
+For each `<review-cycle-residuals>` block emitted by Step 1, post its findings as inline review comments on that repo's own PR using the `/review-pr` posting mechanism:
 - Parse `<review-cycle-residuals>` JSON verbatim
 - Build payload with `line` + `side: "RIGHT"` (never `position`)
-- Re-validate each line against the PR diff; drop any that don't match, log the drop
+- Re-validate each line against that PR's diff; drop any that don't match, log the drop
 - Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
+
+**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
+
+Posting is GitHub-only. For a participating repo whose remote is Azure DevOps, do not attempt to post — print its residuals to the user instead, labelled with the repo name and its PR URL.
 
 ## Phase 6 — Judge (automatic)
 
 **Scope.** Phase 6 judges the primary repo's PR only. Automated comment posting via `gh api` is GitHub-only and does not apply to Azure DevOps PRs. To review sibling-repo PRs, run the pipeline from inside that repo.
 
-**Cross-repo warning (when `repos=` is present).** After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run that received no automated review pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
+**Cross-repo warning (when `repos=` is present).** Sibling repos complete their own Phase 5 review loop, but Phase 6 judging covers the primary repo only. After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run: each carries a five-axis review but no security, coverage, or maintenance pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
 
 Spawn the judging subagents in parallel against the **PR's current state** (not the local working tree) — seven, or six when `code-reviewer` is skipped per the note below. **Issue every Agent tool call in one assistant turn — sequential calls defeat the purpose of parallel judging.**
 
