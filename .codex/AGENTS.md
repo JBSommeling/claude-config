@@ -97,9 +97,9 @@ Invoke a skill via `$skillname` — for example, `$full-pipeline-cycle` to run t
 
 ### Full pipeline
 
-`$full-pipeline-cycle` runs the full development pipeline with a convergence-based review loop: spec, plan, build, validate, then Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges via three parallel subagents. Spec and plan checkpoints only — everything after the plan, including push and draft-PR creation, runs automatically.
+`$full-pipeline-cycle` runs the full development pipeline with a convergence-based review loop: spec, plan, build, validate, then Phase 5 auto-fixes until clean (or capped), opens a draft PR, and Phase 6 judges via four parallel subagents (three when the review loop converged clean). Spec and plan checkpoints only — everything after the plan, including push and draft-PR creation, runs automatically.
 
-`$full-pipeline` is the same pipeline with no local review round: Phase 5 just pushes and opens the draft PR, and Phase 6 judges the PR once via three parallel subagents, fixes the blockers, and stops. Use it when the change is small enough that a local review loop is not worth the extra agent cost.
+`$full-pipeline` is the same pipeline with no local review round: Phase 5 just pushes and opens the draft PR, and Phase 6 judges the PR once via four parallel subagents, fixes the blockers, and stops. Use it when the change is small enough that a local review loop is not worth the extra agent cost.
 
 `$diagnose-full-pipeline-cycle` chains diagnosis and delivery: it runs `$diagnose` (diagnose-only) to confirm the bug's root cause, then feeds that diagnosis into `$full-pipeline-cycle` to spec, plan, build, and open a draft PR with the fix.
 
