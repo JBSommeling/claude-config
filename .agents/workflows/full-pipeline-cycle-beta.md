@@ -162,15 +162,15 @@ Posting is GitHub-only. For a participating repo whose remote is Azure DevOps, d
 
 ## Phase 6 — Judge (automatic)
 
-**Scope.** Phase 6 judges the primary repo's PR only. Automated comment posting via `gh api` is GitHub-only and does not apply to Azure DevOps PRs. To review sibling-repo PRs, run the pipeline from inside that repo.
+**Scope.** Phase 6 judges every participating repo's PR. Automated comment posting via `gh api` is GitHub-only; for a repo whose remote is Azure DevOps, print its findings and its decision to the user instead of posting them.
 
-**Cross-repo warning (when `repos=` is present).** Sibling repos complete their own Phase 5 review loop, but Phase 6 judging covers the primary repo only. After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run: each carries a five-axis review but no security, coverage, or maintenance pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
+**Cost (when `repos=` is present).** The full judging set runs per repo, so agent count scales with repo count. State the total before spawning.
 
-Spawn the judging subagents in parallel against the **PR's current state** (not the local working tree) — seven, or six when `code-reviewer` is skipped per the note below. **Issue every Agent tool call in one assistant turn — sequential calls defeat the purpose of parallel judging.**
+For each participating repo, spawn the judging subagents in parallel against that repo's **PR current state** (not the local working tree) — seven per repo, or six where `code-reviewer` is skipped per the note below. **Issue every Agent tool call, across every repo, in one assistant turn** — sequential calls defeat the purpose of parallel judging. Label each agent with its repo so its report can be attributed.
 
 Agents operate against the **PR's current state** (not the local working tree):
 
-1. **code-reviewer** — five-axis review on the PR diff (unchanged from the original pipeline). **Skip this agent when Phase 5 Step 1 converged with zero Critical and zero Important findings** — the same agent passed this code moments earlier and the PR diff has not changed since. Run it whenever the loop hit its cap or left residuals.
+1. **code-reviewer** — five-axis review on the PR diff (unchanged from the original pipeline). **Skip this agent for any repo whose Phase 5 Step 1 loop converged with zero Critical and zero Important findings** — the same agent passed that repo's code moments earlier and its PR diff has not changed since. Run it for any repo whose loop hit its cap or left residuals.
 2. **security-auditor** — vulnerability and threat-model pass (unchanged from the original pipeline)
 3. **test-engineer** with the **mutation lens** — mutate safety-critical lines so their behaviour is wrong; confirm the suite goes red. Report every surviving mutation with the exact line mutated and the test that should have caught it. Do not modify tracked files — mutate only copies in a temporary directory; confirm the repository is clean after mutation work.
 4. **test-engineer** with the **vacuity lens** — for each test, determine whether it exercises the path its name claims, or reaches the expected result via an early return, a default, or an unrelated branch. List every test that passes for the wrong reason.
@@ -180,7 +180,7 @@ Agents operate against the **PR's current state** (not the local working tree):
 
 ### Merge and report
 
-Merge all agent reports into a GO/NO-GO recommendation. The merged report must:
+Merge each repo's agent reports into its own GO/NO-GO recommendation. The merged report must:
 
 - **Separate evidence-backed findings from reasoning-only findings.** Findings that carry proof — a surviving mutation with the exact line and test that should have caught it, a demonstrated vacuous test with a concrete example, a verified-compromised oracle — are listed first and outrank findings that are reasoning or inference alone. Label each finding as *Proven* or *Suspected*.
 - List **Blockers** (must fix before merge), with evidence type noted
@@ -188,11 +188,13 @@ Merge all agent reports into a GO/NO-GO recommendation. The merged report must:
 - List **Acknowledged risks**
 - Include a **Rollback plan**
 
+Decisions are per repo and independent — a NO-GO in one repo does not block the others. Two consequences follow, and both belong in the report. No judge sees more than one repo, so nothing in this phase evaluates the seams between them; a contract mismatch spanning two repos will not be found here. And merge order is stated in the PR bodies without being enforced, so acting on a single GO before its siblings are resolved can ship a partial change.
+
 `maintainer-reviewer` overlaps `code-reviewer`'s architecture axis at the edges — count a shared finding once, keeping whichever report cites a precedent. Its "existing practice worth revisiting" observations are never blockers for this PR; carry them into the report as follow-up suggestions.
 
-Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level PR comment.
+Post each repo's merged findings as inline review comments on that repo's own PR, using the same `/review-pr` posting mechanism. Post that repo's GO/NO-GO summary as a top-level comment on the same PR.
 
-Present the final ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
+Present every repo's ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
 
 ## Rules
 

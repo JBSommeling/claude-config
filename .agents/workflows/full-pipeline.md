@@ -118,51 +118,55 @@ When the plan carries `[repo: <name>]` tags:
 
 ## Phase 6 — Judge the PR and fix blockers (automatic)
 
-**Scope.** Phase 6 judges the primary repo's PR only. Automated comment posting via `gh api` is GitHub-only and does not apply to Azure DevOps PRs. To review sibling-repo PRs, run the pipeline from inside that repo.
+**Scope.** Phase 6 judges every participating repo's PR. Automated comment posting via `gh api` is GitHub-only; for a repo whose remote is Azure DevOps, print its findings and its decision to the user instead of posting them.
 
-**Cross-repo warning (when `repos=` is present).** After posting the GO/NO-GO summary, print an explicit warning listing every sibling-repo PR from this pipeline run that received no automated review pass. In an N-repo change, N−1 repos reach their remotes without Phase 6 coverage.
+**Cost (when `repos=` is present).** The full judging set runs per repo, so agent count scales with repo count. State the total before spawning.
 
 ### Step 1 — Judge
 
-Spawn four subagents in parallel against the **PR's current state** (not the local working tree). **Issue all four Agent tool calls in one assistant turn** — sequential calls defeat the purpose of parallel judging.
+For each participating repo, spawn four subagents in parallel against that repo's **PR current state** (not the local working tree). **Issue every Agent tool call, across every repo, in one assistant turn** — sequential calls defeat the purpose of parallel judging. Label each agent with its repo so its report can be attributed.
 
 1. **code-reviewer** — five-axis review on the PR diff
 2. **security-auditor** — vulnerability and threat-model pass
 3. **test-engineer** — coverage gap analysis
 4. **maintainer-reviewer** — the five-year maintenance lens and the house-consistency lens
 
-Merge all reports into a GO/NO-GO recommendation with:
+Merge each repo's reports into its own GO/NO-GO recommendation with:
 - Blockers (must fix before merge)
 - Recommended fixes
 - Acknowledged risks
 - Rollback plan
 
+Decisions are per repo and independent — a NO-GO in one repo does not block the others. Two consequences follow, and both belong in the report. No judge sees more than one repo, so nothing in this phase evaluates the seams between them; a contract mismatch spanning two repos will not be found here. And merge order is stated in the PR bodies without being enforced, so acting on a single GO before its siblings are resolved can ship a partial change.
+
 `maintainer-reviewer` overlaps `code-reviewer`'s architecture axis at the edges — count a shared finding once, keeping whichever report cites a precedent. Its "existing practice worth revisiting" observations are never blockers for this PR; carry them into the report as follow-up suggestions.
 
-Post the merged findings as inline PR review comments on the PR opened in Phase 5, using the `/review-pr` posting mechanism:
+Post each repo's merged findings as inline review comments on that repo's own PR, using the `/review-pr` posting mechanism:
 - Build payload with `line` + `side: "RIGHT"` (never `position`)
-- Re-validate each line against the PR diff; drop any that don't match, log the drop
+- Re-validate each line against that PR's diff; drop any that don't match, log the drop
 - Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
 
-Post the GO/NO-GO summary as a top-level PR comment.
+Post that repo's GO/NO-GO summary as a top-level comment on the same PR.
 
 ### Step 2 — Fix the important findings
 
-Fix every **Blocker**, plus any **Recommended fix** that is straightforward and low-risk. Leave the rest on the PR for the human reviewer — they are already posted as inline comments.
+For each participating repo, fix every **Blocker** in that repo, plus any **Recommended fix** that is straightforward and low-risk. Leave the rest on its PR for the human reviewer — they are already posted as inline comments.
 
-Delegate every fix to the `implementer` subagent — pass only the specific findings (file, line, recommendation), never whole files. After the implementer returns, verify the diff yourself, then commit and push to the PR branch:
+Delegate every fix to the `implementer` subagent — pass only the specific findings (file, line, recommendation), never whole files. After the implementer returns, verify the diff yourself, then commit and push to that repo's PR branch:
 
 ```bash
-git add <specific files touched by the fixes>
-git commit -m "judge fixes (<N> blockers, <M> recommended)"
-git push
+git -C /absolute/path/to/repo add <specific files touched by the fixes>
+git -C /absolute/path/to/repo commit -m "judge fixes (<N> blockers, <M> recommended)"
+git -C /absolute/path/to/repo push
 ```
 
-Re-run the test suite before pushing — the fixes must not regress Phase 4's green state.
+The `-C` flag may be omitted for the primary repo. For sibling repos it is required and must be a literal absolute path, never a shell variable — the push guard inspects the raw command before the shell expands it, so a path held in a variable cannot resolve and the push is refused.
+
+Invoke `/validate` for a repo before pushing its fixes — they must not regress the green state Phase 4 established.
 
 **Stop here.** Do not re-run the judges, do not run `/review`, do not loop. One review pass against the PR is the whole review budget for this pipeline. If a fix in Step 2 is too large or too risky to land safely, do not fix it — say so in a reply on its PR comment and leave it for the human.
 
-Present the final ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
+Present every repo's ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
 
 ## Rules
 
