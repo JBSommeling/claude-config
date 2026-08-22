@@ -23,7 +23,7 @@ When the plan carries `[repo: <name>]` tags, iterate repos in the plan's depende
 3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
 4. Invoke `/validate` for that repo before advancing to the next.
 
-Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` — this does not change per repo.
+The orchestrator retains exclusive commit rights in every repo — this does not change per repo.
 
 ## Phase 3b — Simplify
 
@@ -64,3 +64,13 @@ Merge each repo's reports into its own GO/NO-GO recommendation.
 Decisions are per repo and independent — a NO-GO in one repo does not block the others. Two consequences follow, and both belong in the report. No judge sees more than one repo, so nothing in this phase evaluates the seams between them; a contract mismatch spanning two repos will not be found here. And merge order is stated in the PR bodies without being enforced, so acting on a single GO before its siblings are resolved can ship a partial change.
 
 Automated comment posting via `gh api` is GitHub-only; for a repo whose remote is Azure DevOps, print its findings and its decision to the user instead of posting them.
+
+**Fixing blockers (`/full-pipeline` only).** Fix each repo's blockers in that repo, and push to that repo's own PR branch. Use the `-C` form with a literal absolute path — per the literal-path rule:
+
+```bash
+git -C /absolute/path/to/repo add <specific files touched by the fixes>
+git -C /absolute/path/to/repo commit -m "judge fixes (<N> blockers, <M> recommended)"
+git -C /absolute/path/to/repo push
+```
+
+Invoke `/validate` for a repo before pushing its fixes. The one-pass rule still holds per repo — no judge re-runs anywhere.
