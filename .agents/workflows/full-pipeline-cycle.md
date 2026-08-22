@@ -59,21 +59,21 @@ When the plan carries `[repo: <name>]` tags, iterate repos in the plan's depende
 
 Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` — this does not change per repo.
 
-## Phase 4 — Validate (automatic)
-
-After all tasks are built, invoke `/validate`. Do not proceed until it reports fully green.
-
-## Phase 4b — Simplify (automatic)
+## Phase 3b — Simplify (automatic)
 
 Invoke `/code-simplify`, scoped to the code this pipeline run produced. Commit the result separately from the task commits — a reviewer can then read the feature commits without the cleanup mixed in.
 
-No validation gate follows this phase. The `code-simplification` skill runs the test suite after each individual change and reverts any change that fails, so it can only finish on a green suite. If it reports anything other than green, stop the pipeline.
+Simplification runs before the validation gate so Phase 4 covers it. The pass runs tests inline after each change but never the build, linter, or type check, and one gate after all code changes is enough.
 
-If the skill made no changes, there is nothing to commit and nothing to check.
+If the skill made no changes, there is nothing to commit.
 
 **Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
 
 When the plan carries `[repo: <name>]` tags, run the simplification pass in each participating repo, committing per repo using the literal-absolute-path form from Phase 3.
+
+## Phase 4 — Validate (automatic)
+
+After all tasks are built and simplified, invoke `/validate`. Do not proceed until it reports fully green.
 
 ## Phase 5 — Converge (automatic)
 
@@ -108,7 +108,7 @@ The `-C` flag may be omitted for the primary repo. For sibling repos it is requi
 
 When a repo's tree is dirty, invoke `/validate` for that repo before committing and do not proceed until it reports fully green. Phase 4's green result covers the code as it stood before the review loop — the fixes the loop applied have been validated by nothing. When a repo's tree is clean the loop changed no code there, Phase 4's result still holds, and no re-run is needed.
 
-This maintains the invariant — like Phases 3, 4, and 4b — that every step ends with a clean tree in every participating repo. After Step 1b, no further commits happen in Phase 5.
+This maintains the invariant — like Phases 3, 3b, and 4 — that every step ends with a clean tree in every participating repo. After Step 1b, no further commits happen in Phase 5.
 
 ### Step 2 — Report and prepare PR
 
@@ -123,7 +123,7 @@ Then continue directly to Step 3 without waiting for approval.
 
 ### Step 3 — Push and open draft PR
 
-Everything is already committed by this point (Phase 3 task commits, Phase 4 validation-fix commits, Phase 4b simplification commit, Phase 5 Step 1b review-fix commit). Step 3 is pure publication:
+Everything is already committed by this point (Phase 3 task commits, Phase 3b simplification commit, Phase 4 validation-fix commits, Phase 5 Step 1b review-fix commit). Step 3 is pure publication:
 
 1. `git push` (with `--set-upstream origin <branch>` if no upstream)
 2. Derive `$pr_title` from the Phase 1 spec and write the PR body to a temporary file `$pr_body_file`. Parse the remote host: `remote_host=$(git remote get-url origin | sed 's|^[a-z]*://||; s|^[^@]*@||; s|[:/].*||')`. Open a draft PR — **always `--draft`**, no exceptions. Derived titles and bodies are passed via files or variables, never interpolated into the command string:
@@ -137,7 +137,7 @@ The PR is opened as a draft and stays a draft — never mark it ready for review
 
 **Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
 
-**Partial-failure policy:** All commits are already in from Phases 3, 4, and 4b. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
+**Partial-failure policy:** All commits are already in from Phases 3, 3b, and 4. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
 
 When the plan carries `[repo: <name>]` tags:
 - Repeat items 1–3 above for each participating repo in dependency order.
@@ -186,7 +186,7 @@ Present every repo's ship decision and PR URL to the user. Do not auto-merge —
 
 ## Rules
 
-1. Always run phases in order: spec → plan → build → validate → simplify → converge → judge.
+1. Always run phases in order: spec → plan → build → simplify → validate → converge → judge.
 2. Checkpoint phases (spec, plan) require explicit user approval before continuing.
 3. Everything after the plan checkpoint runs automatically without pausing, including the Phase 5 push and draft-PR creation.
 4. If the user provides a spec or plan upfront, skip to the appropriate phase.
