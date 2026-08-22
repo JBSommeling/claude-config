@@ -6,13 +6,7 @@ Run the full development pipeline with a convergence-based review loop — spec,
 
 ## Arguments
 
-`$ARGUMENTS` may include `repos=<path>` to make the pipeline aware of sibling repositories under that path. Only one path is supported. Relative paths resolve against `$HOME`; absolute and `~/` paths are used as given. The primary repo is always the repository containing the current working directory.
-
-When present:
-- Sibling repos are discovered as direct children of `<path>` that contain a `.git` entry.
-- The spec allocates work across repos; the plan tags each task with its target repo; build and PR phases run per repo.
-
-When absent, no discovery runs and no cross-repo work is performed — the pipeline is otherwise unaffected.
+`$ARGUMENTS` may include `repos=<path>` to run the pipeline across sibling repositories. When present, follow `/cross-repo` for every phase that has a section there. When absent, no discovery runs, no cross-repo work happens, and the rest of this file is complete on its own.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -32,7 +26,7 @@ Once approved, save the approved plan as `plan.md` in the same `~/Desktop/<slug>
 
 ## Phase 3 — Build (automatic)
 
-Before committing anything, invoke `/branch-preflight` for the primary repo. If it refuses or fails closed, stop the pipeline. Sibling repos get their feature branches in the cross-repo block below.
+Before committing anything, invoke `/branch-preflight` for the primary repo. If it refuses or fails closed, stop the pipeline.
 
 Invoke the incremental-implementation and tdd skills. For each task in the approved plan:
 
@@ -46,18 +40,7 @@ Invoke the incremental-implementation and tdd skills. For each task in the appro
 
 If any task fails, follow debugging-and-error-recovery. Do not stop the pipeline — fix and continue.
 
-**Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
-
-Before iterating repos, resolve every `[repo: <name>]` tag in the plan against the Repo Allocation approved at the spec checkpoint. If any tag has no match in the approved allocation, stop and report — do not create a branch or write in any repo not listed there.
-
-When the plan carries `[repo: <name>]` tags, iterate repos in the plan's dependency order. For each repo:
-
-1. Create a feature branch using a literal absolute path: `git -C /absolute/path/to/repo checkout -b <branch>`. Never use a shell variable — literal paths on every cross-repo git invocation provide uniformity (one rule covers all commands) and compatibility with the push guard's whitespace tokeniser. The guard inspects the raw command before the shell expands it, so a path held in a variable cannot resolve and the push is refused — a literal path avoids that.
-2. Delegate that repo's tasks to the implementer subagent.
-3. Orchestrator reviews the diff and commits inline using the same literal-path form — do not spawn a subagent solely to commit.
-4. Invoke `/validate` for that repo before advancing to the next.
-
-Orchestrator retains exclusive commit rights in every repo per `docs/adr/0004` — this does not change per repo.
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ## Phase 3b — Simplify (automatic)
 
@@ -67,9 +50,7 @@ Simplification runs before the validation gate so Phase 4 covers it. The pass ru
 
 If the skill made no changes, there is nothing to commit.
 
-**Cross-repo (when `repos=` is absent, the above is the complete phase — skip this block).**
-
-When the plan carries `[repo: <name>]` tags, run the simplification pass in each participating repo, committing per repo using the literal-absolute-path form from Phase 3.
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ## Phase 4 — Validate (automatic)
 
@@ -79,36 +60,32 @@ After all tasks are built and simplified, invoke `/validate`. Do not proceed unt
 
 ### Step 0 — Branch safety precheck
 
-Invoke `/branch-preflight` again to re-verify every participating repo before pushing. If it refuses or fails closed, stop the pipeline.
+Invoke `/branch-preflight` again to re-verify the repo before pushing. If it refuses or fails closed, stop the pipeline.
 
 ### Step 1 — Loop
 
 Invoke `/review-cycle cap=3` for the primary repo. The cycle runs the five-axis review → fix loop, capped at 3 iterations, and returns a `<review-cycle-residuals>` block. Exit condition: zero Critical and zero Important findings, OR cap reached.
 
-**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
-
-When the plan carries `[repo: <name>]` tags, run the loop once per participating repo in the plan's dependency order, naming the repo explicitly: `/review-cycle cap=3 repo=/absolute/path/to/repo`. Use a literal absolute path, never a shell variable — same reason as Phase 3.
-
-Each run returns its own residuals block. Keep them separate and tagged by repo: they belong to different pull requests. Every participating repo completes its loop before Step 2. A repo that caps with residuals does not stop the pipeline — its residuals travel to its own PR in Step 4.
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ### Step 1b — Validate and commit review fixes
 
-`/review-cycle` delegates fixes to the implementer subagent, which leaves changes uncommitted in the working tree. After each repo's loop returns, check whether that repo's tree is dirty:
+`/review-cycle` delegates fixes to the implementer subagent, which leaves changes uncommitted in the working tree. After the loop returns, check whether the working tree is dirty:
 
 ```bash
-if [ -n "$(git -C /absolute/path/to/repo status --porcelain)" ]; then
-  # the loop changed code — re-validate that repo before committing
-  # invoke /validate for it, fix any failure, then commit
-  git -C /absolute/path/to/repo add <specific files touched by the loop>
-  git -C /absolute/path/to/repo commit -m "review-cycle fixes (<iterations> iterations, <N> residuals)"
+if [ -n "$(git status --porcelain)" ]; then
+  # the loop changed code — re-validate before committing
+  # invoke /validate, fix any failure, then commit
+  git add <specific files touched by the loop>
+  git commit -m "review-cycle fixes (<iterations> iterations, <N> residuals)"
 fi
 ```
 
-The `-C` flag may be omitted for the primary repo. For sibling repos it is required and must be a literal absolute path, never a shell variable — same reason as Phase 3.
+When the tree is dirty, invoke `/validate` before committing and do not proceed until it reports fully green. Phase 4's green result covers the code as it stood before the review loop — the fixes the loop applied have been validated by nothing. When the tree is clean the loop changed no code, Phase 4's result still holds, and no re-run is needed.
 
-When a repo's tree is dirty, invoke `/validate` for that repo before committing and do not proceed until it reports fully green. Phase 4's green result covers the code as it stood before the review loop — the fixes the loop applied have been validated by nothing. When a repo's tree is clean the loop changed no code there, Phase 4's result still holds, and no re-run is needed.
+This maintains the invariant — like Phases 3, 3b, and 4 — that every step ends with a clean tree in the repo. After Step 1b, no further commits happen in Phase 5.
 
-This maintains the invariant — like Phases 3, 3b, and 4 — that every step ends with a clean tree in every participating repo. After Step 1b, no further commits happen in Phase 5.
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ### Step 2 — Report and prepare PR
 
@@ -135,54 +112,42 @@ Everything is already committed by this point (Phase 3 task commits, Phase 3b si
 Do not run `git add` or `git commit` here — the tree must already be clean.
 The PR is opened as a draft and stays a draft — never mark it ready for review.
 
-**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
-
-**Partial-failure policy:** All commits are already in from Phases 3, 3b, and 4. Do not push any repo until every participating repo has passed validation — a half-pushed cross-repo change is harder to roll back than an unpushed one.
-
-When the plan carries `[repo: <name>]` tags:
-- Repeat items 1–3 above for each participating repo in dependency order.
-- Use a literal absolute path in every git command: `git -C /absolute/path/to/repo push ...` — never a shell variable (same reason as Phase 3).
-- PR bodies cross-link only repos sharing the same host and organisation: use "N of M — depends on <PR URL>" for same-domain repos. For repos on a different host or org, substitute an opaque ordinal ("N of M") with no URL or repo name — publishing internal endpoints into an external PR body is irreversible. Flag a mixed-host run at the spec checkpoint.
-- Merge order is stated in the PR body, never enforced automatically.
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ### Step 4 — Post residuals (if any)
 
-For each `<review-cycle-residuals>` block emitted by Step 1, post its findings as inline review comments on that repo's own PR using the `/review-pr` posting mechanism:
+If Step 1 emitted a `<review-cycle-residuals>` block, post its findings as inline review comments on the PR using the `/review-pr` posting mechanism:
 - Parse `<review-cycle-residuals>` JSON verbatim
 - Build payload with `line` + `side: "RIGHT"` (never `position`)
 - Re-validate each line against that PR's diff; drop any that don't match, log the drop
 - Post via `gh api repos/{owner}/{repo}/pulls/{number}/reviews`
 
-**Cross-repo (when `repos=` is absent, the above is the complete step — skip this block).**
+Posting is GitHub-only. If the PR was opened on Azure DevOps, do not attempt to post — print the findings to the user instead, labelled with the PR URL.
 
-Posting is GitHub-only. For a participating repo whose remote is Azure DevOps, do not attempt to post — print its residuals to the user instead, labelled with the repo name and its PR URL.
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ## Phase 6 — Judge (automatic)
 
-**Scope.** Phase 6 judges every participating repo's PR. Automated comment posting via `gh api` is GitHub-only; for a repo whose remote is Azure DevOps, print its findings and its decision to the user instead of posting them.
+Spawn the judging subagents in parallel against the **PR's current state** (not the local working tree) — four subagents, or three where `code-reviewer` is skipped per the note below.
 
-**Cost (when `repos=` is present).** The full judging set runs per repo, so agent count scales with repo count. State the total before spawning.
-
-For each participating repo, spawn the judging subagents in parallel against that repo's **PR current state** (not the local working tree) — four per repo, or three where `code-reviewer` is skipped per the note below. **Issue every Agent tool call, across every repo, in one assistant turn** — sequential calls defeat the purpose of parallel judging. Label each agent with its repo so its report can be attributed.
-
-1. **code-reviewer** — five-axis review on the PR diff. **Skip this agent for any repo whose Phase 5 Step 1 loop converged with zero Critical and zero Important findings** — the same agent passed that repo's code moments earlier and its PR diff has not changed since. Run it for any repo whose loop hit its cap or left residuals.
+1. **code-reviewer** — five-axis review on the PR diff. **Skip this agent when the Phase 5 Step 1 loop converged with zero Critical and zero Important findings** — the same agent passed the code moments earlier and the PR diff has not changed since. Run it when the loop hit its cap or left residuals.
 2. **security-auditor** — vulnerability and threat-model pass
 3. **test-engineer** — coverage gap analysis
 4. **maintainer-reviewer** — the five-year maintenance lens and the house-consistency lens
 
-Merge each repo's reports into its own GO/NO-GO recommendation with:
+Merge the reports into a GO/NO-GO recommendation with:
 - Blockers (must fix before merge)
 - Recommended fixes
 - Acknowledged risks
 - Rollback plan
 
-Decisions are per repo and independent — a NO-GO in one repo does not block the others. Two consequences follow, and both belong in the report. No judge sees more than one repo, so nothing in this phase evaluates the seams between them; a contract mismatch spanning two repos will not be found here. And merge order is stated in the PR bodies without being enforced, so acting on a single GO before its siblings are resolved can ship a partial change.
-
 `maintainer-reviewer` overlaps `code-reviewer`'s architecture axis at the edges — count a shared finding once, keeping whichever report cites a precedent. Its "existing practice worth revisiting" observations are never blockers for this PR; carry them into the report as follow-up suggestions.
 
-Post each repo's merged findings as inline review comments on that repo's own PR, using the same `/review-pr` posting mechanism. Post that repo's GO/NO-GO summary as a top-level comment on the same PR.
+Post merged findings as inline review comments on the PR using the same `/review-pr` posting mechanism. Post the GO/NO-GO summary as a top-level comment on the PR. Posting is GitHub-only — for an Azure DevOps PR, print the findings and the decision to the user instead.
 
-Present every repo's ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
+Present the ship decision and PR URL to the user. Do not auto-merge — merge is a human decision.
+
+**Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
 
 ## Rules
 
