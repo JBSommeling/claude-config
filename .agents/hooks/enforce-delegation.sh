@@ -52,7 +52,15 @@ if hook_is_shell_tool "$TOOL_NAME"; then
 
   # In-place editors and file-writing utilities (sed -i / perl -i /
   # gawk -i inplace / tee / dd of=).
-  if printf '%s' "$CMD_NORMALIZED" | grep -Eq '(^|[[:space:];&|(])(sed[[:space:]]+([^|]*[[:space:]])?(-[a-zA-Z]*i|--in-place)|perl[[:space:]]+[^|]*-[a-zA-Z]*i|gawk[[:space:]]+-i[[:space:]]+inplace|tee([[:space:]]|$)|dd[[:space:]]+[^|]*of=)'; then
+  # Quoted spans are stripped first so a separator inside a script argument is
+  # not mistaken for a command boundary, and the flag search then excludes
+  # ; & | so it cannot run past a real one. Without the strip, a later
+  # `grep -i` satisfies the in-place match and blocks a read-only
+  # `sed -n '1,5p' f; grep -i x f`; without the exclusion, the same read-only
+  # form leaks through. Both passes are needed.
+  CMD_UNQUOTED=$(printf '%s' "$CMD_NORMALIZED" | sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g')
+
+  if printf '%s' "$CMD_UNQUOTED" | grep -Eq '(^|[[:space:];&|(])(sed[[:space:]]+([^|;&]*[[:space:]])?(-[a-zA-Z]*i|--in-place)|perl[[:space:]]+[^|;&]*-[a-zA-Z]*i|gawk[[:space:]]+-i[[:space:]]+inplace|tee([[:space:]]|$)|dd[[:space:]]+[^|;&]*of=)'; then
     hook_deny "Blocked: this Bash command writes files via an in-place editor (sed -i / perl -i / tee / dd). $SUFFIX"
   fi
 
