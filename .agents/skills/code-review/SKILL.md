@@ -41,6 +41,21 @@ description: Conducts code review — inline or via dispatched subagent. Use bef
 - Any unbounded loops or unconstrained data fetching?
 - Any missing pagination on list endpoints?
 
+## Structural Remedies
+
+When you flag a structural problem, propose the move — not just the problem. Reach for a
+named restructuring:
+
+- **Replace a chain of conditionals** with a typed model or an explicit dispatcher.
+- **Collapse duplicate branches** into a single clearer flow.
+- **Separate orchestration from business logic** so each reads on its own.
+- **Move feature-specific logic** out of a shared module into the package that owns it.
+- **Reuse the canonical helper** instead of a bespoke near-duplicate.
+- **Make a type boundary explicit** so downstream branching disappears.
+- **Delete a pass-through wrapper** that adds indirection without clarifying the API.
+
+Prefer the remedy that removes moving pieces over one that spreads the same complexity around.
+
 ## Severity Labels
 
 | Prefix | Meaning | Author Action |
@@ -50,6 +65,10 @@ description: Conducts code review — inline or via dispatched subagent. Use bef
 | **Nit:** | Minor, optional | Author may ignore |
 | **Optional:** | Suggestion | Worth considering but not required |
 | **FYI** | Informational | No action needed |
+
+**Lead with what matters.** Order findings by leverage: correctness and security first, then
+structural regressions, then everything else. A few high-conviction comments beat a long list.
+If you have one structural problem and ten nits, the structural problem *is* the review.
 
 ## Review Modes
 
@@ -84,6 +103,12 @@ Spawn a `code-reviewer` subagent for independent review. The reviewer gets git c
 - Fix Important issues before proceeding
 - Note Minor issues for later
 - Push back if reviewer is wrong (with technical reasoning)
+
+## Dead Code Hygiene
+
+After any refactor, list the code that is now unreachable — then **ask before deleting**:
+"Should I remove these now-unused elements: [list]?" Don't leave dead code lying around, and
+don't silently delete what you're unsure about.
 
 ## Change Sizing
 
