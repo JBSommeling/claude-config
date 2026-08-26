@@ -4,6 +4,22 @@
 
 These apply to every agent and every edit, in every project.
 
+### Naming
+
+Every name introduced by a change — variables, constants, parameters, fields, functions,
+types, loop and destructuring bindings — states what it holds or does. A reader who lands
+on the line cold should not have to scroll to work out what it means.
+
+**Not acceptable:** single letters (`i`, `k`, `v`, `a`, `b`, `e`), cryptic truncations
+(`usr`, `cnt`, `res`), and index-suffixed placeholders (`data2`, `tmp`, `foo`). Length is
+not the goal — `count` beats `numberOfItemsCurrentlyInTheCollection`.
+
+**Narrow exceptions:** notation the ecosystem already reads as precise — coordinates
+(`x`, `y`, `z`), a discard binding (`_`), the language's own conventions (`self`, `this`).
+
+This governs names the change defines. Renaming untouched surrounding code is a separate
+decision, not a side effect of the edit.
+
 ### Comment length
 
 Inline comments and prose-only docblocks are capped at 2-3 lines.
