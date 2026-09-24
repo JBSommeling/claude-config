@@ -14,6 +14,6 @@ Begin by understanding what the user wants to build. Ask clarifying questions ab
 3. Tech stack preferences and constraints
 4. Known boundaries (what to always do, ask first about, and never do)
 
-Then generate a structured spec covering all six core areas: objective, commands, project structure, code style, testing strategy, and boundaries.
+Then generate a structured spec covering all seven core areas: objective, design, commands, project structure, code style, testing strategy, and boundaries.
 
 Save the spec as SPEC.md in the project root and confirm with the user before proceeding.

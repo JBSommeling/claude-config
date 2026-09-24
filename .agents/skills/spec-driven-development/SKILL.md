@@ -52,18 +52,19 @@ ASSUMPTIONS I'M MAKING:
 → Correct me now or I'll proceed with these.
 ```
 
-**Write a spec. Areas 1–6 always apply; include area 7 when `repos=` was supplied:**
+**Write a spec. Areas 1–7 always apply; include area 8 when `repos=` was supplied:**
 
 1. **Objective** — What, why, for whom, success criteria
-2. **Commands** — Full executable commands (build, test, lint, dev)
-3. **Project Structure** — Where source, tests, and docs live
-4. **Code Style** — One real code snippet showing style beats paragraphs describing it
-5. **Testing Strategy** — Framework, locations, coverage expectations
-6. **Boundaries:**
+2. **Design** — Components and their responsibilities, data flow between them, and error handling (what can fail, how it is detected, what the user or caller sees)
+3. **Commands** — Full executable commands (build, test, lint, dev)
+4. **Project Structure** — Where source, tests, and docs live
+5. **Code Style** — One real code snippet showing style beats paragraphs describing it
+6. **Testing Strategy** — Framework, locations, coverage expectations
+7. **Boundaries:**
    - Always do: [non-negotiable rules]
    - Ask first: [needs human approval]
    - Never do: [hard constraints]
-7. **Repo Allocation** *(when `repos=` was supplied)* — per participating repo: what changes there, why it belongs there rather than elsewhere, and the contract it exposes or consumes.
+8. **Repo Allocation** *(when `repos=` was supplied)* — per participating repo: what changes there, why it belongs there rather than elsewhere, and the contract it exposes or consumes.
 
 When a Repo Allocation is present, tag acceptance criteria per repo so "done" is defined for each one. The spec checkpoint is where the user confirms the allocation — it is the architectural decision in the change.
 
