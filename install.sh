@@ -291,7 +291,7 @@ install_claude() {
     echo "[dry-run] Claude install complete (nothing written)"
   else
     echo "Claude install complete."
-    echo "Start Claude Code with: claude --model claude-opus-4-8"
+    echo "Start Claude Code with: claude --model opus"
     echo "Verify setup with /status inside Claude Code."
   fi
 }

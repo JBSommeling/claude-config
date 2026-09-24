@@ -12,7 +12,7 @@ chmod +x install.sh && ./install.sh
 
 `install.sh [--claude] [--codex] [--dry-run] [--apply]` — no platform flag installs both; `--dry-run` writes nothing; Codex needs `--apply` to write files.
 
-Start Claude with `claude --model claude-opus-4-8`, then check `/status` for both CLAUDE.md files plus every agent, skill, and command. After a Codex `--apply`, run `/hooks` inside Codex to approve the hook scripts — trust is hash-pinned, so hooks silently no-op until approved and after any hook edit.
+Start Claude with `claude --model opus`, then check `/status` for both CLAUDE.md files plus every agent, skill, and command. After a Codex `--apply`, run `/hooks` inside Codex to approve the hook scripts — trust is hash-pinned, so hooks silently no-op until approved and after any hook edit.
 
 Routing is global, so a per-project file needs only codebase facts:
 
@@ -32,10 +32,10 @@ The orchestrator stays in the main session and delegates every subtask to a chea
 | Tier | Claude | Codex | Handles |
 |---|---|---|---|
 | **Orchestrator** | Opus | gpt-5.6-sol | Planning, debugging, reviewing, deciding |
-| **Implementer** | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Writing code, fixing tests, refactoring |
+| **Implementer** | Sonnet | gpt-5.6-terra | Writing code, fixing tests, refactoring |
 | **Reader** | Haiku | gpt-5.6-luna | Reading files, searching, boilerplate |
 
-Sonnet is pinned to `claude-sonnet-4-6`; the bare `sonnet` alias now resolves to Sonnet 5 with ~30% higher token cost. `Explore` is pinned to `haiku`.
+Every tier uses the bare model alias (`haiku`, `sonnet`, `opus`), so each follows the current default model. `Explore` is set to `haiku`.
 
 ```
 .agents/           shared content: 7 agent bodies, 21 workflows, 14 skills, hooks, conventions.md
@@ -53,8 +53,8 @@ Workflows install as `~/.claude/commands/<name>.md` (invoked `/name`) and `~/.ag
 |---|---|---|---|
 | `reader` | Haiku | gpt-5.6-luna | File reading, search, summarization |
 | `Explore` | Haiku | gpt-5.6-luna | Read-only broad search / fan-out |
-| `implementer` | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Writing code, fixing tests, refactoring |
-| `test-engineer` | Sonnet (`claude-sonnet-4-6`) | gpt-5.6-terra | Test writing and coverage |
+| `implementer` | Sonnet | gpt-5.6-terra | Writing code, fixing tests, refactoring |
+| `test-engineer` | Sonnet | gpt-5.6-terra | Test writing and coverage |
 | `code-reviewer` | Opus | gpt-5.6-sol | Code review — used by `/review`, `/review-pr`, `/ship` |
 | `security-auditor` | Opus | gpt-5.6-sol | Security review |
 | `maintainer-reviewer` | Opus | gpt-5.6-sol | Five-year maintainability and house-style consistency — used by the pipelines and `/ship` |
