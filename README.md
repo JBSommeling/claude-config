@@ -38,7 +38,7 @@ The orchestrator stays in the main session and delegates every subtask to a chea
 Every tier uses the bare model alias (`haiku`, `sonnet`, `opus`), so each follows the current default model. `Explore` is set to `haiku`.
 
 ```
-.agents/           shared content: 7 agent bodies, 21 workflows, 14 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 21 workflows, 22 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          7 architecture decision records
@@ -113,6 +113,14 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `idea-refine` | Structured divergent/convergent thinking on an idea |
 | `zoom-out` | Broader context on unfamiliar code |
 | `write-a-skill` | Authoring new skills with progressive disclosure |
+| `break-ui` | Third-party (emilkowalski/skills): stress a UI with worst-case data to find layout breakage |
+| `emil-design-eng` | Third-party (emilkowalski/skills): UI polish, component design, and animation decisions |
+| `mobile-native` | Third-party (emilkowalski/skills): CSS and meta-tag fixes that make a web app feel native on phones |
+| `review-animations` | Third-party (emilkowalski/skills): review motion code against a high craft bar |
+| `improve-animations` | Third-party (emilkowalski/skills): audit motion code and write implementation plans |
+| `animate-expo` | Third-party (emilkowalski/skills): React Native and Expo animation decisions |
+| `apple-design` | Third-party (emilkowalski/skills): Apple-style fluid, physical motion and gestures for the web |
+| `animate` | Third-party (emilkowalski/skills): build web animations choosing the right curve, duration and properties |
 
 ## .claudeignore
 
