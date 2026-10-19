@@ -237,6 +237,14 @@ install_claude() {
       $dry_run || rm -rf "${HOME}/.claude/skills/scripts"
     fi
   fi
+  # Remove skills dropped from the repo (emilkowalski/skills subset).
+  # Only these four known-removed names are touched; nothing else is.
+  for _dropped in emil-design-eng apple-design mobile-native improve-animations; do
+    if [ -d "${HOME}/.claude/skills/${_dropped}" ]; then
+      action "rm -rf ${HOME}/.claude/skills/${_dropped}"
+      $dry_run || rm -rf "${HOME}/.claude/skills/${_dropped}"
+    fi
+  done
   skill_count=0
   for dir in "${SCRIPT_DIR}/.agents/skills/"/*/; do
     do_cp_r "${dir%/}" "${HOME}/.claude/skills/"
@@ -356,6 +364,15 @@ install_codex() {
   # Claude slash-commands (/name) are rewritten to Codex dollar-commands ($name)
   # at install time so shared content stays platform-neutral in the repo.
   codex_transform_expr="$(build_codex_transform_expr)"
+
+  # Remove skills dropped from the repo (emilkowalski/skills subset).
+  # Only these four known-removed names are touched; nothing else is.
+  for _dropped in emil-design-eng apple-design mobile-native improve-animations; do
+    if [ -d "${HOME}/.agents/skills/${_dropped}" ]; then
+      action "rm -rf ${HOME}/.agents/skills/${_dropped}"
+      $dry_run || rm -rf "${HOME}/.agents/skills/${_dropped}"
+    fi
+  done
 
   # Skills — strip trailing slash (same BSD cp fix as Claude side), then apply
   # the invocation-syntax transform to all markdown files in each skill.

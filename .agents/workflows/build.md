@@ -4,7 +4,9 @@ description: Implement the next task incrementally — build, test, verify, comm
 
 Invoke the incremental-implementation skill alongside tdd.
 
-Pick the next pending task from the plan. For each task:
+Pick the next pending task from the plan. If a task adds or changes motion code, also invoke the `animate` skill (web) or the `animate-expo` skill (React Native/Expo) for that task. Motion code means — React Native: imports from `react-native-reanimated`, `react-native-gesture-handler`, `moti`, or `Animated` from `react-native`; web: `motion`/`framer-motion`, or CSS `transition`, `animation`, `@keyframes`, WAAPI `element.animate`.
+
+For each task:
 
 1. Read the task's acceptance criteria
 2. Load relevant context (existing code, patterns, types)

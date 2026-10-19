@@ -1,8 +1,14 @@
 # Third-party skills
 
-The following skills are vendored verbatim from https://github.com/emilkowalski/skills at commit `e8a175de22ae1e49370fc144c1f3bb9aeedf988d`, licensed under MIT (Copyright (c) 2026 Emil Kowalski):
+The following skills are vendored (with the local modifications listed below) from https://github.com/emilkowalski/skills at commit `e8a175de22ae1e49370fc144c1f3bb9aeedf988d`, licensed under MIT (Copyright (c) 2026 Emil Kowalski):
 
-`break-ui`, `emil-design-eng`, `mobile-native`, `review-animations`, `improve-animations`, `animate-expo`, `apple-design`, `animate`
+`animate`, `animate-expo`, `review-animations`, `break-ui`
+
+## Local modifications
+
+- Dropped skills removed: `emil-design-eng`, `apple-design`, `mobile-native`, `improve-animations`.
+- `review-animations`: frontmatter `disable-model-invocation` removed; description and Initial Response changed; a React Native section added; `STANDARDS-RN.md` is a local addition (derived from `animate-expo`, not part of upstream).
+- `animate` and `break-ui`: descriptions and text edited to drop references to skills not vendored here.
 
 ## Upstream license
 

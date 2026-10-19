@@ -114,12 +114,8 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `zoom-out` | Broader context on unfamiliar code |
 | `write-a-skill` | Authoring new skills with progressive disclosure |
 | `break-ui` | Third-party (emilkowalski/skills): stress a UI with worst-case data to find layout breakage |
-| `emil-design-eng` | Third-party (emilkowalski/skills): UI polish, component design, and animation decisions |
-| `mobile-native` | Third-party (emilkowalski/skills): CSS and meta-tag fixes that make a web app feel native on phones |
-| `review-animations` | Third-party (emilkowalski/skills): review motion code against a high craft bar |
-| `improve-animations` | Third-party (emilkowalski/skills): audit motion code and write implementation plans |
+| `review-animations` | Third-party (emilkowalski/skills): review motion code (web and React Native) against a high craft bar; React Native uses a local `STANDARDS-RN.md` |
 | `animate-expo` | Third-party (emilkowalski/skills): React Native and Expo animation decisions |
-| `apple-design` | Third-party (emilkowalski/skills): Apple-style fluid, physical motion and gestures for the web |
 | `animate` | Third-party (emilkowalski/skills): build web animations choosing the right curve, duration and properties |
 
 ## .claudeignore

@@ -38,6 +38,8 @@ Invoke the incremental-implementation and tdd skills. For each task in the appro
 6. Orchestrator commits directly inline via `git add` / `git commit` (Bash) after reviewing the diff — do not spawn a subagent solely to commit
 7. Move to next task
 
+If a task adds or changes motion code, also invoke the `animate` skill (web) or the `animate-expo` skill (React Native/Expo) for that task. Motion code means — React Native: imports from `react-native-reanimated`, `react-native-gesture-handler`, `moti`, or `Animated` from `react-native`; web: `motion`/`framer-motion`, or CSS `transition`, `animation`, `@keyframes`, WAAPI `element.animate`.
+
 If any task fails, follow debugging-and-error-recovery. Do not stop the pipeline — fix and continue.
 
 **Cross-repo:** when running with `repos=`, also follow the matching section in `/cross-repo`.
