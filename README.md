@@ -10,7 +10,9 @@ cd claude-config
 chmod +x install.sh && ./install.sh
 ```
 
-`install.sh [--claude] [--codex] [--dry-run] [--apply]` — no platform flag installs both; `--dry-run` writes nothing; Codex needs `--apply` to write files.
+`install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean]` — no platform flag installs both; `--dry-run` writes nothing; Codex needs `--apply` to write files.
+
+`--clean` moves the installer-managed folders (`~/.claude/{skills,agents,commands,hooks}`, `~/.agents/skills`, `~/.codex/{agents,hooks}`) into a timestamped backup (`~/.claude/.backup-<ts>/`, `~/.codex/.backup-<ts>/`, `~/.agents/.backup-<ts>/`) before installing, so you start from exactly what the repo ships; copy back anything you want to keep and delete the backup when done. It never touches anything else (memory, projects, sessions, credentials, `settings.local.json`), and Codex folders are only moved when `--apply` is set. Without `--clean` the installer just lists leftover entries it did not write. Try `./install.sh --clean --dry-run` to preview, then `./install.sh --clean`.
 
 Start Claude with `claude --model opus`, then check `/status` for both CLAUDE.md files plus every agent, skill, and command. After a Codex `--apply`, run `/hooks` inside Codex to approve the hook scripts — trust is hash-pinned, so hooks silently no-op until approved and after any hook edit.
 
