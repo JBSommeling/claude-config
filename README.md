@@ -10,7 +10,9 @@ cd claude-config
 chmod +x install.sh && ./install.sh
 ```
 
-`install.sh [--claude] [--codex] [--dry-run] [--apply]` — no platform flag installs both; `--dry-run` writes nothing; Codex needs `--apply` to write files.
+`install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean]` — no platform flag installs both; `--dry-run` writes nothing; Codex needs `--apply` to write files.
+
+`--clean` moves the installer-managed folders (`~/.claude/{skills,agents,commands,hooks}`, `~/.agents/skills`, `~/.codex/{agents,hooks}`) into a timestamped backup (`~/.claude/.backup-<ts>/`, `~/.codex/.backup-<ts>/`, `~/.agents/.backup-<ts>/`) before installing, so you start from exactly what the repo ships; copy back anything you want to keep and delete the backup when done. It never touches anything else (memory, projects, sessions, credentials, `settings.local.json`), and Codex folders are only moved when `--apply` is set. Without `--clean` the installer just lists leftover entries it did not write. Try `./install.sh --clean --dry-run` to preview, then `./install.sh --clean`.
 
 Start Claude with `claude --model opus`, then check `/status` for both CLAUDE.md files plus every agent, skill, and command. After a Codex `--apply`, run `/hooks` inside Codex to approve the hook scripts — trust is hash-pinned, so hooks silently no-op until approved and after any hook edit.
 
@@ -114,12 +116,8 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `zoom-out` | Broader context on unfamiliar code |
 | `write-a-skill` | Authoring new skills with progressive disclosure |
 | `break-ui` | Third-party (emilkowalski/skills): stress a UI with worst-case data to find layout breakage |
-| `emil-design-eng` | Third-party (emilkowalski/skills): UI polish, component design, and animation decisions |
-| `mobile-native` | Third-party (emilkowalski/skills): CSS and meta-tag fixes that make a web app feel native on phones |
-| `review-animations` | Third-party (emilkowalski/skills): review motion code against a high craft bar |
-| `improve-animations` | Third-party (emilkowalski/skills): audit motion code and write implementation plans |
+| `review-animations` | Third-party (emilkowalski/skills): review motion code (web and React Native) against a high craft bar; React Native uses a local `STANDARDS-RN.md` |
 | `animate-expo` | Third-party (emilkowalski/skills): React Native and Expo animation decisions |
-| `apple-design` | Third-party (emilkowalski/skills): Apple-style fluid, physical motion and gestures for the web |
 | `animate` | Third-party (emilkowalski/skills): build web animations choosing the right curve, duration and properties |
 
 ## .claudeignore

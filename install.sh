@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # install.sh — install claude-config for Claude Code and/or Codex
 #
-# Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--help]
+# Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--help]
 #
 #   No platform flag  Install BOTH Claude Code and Codex configs
 #   --claude          Install Claude Code config only
 #   --codex           Install Codex config only
 #   --dry-run         Print every action; write nothing
 #   --apply           Actually write files (required for --codex; Claude writes by default)
+#   --clean           Back up and clear installer-managed folders (skills, agents,
+#                     commands, hooks) before installing; never touches memory,
+#                     sessions, credentials or local settings.
 #   --help            Print usage and exit 0
 #
 # Codex note: if --codex is selected without --apply, a dry-run is shown
@@ -24,6 +27,7 @@ do_claude=false
 do_codex=false
 dry_run=false
 apply=false
+clean=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -31,15 +35,19 @@ for arg in "$@"; do
     --codex)   do_codex=true ;;
     --dry-run) dry_run=true ;;
     --apply)   apply=true ;;
+    --clean)   clean=true ;;
     --help)
       cat <<'EOF'
-Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--help]
+Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--help]
 
   No platform flag  Install BOTH Claude Code and Codex configs
   --claude          Install Claude Code config only
   --codex           Install Codex config only
   --dry-run         Print every action; write nothing
   --apply           Actually write files (required for --codex)
+  --clean           Back up and clear installer-managed folders (skills, agents,
+                    commands, hooks) before installing; never touches memory,
+                    sessions, credentials or local settings.
   --help            Print this help and exit 0
 
 Claude note: Claude Code config is written by default (no --apply needed).
@@ -65,6 +73,105 @@ if ! $do_claude && ! $do_codex; then
 fi
 
 # --------------------------------------------------------------------------
+# Managed folders, --clean backups and leftover tracking
+# --------------------------------------------------------------------------
+# These are the ONLY directories the installer ever backs up or clears.
+# Nothing else under ~/.claude, ~/.codex or ~/.agents (projects/, memory,
+# sessions, history, todos, plugins/, .credentials.json, settings.local.json,
+# ...) is ever touched. Single files (CLAUDE.md, settings.json, AGENTS.md,
+# config.toml) are simply overwritten and are not part of --clean.
+CLAUDE_MANAGED=("${HOME}/.claude/skills" "${HOME}/.claude/agents" "${HOME}/.claude/commands" "${HOME}/.claude/hooks")
+CODEX_MANAGED=("${HOME}/.agents/skills" "${HOME}/.codex/agents" "${HOME}/.codex/hooks")
+
+# One timestamp per run. INSTALL_BACKUP_TS may be set to pin it (used for testing).
+backup_ts="${INSTALL_BACKUP_TS:-$(date +%Y%m%d-%H%M%S)}"
+
+managed_written=""   # newline-separated "<managed folder>|<top-level entry>" records
+backup_notes=""      # newline-separated "<backup root>|<dry|real>" records
+leftovers_found=false
+
+# track_write PATH — record the top-level entry of a managed folder that this
+# install writes (works in dry-run too; nothing is written here).
+track_write() {
+  local p="$1" f rel
+  for f in "${CLAUDE_MANAGED[@]}" "${CODEX_MANAGED[@]}"; do
+    case "$p" in
+      "$f"/*)
+        rel="${p#"$f"/}"
+        rel="${rel%%/*}"
+        [ -n "$rel" ] && managed_written+=$'\n'"${f}|${rel}"
+        return 0
+        ;;
+    esac
+  done
+  return 0
+}
+
+# _track_copy SRC DST — like track_write, resolving a directory-style DST (trailing /)
+_track_copy() {
+  local src="$1" dst="$2"
+  case "$dst" in */) dst="${dst}$(basename "$src")" ;; esac
+  track_write "$dst"
+}
+
+_display_path() { printf '%s' "${1/#"${HOME}"/\~}"; }
+
+# _has_content PATH — true if PATH is a symlink, or a non-empty directory
+_has_content() {
+  [ -L "$1" ] && return 0
+  [ -d "$1" ] && [ -n "$(ls -A "$1" 2>/dev/null)" ]
+}
+
+# clean_managed DIR... — move each existing, non-empty managed DIR into
+# <parent>/.backup-<ts>/<name>. Uses mv only (a symlink is moved itself, not
+# its target). Refuses if any backup destination already exists.
+clean_managed() {
+  local d dest
+  for d in "$@"; do
+    _has_content "$d" || continue
+    dest="$(dirname "$d")/.backup-${backup_ts}/$(basename "$d")"
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+      echo "Error: backup destination already exists: $dest — refusing to overwrite" >&2
+      exit 1
+    fi
+  done
+  for d in "$@"; do
+    _has_content "$d" || continue
+    dest="$(dirname "$d")/.backup-${backup_ts}/$(basename "$d")"
+    do_mkdir "$(dirname "$dest")"
+    action "mv $d -> $dest"
+    $dry_run || mv "$d" "$dest"
+    if $dry_run; then
+      backup_notes+=$'\n'"$(dirname "$dest")|dry"
+    else
+      backup_notes+=$'\n'"$(dirname "$dest")|real"
+    fi
+  done
+}
+
+# report_leftovers DIR... — list visible top-level entries in each managed DIR
+# that this install did not write.
+report_leftovers() {
+  local d e header_done
+  for d in "$@"; do
+    [ -d "$d" ] || continue
+    header_done=false
+    while IFS= read -r e; do
+      [ -n "$e" ] || continue
+      case "$e" in .*) continue ;; esac
+      if ! printf '%s\n' "$managed_written" | grep -qxF -- "${d}|${e}"; then
+        if ! $header_done; then
+          echo "  notice: entries in $(_display_path "$d")/ not written by this install:"
+          header_done=true
+        fi
+        echo "    ${e}"
+        leftovers_found=true
+      fi
+    done < <(ls -A "$d" 2>/dev/null | LC_ALL=C sort)
+  done
+}
+
+# --------------------------------------------------------------------------
 # Dry-run helpers
 # --------------------------------------------------------------------------
 
@@ -77,11 +184,13 @@ action() {
 }
 
 do_mkdir() {
+  track_write "$1"
   action "mkdir -p $1"
   $dry_run || mkdir -p "$1"
 }
 
 do_cp() {
+  _track_copy "$1" "$2"
   action "cp $1 -> $2"
   $dry_run || cp "$1" "$2"
 }
@@ -90,6 +199,7 @@ do_cp() {
 # the destination directory, then mv) so an interrupted install cannot leave
 # a half-written file (M1 fix for adapter copies).
 do_atomic_cp() {
+  track_write "$2"
   action "cp (atomic) $1 -> $2"
   if ! $dry_run; then
     local _tmp="${2}.tmp$$"
@@ -98,6 +208,7 @@ do_atomic_cp() {
 }
 
 do_cp_r() {
+  _track_copy "$1" "$2"
   action "cp -r $1 -> $2"
   $dry_run || cp -r "$1" "$2"
 }
@@ -168,6 +279,10 @@ install_claude() {
   echo ""
   echo "=== Claude Code ==="
 
+  if $clean; then
+    clean_managed "${CLAUDE_MANAGED[@]}"
+  fi
+
   do_mkdir "${HOME}/.claude/agents"
   do_mkdir "${HOME}/.claude/commands"
   do_mkdir "${HOME}/.claude/skills"
@@ -200,6 +315,7 @@ install_claude() {
     esac
 
     dest="${HOME}/.claude/agents/${out_name}"
+    track_write "$dest"
     action "assemble claude agent: ${name} -> ${out_name}"
     $dry_run || cat "$header" "$body" > "$dest"
     agent_count=$((agent_count + 1))
@@ -286,6 +402,8 @@ install_claude() {
                      "${HOME}/.claude/settings.json"
   echo "  settings.json (with \$HOME expanded)"
 
+  $clean || report_leftovers "${CLAUDE_MANAGED[@]}"
+
   echo ""
   if $dry_run; then
     echo "[dry-run] Claude install complete (nothing written)"
@@ -317,6 +435,10 @@ install_codex() {
     echo "[dry-run] --apply is required to write Codex files. Showing what would happen:"
   fi
 
+  if $clean; then
+    clean_managed "${CODEX_MANAGED[@]}"
+  fi
+
   do_mkdir "${HOME}/.codex/agents"
   do_mkdir "${HOME}/.codex/hooks"
   do_mkdir "${HOME}/.codex/hooks/lib"
@@ -339,6 +461,7 @@ install_codex() {
     name="${name%.header.toml}"
     body="${SCRIPT_DIR}/.agents/agents/${name}.md"
     dest="${HOME}/.codex/agents/${name}.toml"
+    track_write "$dest"
 
     action "assemble codex agent: ${name}.toml"
     if ! $dry_run; then
@@ -403,7 +526,7 @@ install_codex() {
     skill_dir_dest="${HOME}/.agents/skills/${skill_name}"
     skill_md="${skill_dir_dest}/SKILL.md"
 
-    do_mkdir "$skill_dir_dest"
+    do_mkdir "$skill_dir_dest"   # also records the entry for leftover tracking
     action "write workflow skill: $skill_md"
 
     if ! $dry_run; then
@@ -461,6 +584,8 @@ install_codex() {
 
   echo "  ${hook_count} hooks, ${lib_count} lib files + adapter.sh"
 
+  $clean || report_leftovers "${CODEX_MANAGED[@]}"
+
   echo ""
   if $dry_run; then
     echo "[dry-run] Codex install complete (nothing written)"
@@ -481,6 +606,24 @@ install_codex() {
 # --------------------------------------------------------------------------
 $do_claude && install_claude
 $do_codex  && install_codex
+
+if [ -n "$backup_notes" ]; then
+  echo ""
+  while IFS='|' read -r root mode; do
+    [ -n "$root" ] || continue
+    if [ "$mode" = dry ]; then
+      echo "[dry-run] Previous setup would be backed up to $(_display_path "$root")/ — copy back anything you want to keep; delete it when done."
+    else
+      echo "Previous setup backed up to $(_display_path "$root")/ — copy back anything you want to keep; delete it when done."
+    fi
+  done < <(printf '%s\n' "$backup_notes" | sort -u)
+fi
+
+if $leftovers_found; then
+  echo ""
+  echo "Entries listed above were not written by this install (older installs or added by you)."
+  echo "To remove them, re-run with --clean to start from a clean slate (preview with --clean --dry-run)."
+fi
 
 echo ""
 echo "Done."

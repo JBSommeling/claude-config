@@ -40,6 +40,9 @@ Evaluate every change across these five dimensions:
 - Any unnecessary re-renders (in UI components)?
 - Any missing pagination on list endpoints?
 
+### Motion code
+If the diff touches motion code, invoke the `review-animations` skill on those files; it uses STANDARDS-RN.md for React Native code. Motion code means — React Native: imports from `react-native-reanimated`, `react-native-gesture-handler`, `moti`, or `Animated` from `react-native`; web: `motion`/`framer-motion`, or CSS `transition`, `animation`, `@keyframes`, WAAPI `element.animate`. Report motion findings under Performance (or Readability for cohesion and naming), not as a separate axis: Block-level findings as Critical, other violations as Important, polish as Suggestion.
+
 ## Output Format
 
 Categorize every finding:

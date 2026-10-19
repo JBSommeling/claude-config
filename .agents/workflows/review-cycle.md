@@ -22,9 +22,11 @@ Repeat until exit condition:
    - Security
    - Performance
 
+   If the diff touches motion code, also invoke the `review-animations` skill on those files (it uses STANDARDS-RN.md for React Native code). Motion code means — React Native: imports from `react-native-reanimated`, `react-native-gesture-handler`, `moti`, or `Animated` from `react-native`; web: `motion`/`framer-motion`, or CSS `transition`, `animation`, `@keyframes`, WAAPI `element.animate`. Report its findings under the Performance axis (or Readability for cohesion and naming), mapping feel-breaking and Block-level findings to Critical, other violations to Important, and polish to Suggestion.
+
    Output findings as Critical / Important / Suggestion with `file:line` references.
 
-2. **Exit condition** — If there are zero Critical and zero Important findings across all five axes, stop the loop. Suggestions alone do not justify another iteration.
+2. **Exit condition** — If there are zero Critical and zero Important findings across all five axes (motion findings included), stop the loop. Suggestions alone do not justify another iteration.
 
 3. **Fix** — Delegate the fixes to the `implementer` subagent. Pass only the specific findings (file, line, recommendation) — do not pass whole files. After implementer returns, briefly verify the diff yourself before re-reviewing.
 

@@ -24,7 +24,7 @@ Save the `headRefOid` as COMMIT_SHA — needed for posting the review.
 Spawn a `code-reviewer` subagent with:
 - The full diff
 - PR title and description
-- The five-axis review framework (correctness, readability, architecture, security, performance)
+- The five-axis review framework (correctness, readability, architecture, security, performance); the agent's own definition adds the motion-code check
 
 The reviewer MUST return structured JSON output in this format:
 
