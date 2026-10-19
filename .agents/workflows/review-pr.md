@@ -24,8 +24,7 @@ Save the `headRefOid` as COMMIT_SHA — needed for posting the review.
 Spawn a `code-reviewer` subagent with:
 - The full diff
 - PR title and description
-- The five-axis review framework (correctness, readability, architecture, security, performance)
-- If the diff touches motion code, an instruction to also invoke the `review-animations` skill on those files (it uses STANDARDS-RN.md for React Native code). Motion code means — React Native: imports from `react-native-reanimated`, `react-native-gesture-handler`, `moti`, or `Animated` from `react-native`; web: `motion`/`framer-motion`, or CSS `transition`, `animation`, `@keyframes`, WAAPI `element.animate`. Motion findings go under the `performance` axis (or `readability` for cohesion and naming), with Block-level findings as Critical, other violations as Important, and polish as Suggestion.
+- The five-axis review framework (correctness, readability, architecture, security, performance); the agent's own definition adds the motion-code check
 
 The reviewer MUST return structured JSON output in this format:
 
