@@ -16,9 +16,9 @@ The checklist for reviewing React Native and Expo motion. Each item is a checkab
 
 - Flag `setState` inside a gesture or scroll handler; expect shared value + `useAnimatedStyle` so React never re-renders per frame. (`setState` on press-in/out is fine: twice per press, not per frame.)
 - Flag `scheduleOnRN` (or deprecated `runOnJS`) inside `onUpdate` or a scroll handler; expect it in `onEnd`, or a `useAnimatedReaction` that fires when a value crosses a threshold.
-- Flag `runOnJS`; expect `scheduleOnRN(fn, ...args)` from `react-native-worklets` (Reanimated 4).
+- Reanimated 4+ only (check `package.json`): flag `runOnJS`; expect `scheduleOnRN(fn, ...args)` from `react-native-worklets`. On Reanimated 3, `runOnJS` is the correct API.
 - Flag a shared value read or written during render (`translateY.get()` in JSX); expect `.get()` / `.set()` only in worklets, handlers and effects.
-- Flag `.value` access; expect `.get()` / `.set()` (compiler-safe). Functional update: `sv.set((v) => v + 1)`.
+- Reanimated 4+ only: flag `.value` access; expect `.get()` / `.set()` (compiler-safe). Functional update: `sv.set((v) => v + 1)`. On Reanimated 3, `.value` is fine.
 - Flag a function called from a worklet without `'worklet'` as its first line; it throws on device while working in the debugger.
 - Flag `PanResponder`; expect `Gesture.Pan()` from gesture-handler.
 - Flag core `Animated` for anything a finger touches or scroll drives; expect Reanimated. Core `Animated` can't be gesture-driven without crossing the bridge, and `useNativeDriver` only allows transform and opacity.
@@ -133,7 +133,7 @@ const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);    // iOS sheet curve
 | Heavy object lands, destructive action | `Haptics.impactAsync(ImpactFeedbackStyle.Medium)` |
 | Success / failure | `Haptics.notificationAsync(NotificationFeedbackType.Success / Error)` |
 
-- Flag a haptic called directly from a worklet; expect `scheduleOnRN(Haptics.selectionAsync)`.
+- Flag a haptic called directly from a worklet; expect `scheduleOnRN(Haptics.selectionAsync)` (`runOnJS` on Reanimated 3).
 
 ## Reduced motion and accessibility
 
