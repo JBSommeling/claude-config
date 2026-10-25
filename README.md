@@ -40,7 +40,7 @@ The orchestrator stays in the main session and delegates every subtask to a chea
 Every tier uses the bare model alias (`haiku`, `sonnet`, `opus`), so each follows the current default model. `Explore` is set to `haiku`.
 
 ```
-.agents/           shared content: 7 agent bodies, 21 workflows, 22 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 21 workflows, 23 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          7 architecture decision records
@@ -119,6 +119,7 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `review-animations` | Third-party (emilkowalski/skills): review motion code (web and React Native) against a high craft bar; React Native uses a local `STANDARDS-RN.md` |
 | `animate-expo` | Third-party (emilkowalski/skills): React Native and Expo animation decisions |
 | `animate` | Third-party (emilkowalski/skills): build web animations choosing the right curve, duration and properties |
+| `clarity` | Third-party (addyosmani/clarity): draft, rewrite, review, or lint reader-facing prose so it reads specific rather than generic |
 
 ## .claudeignore
 
