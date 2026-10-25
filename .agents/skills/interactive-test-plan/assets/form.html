@@ -1,0 +1,851 @@
+<title>Test Plan Run</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root {
+    --bg: #f2f3f1;
+    --surface: #ffffff;
+    --surface-sunken: #e9ebe8;
+    --fg: #1b2124;
+    --fg-muted: #566268;
+    --border: #cdd2d0;
+    --border-strong: #8d9798;
+    --accent: #1d5c80;
+    --accent-fg: #ffffff;
+    --focus: #1d5c80;
+    --pass: #1f7a45;
+    --pass-bg: #dff1e5;
+    --fail: #b3261e;
+    --fail-bg: #f8e1df;
+    --blocked: #a15c00;
+    --blocked-bg: #fbebd0;
+    --skip: #5c6670;
+    --skip-bg: #e3e6e9;
+    --sev-blocker: #8f1812;
+    --sev-major: #a15c00;
+    --sev-minor: #566268;
+    --font-body: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181a;
+      --surface: #1c2225;
+      --surface-sunken: #111516;
+      --fg: #e4e8e8;
+      --fg-muted: #9aa6a9;
+      --border: #333c40;
+      --border-strong: #6a777b;
+      --accent: #6cb4da;
+      --accent-fg: #0c1417;
+      --focus: #6cb4da;
+      --pass: #5fcf8a;
+      --pass-bg: #17301f;
+      --fail: #ff8a80;
+      --fail-bg: #3a1a18;
+      --blocked: #f0b050;
+      --blocked-bg: #35270f;
+      --skip: #a3adb6;
+      --skip-bg: #272d33;
+      --sev-blocker: #ff8a80;
+      --sev-major: #f0b050;
+      --sev-minor: #9aa6a9;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181a;
+    --surface: #1c2225;
+    --surface-sunken: #111516;
+    --fg: #e4e8e8;
+    --fg-muted: #9aa6a9;
+    --border: #333c40;
+    --border-strong: #6a777b;
+    --accent: #6cb4da;
+    --accent-fg: #0c1417;
+    --focus: #6cb4da;
+    --pass: #5fcf8a;
+    --pass-bg: #17301f;
+    --fail: #ff8a80;
+    --fail-bg: #3a1a18;
+    --blocked: #f0b050;
+    --blocked-bg: #35270f;
+    --skip: #a3adb6;
+    --skip-bg: #272d33;
+    --sev-blocker: #ff8a80;
+    --sev-major: #f0b050;
+    --sev-minor: #9aa6a9;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding-block: 0 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1, h2, h3, p { margin: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .state-panel {
+    margin-top: 48px;
+    padding: 24px;
+    border: 1px dashed var(--border-strong);
+    background: var(--surface);
+  }
+  .state-panel h2 { font-size: 18px; margin-bottom: 8px; }
+  .state-panel p { color: var(--fg-muted); }
+  .state-panel code { font-family: var(--font-mono); font-size: 13px; }
+  .loading-bar {
+    height: 4px;
+    margin-top: 16px;
+    background: var(--surface-sunken);
+    overflow: hidden;
+  }
+  .loading-bar::after {
+    content: "";
+    display: block;
+    width: 35%;
+    height: 100%;
+    background: var(--accent);
+    animation: sweep 1.2s ease-in-out infinite;
+  }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+  .plan-header { padding-top: 28px; display: grid; gap: 14px; }
+  .run-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .plan-header h1 { font-size: 28px; line-height: 1.2; overflow-wrap: anywhere; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--fg-muted); }
+  .meta-row span { min-width: 0; overflow-wrap: anywhere; }
+  .meta-row b { font-family: var(--font-mono); font-weight: 600; color: var(--fg); }
+  .summary { max-width: 70ch; }
+  .lists { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .list-box { border-left: 3px solid var(--border-strong); padding-left: 12px; min-width: 0; }
+  .list-box h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); margin-bottom: 4px; }
+  .list-box ul { margin: 0; padding-left: 18px; }
+  .list-box li { overflow-wrap: anywhere; }
+
+  .toolbar {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 5;
+    margin-top: 20px;
+    padding-block: 10px;
+    background: var(--bg);
+    border-bottom: 2px solid var(--border-strong);
+    display: grid;
+    gap: 10px;
+  }
+  .progress-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+  .progress-done { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .count-chip {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 8px;
+    border: 1px solid currentColor;
+    font-variant-numeric: tabular-nums;
+  }
+  .count-pass { color: var(--pass); }
+  .count-fail { color: var(--fail); }
+  .count-blocked { color: var(--blocked); }
+  .count-skip { color: var(--skip); }
+  .count-untested { color: var(--fg-muted); }
+  .meter { display: flex; height: 6px; background: var(--surface-sunken); }
+  .meter div { min-width: 0; transition: width 0.2s; }
+  .meter-pass { background: var(--pass); }
+  .meter-fail { background: var(--fail); }
+  .meter-blocked { background: var(--blocked); }
+  .meter-skip { background: var(--skip); }
+  .toolbar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tester-field { display: flex; align-items: center; gap: 6px; margin-left: auto; min-width: 0; }
+  .tester-field input { min-width: 0; width: 180px; max-width: 100%; }
+
+  input[type="text"], select, textarea {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    padding: 6px 8px;
+    border-radius: 2px;
+  }
+  textarea { width: 100%; resize: vertical; min-height: 64px; }
+  label { font-size: 13px; color: var(--fg-muted); }
+
+  .btn {
+    cursor: pointer;
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--fg); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .filter-btn { padding: 3px 12px; font-size: 13px; }
+  .filter-btn[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+
+  .notice {
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .notice p { min-width: 0; flex: 1 1 220px; }
+  .notice-error { border-color: var(--fail); background: var(--fail-bg); }
+  .notice-ok { border-color: var(--pass); background: var(--pass-bg); }
+  .notice-warn { border-color: var(--blocked); background: var(--blocked-bg); }
+
+  .done-panel {
+    margin-top: 20px;
+    padding: 20px;
+    border: 2px solid var(--pass);
+    background: var(--pass-bg);
+  }
+  .done-panel h2 { font-size: 20px; color: var(--pass); }
+
+  .section { margin-top: 32px; }
+  .section > h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .cases { display: grid; gap: 12px; }
+
+  .case {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 6px solid var(--border-strong);
+    padding: 14px 16px;
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+  .case[data-outcome="pass"] { border-left-color: var(--pass); }
+  .case[data-outcome="fail"] { border-left-color: var(--fail); }
+  .case[data-outcome="blocked"] { border-left-color: var(--blocked); }
+  .case[data-outcome="skip"] { border-left-color: var(--skip); }
+  .case-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .case-id { font-family: var(--font-mono); font-weight: 700; font-size: 13px; }
+  .case-title { font-size: 17px; font-weight: 650; min-width: 0; overflow-wrap: anywhere; flex: 1 1 200px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 6px;
+    border: 1px solid var(--border-strong);
+    color: var(--fg-muted);
+  }
+  .field-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-muted);
+    margin-bottom: 2px;
+  }
+  .case-field { min-width: 0; overflow-wrap: anywhere; }
+  .case ol { margin: 0; padding-left: 22px; }
+  .case ol li { overflow-wrap: anywhere; }
+  pre.expected, pre.evidence {
+    margin: 0;
+    padding: 8px 10px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .prefill-box { border: 1px solid var(--pass); background: var(--pass-bg); padding: 8px 10px; }
+  .prefill-box .field-label { color: var(--pass); }
+
+  .outcome-group { display: flex; flex-wrap: wrap; gap: 6px; border: 0; padding: 0; margin: 0; min-width: 0; }
+  .outcome-group legend { padding: 0; margin-bottom: 4px; }
+  .outcome-btn { min-width: 76px; }
+  .outcome-btn[data-outcome="pass"][aria-checked="true"] { background: var(--pass); border-color: var(--pass); color: var(--surface); }
+  .outcome-btn[data-outcome="fail"][aria-checked="true"] { background: var(--fail); border-color: var(--fail); color: var(--surface); }
+  .outcome-btn[data-outcome="blocked"][aria-checked="true"] { background: var(--blocked); border-color: var(--blocked); color: var(--surface); }
+  .outcome-btn[data-outcome="skip"][aria-checked="true"] { background: var(--skip); border-color: var(--skip); color: var(--surface); }
+
+  .fail-fields { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--fail); background: var(--fail-bg); }
+  .fail-fields .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .field-error { color: var(--fail); font-size: 13px; font-weight: 600; }
+  .sev-blocker { color: var(--sev-blocker); }
+  .sev-major { color: var(--sev-major); }
+  .sev-minor { color: var(--sev-minor); }
+
+  .actions { margin-top: 32px; display: grid; gap: 12px; }
+  .action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .status-line { min-height: 1.5em; color: var(--fg-muted); font-size: 13px; }
+  .empty-filter { margin-top: 24px; color: var(--fg-muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 480px) {
+    .tester-field { margin-left: 0; width: 100%; }
+    .tester-field input { flex: 1 1 auto; width: auto; }
+  }
+</style>
+
+<div class="wrap" id="app">
+  <section class="state-panel" id="loading-panel" aria-live="polite">
+    <h2>Loading test plan</h2>
+    <p>Reading <code>plan.json</code> from the run directory.</p>
+    <div class="loading-bar" aria-hidden="true"></div>
+  </section>
+
+  <section class="state-panel" id="error-panel" role="alert" hidden>
+    <h2>Test plan not found</h2>
+    <p id="error-message">plan.json could not be loaded. Check that the run directory contains plan.json and that the server is still running.</p>
+  </section>
+
+  <div id="plan-root" hidden>
+    <header class="plan-header">
+      <p class="run-label" id="run-label">Test run</p>
+      <h1 id="plan-title"></h1>
+      <div class="meta-row" id="plan-meta"></div>
+      <p class="summary" id="plan-summary"></p>
+      <div class="lists">
+        <div class="list-box" id="prerequisites-box"><h2>Prerequisites</h2><ul id="prerequisites-list"></ul></div>
+        <div class="list-box" id="cleanup-box"><h2>Cleanup</h2><ul id="cleanup-list"></ul></div>
+      </div>
+    </header>
+
+    <div class="toolbar" id="toolbar">
+      <div class="progress-line">
+        <span class="progress-done" id="progress-done">0 of 0 done</span>
+        <div class="counts" id="progress-counts"></div>
+      </div>
+      <div class="meter" id="progress-meter" aria-hidden="true">
+        <div class="meter-pass" id="meter-pass"></div>
+        <div class="meter-fail" id="meter-fail"></div>
+        <div class="meter-blocked" id="meter-blocked"></div>
+        <div class="meter-skip" id="meter-skip"></div>
+      </div>
+      <div class="toolbar-controls">
+        <div class="filters" role="group" aria-label="Filter cases" id="filters"></div>
+        <div class="tester-field">
+          <label for="tester-name">Tester</label>
+          <input type="text" id="tester-name" autocomplete="name" placeholder="Optional name">
+        </div>
+      </div>
+    </div>
+
+    <form id="results-form" novalidate>
+      <div id="sections-root"></div>
+      <p class="empty-filter" id="empty-filter" hidden>No cases match this filter.</p>
+
+      <div class="actions">
+        <div class="notice notice-warn" id="untested-strip" role="alert" hidden>
+          <p id="untested-message"></p>
+          <button type="button" class="btn btn-primary" id="confirm-submit-button">Submit anyway</button>
+          <button type="button" class="btn" id="cancel-submit-button">Keep testing</button>
+        </div>
+        <div class="notice notice-error" id="error-strip" role="alert" hidden><p id="error-strip-message"></p></div>
+        <div class="action-row">
+          <button type="button" class="btn" id="save-button" disabled>Save progress</button>
+          <button type="submit" class="btn btn-primary" id="submit-button" disabled>Submit results</button>
+        </div>
+        <p class="status-line" id="status-line" aria-live="polite">Preparing save connection...</p>
+      </div>
+    </form>
+
+    <section class="done-panel" id="done-panel" role="status" hidden>
+      <h2>Results sent</h2>
+      <p>Results sent. Return to Claude Code — it will pick them up.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const OUTCOMES = ["pass", "fail", "blocked", "skip"];
+  const OUTCOME_LABELS = { pass: "Pass", fail: "Fail", blocked: "Blocked", skip: "Skip" };
+  const SEVERITIES = ["blocker", "major", "minor"];
+  const FILTERS = [["all", "All"], ["untested", "Untested"], ["failed", "Failed"]];
+
+  const elementById = (id) => document.getElementById(id);
+  const state = {
+    plan: null,
+    caseList: [],
+    results: {},
+    tester: "",
+    filter: "all",
+    transport: null,
+    transportKnown: false,
+    submitted: false,
+    saving: false,
+    cardById: {},
+  };
+
+  function createElement(tagName, options = {}, children = []) {
+    const element = document.createElement(tagName);
+    if (options.className) element.className = options.className;
+    if (options.text !== undefined) element.textContent = options.text;
+    if (options.attributes) {
+      for (const [name, value] of Object.entries(options.attributes)) element.setAttribute(name, value);
+    }
+    for (const child of children) element.append(child);
+    return element;
+  }
+
+  function draftKey() { return "test-plan-draft:" + state.plan.planId; }
+
+  function readDraft() {
+    try {
+      const stored = localStorage.getItem(draftKey());
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) { return null; }
+  }
+
+  function writeDraft() {
+    try {
+      localStorage.setItem(draftKey(), JSON.stringify({ tester: state.tester, results: state.results, savedAt: new Date().toISOString() }));
+    } catch (error) { /* storage unavailable; saving to the server still works */ }
+  }
+
+  function outcomeOf(caseId) { return state.results[caseId]?.outcome || null; }
+
+  function ensureResult(caseId) {
+    if (!state.results[caseId]) state.results[caseId] = { outcome: null, severity: null, actual: "", notes: "" };
+    return state.results[caseId];
+  }
+
+  function showLoadError(message) {
+    elementById("loading-panel").hidden = true;
+    elementById("error-message").textContent = message;
+    elementById("error-panel").hidden = false;
+  }
+
+  function renderHeader() {
+    const plan = state.plan;
+    elementById("plan-title").textContent = plan.title || "Untitled test plan";
+    document.title = (plan.title || "Test Plan") + " — Test Plan Run";
+    elementById("run-label").textContent = plan.retestOf ? "Re-test run of " + plan.retestOf : "Test run " + plan.planId;
+    const meta = elementById("plan-meta");
+    const entries = [["Branch", plan.branch], ["Base", plan.base], ["Generated", plan.generatedAt]];
+    for (const [label, value] of entries) {
+      if (!value) continue;
+      meta.append(createElement("span", { text: label + " " }, [createElement("b", { text: String(value) })]));
+    }
+    elementById("plan-summary").textContent = plan.summary || "";
+    const fillList = (listId, boxId, items) => {
+      const list = elementById(listId);
+      for (const item of items || []) list.append(createElement("li", { text: item }));
+      elementById(boxId).hidden = !(items && items.length);
+    };
+    fillList("prerequisites-list", "prerequisites-box", plan.prerequisites);
+    fillList("cleanup-list", "cleanup-box", plan.cleanup);
+  }
+
+  function field(label, contentNode) {
+    return createElement("div", { className: "case-field" }, [createElement("div", { className: "field-label", text: label }), contentNode]);
+  }
+
+  function buildOutcomeGroup(testCase) {
+    const group = createElement("fieldset", { className: "outcome-group", attributes: { role: "radiogroup", "aria-label": "Outcome for " + testCase.id } });
+    group.append(createElement("legend", { className: "field-label", text: "Result" }));
+    const buttons = OUTCOMES.map((outcome) => {
+      const button = createElement("button", {
+        className: "btn outcome-btn",
+        text: OUTCOME_LABELS[outcome],
+        attributes: { type: "button", role: "radio", id: `${testCase.id}-outcome-${outcome}`, "data-outcome": outcome, "aria-checked": "false" },
+      });
+      button.addEventListener("click", () => setOutcome(testCase.id, outcome));
+      button.addEventListener("keydown", (event) => {
+        const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        event.preventDefault();
+        const nextOutcome = OUTCOMES[(OUTCOMES.indexOf(outcome) + step + OUTCOMES.length) % OUTCOMES.length];
+        setOutcome(testCase.id, nextOutcome);
+        elementById(`${testCase.id}-outcome-${nextOutcome}`).focus();
+      });
+      group.append(button);
+      return button;
+    });
+    return { group, buttons };
+  }
+
+  function buildCard(testCase) {
+    const card = createElement("article", { className: "case", attributes: { id: "case-" + testCase.id, "data-case-id": testCase.id } });
+    const head = createElement("div", { className: "case-head" }, [
+      createElement("span", { className: "case-id", text: testCase.id }),
+      createElement("h3", { className: "case-title", text: testCase.title }),
+    ]);
+    const chips = createElement("div", { className: "chips" });
+    if (testCase.kind) chips.append(createElement("span", { className: "chip", text: testCase.kind }));
+    if (testCase.priority) chips.append(createElement("span", { className: "chip", text: testCase.priority + " priority" }));
+    card.append(head, chips);
+
+    if (testCase.scenario) card.append(field("Scenario", createElement("p", { text: testCase.scenario })));
+    if (testCase.rule) card.append(field("Business rule", createElement("p", { text: testCase.rule })));
+    if (testCase.tool) card.append(field("Tool", createElement("p", { text: testCase.tool })));
+    if (testCase.steps && testCase.steps.length) {
+      const stepList = createElement("ol");
+      for (const step of testCase.steps) stepList.append(createElement("li", { text: step }));
+      card.append(field("Steps", stepList));
+    }
+    if (testCase.expected) card.append(field("Expected", createElement("pre", { className: "expected", text: testCase.expected })));
+    if (testCase.passCriteria) card.append(field("Pass criteria", createElement("p", { text: testCase.passCriteria })));
+    if (testCase.prefill && testCase.prefill.evidence) {
+      card.append(createElement("div", { className: "prefill-box" }, [
+        createElement("div", { className: "field-label", text: "Checked by Claude" }),
+        createElement("pre", { className: "evidence", text: testCase.prefill.evidence }),
+      ]));
+    }
+
+    const { group } = buildOutcomeGroup(testCase);
+    card.append(group);
+
+    const severitySelect = createElement("select", { attributes: { id: `${testCase.id}-severity` } });
+    severitySelect.append(createElement("option", { text: "Choose severity", attributes: { value: "" } }));
+    for (const severity of SEVERITIES) severitySelect.append(createElement("option", { text: severity, attributes: { value: severity } }));
+    severitySelect.addEventListener("change", () => { ensureResult(testCase.id).severity = severitySelect.value || null; onChange(testCase.id); });
+
+    const actualField = createElement("textarea", { attributes: { id: `${testCase.id}-actual`, rows: "3", placeholder: "Exact message, response body or row count you saw" } });
+    actualField.addEventListener("input", () => { ensureResult(testCase.id).actual = actualField.value; onChange(testCase.id); });
+    const actualError = createElement("p", { className: "field-error", attributes: { id: `${testCase.id}-actual-error` } });
+    actualError.hidden = true;
+
+    const failFields = createElement("div", { className: "fail-fields", attributes: { id: `${testCase.id}-fail-fields` } }, [
+      createElement("div", { className: "row" }, [createElement("label", { text: "Severity", attributes: { for: `${testCase.id}-severity` } }), severitySelect]),
+      createElement("div", {}, [createElement("label", { text: "What actually happened (required)", attributes: { for: `${testCase.id}-actual` } }), actualField]),
+      actualError,
+    ]);
+    failFields.hidden = true;
+    card.append(failFields);
+
+    const notesField = createElement("textarea", { attributes: { id: `${testCase.id}-notes`, rows: "2", placeholder: "Optional notes" } });
+    notesField.addEventListener("input", () => { ensureResult(testCase.id).notes = notesField.value; onChange(testCase.id); });
+    card.append(createElement("div", {}, [createElement("label", { text: "Notes", attributes: { for: `${testCase.id}-notes` } }), notesField]));
+
+    state.cardById[testCase.id] = { card, severitySelect, actualField, notesField, failFields, actualError };
+    return card;
+  }
+
+  function renderSections() {
+    const root = elementById("sections-root");
+    for (const section of state.plan.sections || []) {
+      const casesNode = createElement("div", { className: "cases" });
+      for (const testCase of section.cases || []) {
+        state.caseList.push(testCase);
+        casesNode.append(buildCard(testCase));
+      }
+      root.append(createElement("section", { className: "section", attributes: { id: "section-" + section.id } }, [
+        createElement("h2", { text: section.title || section.id }),
+        casesNode,
+      ]));
+    }
+  }
+
+  function buildFilters() {
+    const container = elementById("filters");
+    for (const [filterName, label] of FILTERS) {
+      const button = createElement("button", { className: "btn filter-btn", text: label, attributes: { type: "button", id: "filter-" + filterName, "aria-pressed": String(filterName === state.filter) } });
+      button.addEventListener("click", () => { state.filter = filterName; refreshAll(); });
+      container.append(button);
+    }
+  }
+
+  function setOutcome(caseId, outcome) {
+    ensureResult(caseId).outcome = outcome;
+    onChange(caseId);
+  }
+
+  function onChange(caseId) {
+    writeDraft();
+    refreshCard(caseId);
+    refreshProgress();
+    applyFilter();
+    elementById("untested-strip").hidden = true;
+  }
+
+  function refreshCard(caseId) {
+    const parts = state.cardById[caseId];
+    const result = state.results[caseId] || {};
+    const outcome = result.outcome || "";
+    parts.card.dataset.outcome = outcome;
+    for (const outcomeName of OUTCOMES) {
+      elementById(`${caseId}-outcome-${outcomeName}`).setAttribute("aria-checked", String(outcomeName === outcome));
+      elementById(`${caseId}-outcome-${outcomeName}`).tabIndex = outcomeName === (outcome || OUTCOMES[0]) ? 0 : -1;
+    }
+    parts.failFields.hidden = outcome !== "fail";
+    if (parts.severitySelect.value !== (result.severity || "")) parts.severitySelect.value = result.severity || "";
+    if (parts.actualField.value !== (result.actual || "")) parts.actualField.value = result.actual || "";
+    if (parts.notesField.value !== (result.notes || "")) parts.notesField.value = result.notes || "";
+  }
+
+  function countOutcomes() {
+    const counts = { pass: 0, fail: 0, blocked: 0, skip: 0, untested: 0 };
+    for (const testCase of state.caseList) {
+      const outcome = outcomeOf(testCase.id);
+      counts[outcome || "untested"] += 1;
+    }
+    return counts;
+  }
+
+  function refreshProgress() {
+    const counts = countOutcomes();
+    const total = state.caseList.length;
+    elementById("progress-done").textContent = `${total - counts.untested} of ${total} done`;
+    const countsNode = elementById("progress-counts");
+    countsNode.replaceChildren();
+    for (const name of [...OUTCOMES, "untested"]) {
+      countsNode.append(createElement("span", { className: "count-chip count-" + name, text: `${counts[name]} ${name}` }));
+    }
+    for (const name of OUTCOMES) elementById("meter-" + name).style.width = total ? (counts[name] / total) * 100 + "%" : "0";
+  }
+
+  function applyFilter() {
+    let visibleCount = 0;
+    for (const testCase of state.caseList) {
+      const outcome = outcomeOf(testCase.id);
+      const visible = state.filter === "all" || (state.filter === "untested" && !outcome) || (state.filter === "failed" && outcome === "fail");
+      state.cardById[testCase.id].card.hidden = !visible;
+      if (visible) visibleCount += 1;
+    }
+    for (const section of document.querySelectorAll(".section")) {
+      section.hidden = !section.querySelector(".case:not([hidden])");
+    }
+    elementById("empty-filter").hidden = visibleCount > 0;
+    for (const [filterName] of FILTERS) elementById("filter-" + filterName).setAttribute("aria-pressed", String(filterName === state.filter));
+  }
+
+  function refreshAll() {
+    for (const testCase of state.caseList) refreshCard(testCase.id);
+    refreshProgress();
+    applyFilter();
+  }
+
+  function buildPayload(status) {
+    const results = {};
+    for (const testCase of state.caseList) {
+      const result = state.results[testCase.id];
+      if (!result || !result.outcome) continue;
+      results[testCase.id] = {
+        outcome: result.outcome,
+        severity: result.outcome === "fail" ? result.severity || null : null,
+        actual: result.actual || "",
+        notes: result.notes || "",
+      };
+    }
+    return { planId: state.plan.planId, status, savedAt: new Date().toISOString(), tester: state.tester, results };
+  }
+
+  function validateFailures() {
+    let firstInvalidId = null;
+    for (const testCase of state.caseList) {
+      const result = state.results[testCase.id];
+      const parts = state.cardById[testCase.id];
+      parts.actualError.hidden = true;
+      if (!result || result.outcome !== "fail") continue;
+      const problems = [];
+      if (!result.severity) problems.push("choose a severity");
+      if (!(result.actual || "").trim()) problems.push("describe what actually happened");
+      if (problems.length) {
+        parts.actualError.textContent = "To submit this failure, " + problems.join(" and ") + ".";
+        parts.actualError.hidden = false;
+        if (!firstInvalidId) firstInvalidId = testCase.id;
+      }
+    }
+    return firstInvalidId;
+  }
+
+  function setStatusLine(message) { elementById("status-line").textContent = message; }
+
+  function showErrorStrip(message) {
+    elementById("error-strip-message").textContent = message;
+    elementById("error-strip").hidden = !message;
+  }
+
+  function describeSaveError(error) {
+    switch (error && error.code) {
+      case "conflict": return "Someone else saved results since you opened this page. Reload to merge their changes, then save again.";
+      case "not_writer":
+      case "not_granted":
+      case "capability_disabled": return "You can view this plan but not save results here.";
+      case "rate_limited": return "Saving too fast. Wait a moment, then try again.";
+      default: return "Saving failed: " + ((error && error.message) || "unknown error") + ".";
+    }
+  }
+
+  async function sendPayload(payload) {
+    const body = JSON.stringify(payload, null, 2);
+    if (state.transport.kind === "artifact") {
+      await state.transport.api.publish({ "results.json": { content: body, contentType: "application/json" } });
+      return;
+    }
+    const response = await fetch("results.json", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    if (!response.ok) {
+      let message = "server returned " + response.status;
+      try { message = (await response.json()).error || message; } catch (error) { /* keep status message */ }
+      throw new Error(message);
+    }
+  }
+
+  function refreshButtons() {
+    const disabled = !state.transportKnown || !state.transport || state.saving || state.submitted;
+    elementById("save-button").disabled = disabled;
+    elementById("submit-button").disabled = disabled;
+  }
+
+  async function save(status) {
+    showErrorStrip("");
+    state.saving = true;
+    refreshButtons();
+    setStatusLine(status === "submitted" ? "Submitting..." : "Saving...");
+    try {
+      await sendPayload(buildPayload(status));
+      if (status === "submitted") {
+        state.submitted = true;
+        elementById("done-panel").hidden = false;
+        elementById("done-panel").scrollIntoView({ block: "nearest" });
+        setStatusLine("Submitted at " + new Date().toLocaleTimeString());
+      } else {
+        setStatusLine("Progress saved at " + new Date().toLocaleTimeString());
+      }
+    } catch (error) {
+      setStatusLine("Not saved.");
+      showErrorStrip(describeSaveError(error));
+    } finally {
+      state.saving = false;
+      refreshButtons();
+    }
+  }
+
+  function requestSubmit() {
+    elementById("untested-strip").hidden = true;
+    const invalidId = validateFailures();
+    if (invalidId) {
+      showErrorStrip("Some failures are missing a severity or description. Fix the highlighted cases and submit again.");
+      state.cardById[invalidId].card.hidden = false;
+      state.cardById[invalidId].card.scrollIntoView({ block: "center" });
+      return;
+    }
+    showErrorStrip("");
+    const untestedCount = countOutcomes().untested;
+    if (untestedCount > 0) {
+      elementById("untested-message").textContent = `${untestedCount} ${untestedCount === 1 ? "case" : "cases"} untested — submit anyway?`;
+      elementById("untested-strip").hidden = false;
+      return;
+    }
+    save("submitted");
+  }
+
+  async function resolveTransport() {
+    let artifactApi = null;
+    try {
+      artifactApi = window.claude?.use ? await window.claude.use("artifact") : null;
+    } catch (error) { artifactApi = null; }
+    state.transport = artifactApi ? { kind: "artifact", api: artifactApi } : { kind: "server" };
+    state.transportKnown = true;
+    setStatusLine(artifactApi ? "Ready. Saves are shared through the published artifact." : "Ready. Saves go to the local server.");
+    refreshButtons();
+  }
+
+  async function fetchJson(url) {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return { missing: true, status: response.status };
+    return { value: await response.json() };
+  }
+
+  function restoreResults(savedResults) {
+    const draft = readDraft();
+    const useDraft = draft && (!savedResults || (draft.savedAt || "") > (savedResults.savedAt || ""));
+    const source = useDraft ? draft : savedResults;
+    if (!source) return;
+    state.tester = source.tester || "";
+    const knownIds = new Set(state.caseList.map((testCase) => testCase.id));
+    for (const [caseId, result] of Object.entries(source.results || {})) {
+      if (!knownIds.has(caseId) || !result || !OUTCOMES.includes(result.outcome)) continue;
+      state.results[caseId] = {
+        outcome: result.outcome,
+        severity: SEVERITIES.includes(result.severity) ? result.severity : null,
+        actual: typeof result.actual === "string" ? result.actual : "",
+        notes: typeof result.notes === "string" ? result.notes : "",
+      };
+    }
+  }
+
+  function applyPrefills() {
+    for (const testCase of state.caseList) {
+      const prefill = testCase.prefill;
+      if (!prefill || !OUTCOMES.includes(prefill.outcome) || outcomeOf(testCase.id)) continue;
+      ensureResult(testCase.id).outcome = prefill.outcome;
+    }
+  }
+
+  async function start() {
+    resolveTransport();
+    let planResponse;
+    try {
+      planResponse = await fetchJson("plan.json");
+    } catch (error) {
+      showLoadError("plan.json could not be read: " + error.message);
+      return;
+    }
+    if (planResponse.missing) {
+      showLoadError(`plan.json is missing (HTTP ${planResponse.status}). Check that the run directory contains plan.json.`);
+      return;
+    }
+    state.plan = planResponse.value;
+
+    let savedResults = null;
+    try {
+      const resultsResponse = await fetchJson("results.json");
+      if (!resultsResponse.missing) savedResults = resultsResponse.value;
+    } catch (error) { savedResults = null; }
+    if (savedResults && savedResults.planId !== state.plan.planId) savedResults = null;
+
+    renderHeader();
+    renderSections();
+    buildFilters();
+    restoreResults(savedResults);
+    applyPrefills();
+    elementById("tester-name").value = state.tester;
+    refreshAll();
+    elementById("loading-panel").hidden = true;
+    elementById("plan-root").hidden = false;
+    refreshButtons();
+  }
+
+  elementById("tester-name").addEventListener("input", (event) => { state.tester = event.target.value; writeDraft(); });
+  elementById("save-button").addEventListener("click", () => save("in_progress"));
+  elementById("results-form").addEventListener("submit", (event) => { event.preventDefault(); requestSubmit(); });
+  elementById("confirm-submit-button").addEventListener("click", () => { elementById("untested-strip").hidden = true; save("submitted"); });
+  elementById("cancel-submit-button").addEventListener("click", () => { elementById("untested-strip").hidden = true; });
+
+  start();
+})();
+</script>

@@ -90,7 +90,7 @@ On Claude, every agent uses the bare model alias (`haiku`, `sonnet`, `opus`), so
 ### Repository layout
 
 ```
-.agents/           shared content: 7 agent bodies, 25 workflows, 19 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 26 workflows, 20 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          7 architecture decision records
@@ -139,6 +139,7 @@ Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several sk
 - `/review-pr` — post inline comments on a GitHub PR
 - `/test-adversarial` — find coverage gaps with proof, ranked by blast radius
 - `/manual-test-plan` — per-step plan with literal expected outputs
+- `/test-plan [branch | uncommitted | <base>..<head> | pr <n>] [--share]` — business-logic test plan as a pass/fail form, served locally or as a shareable claude.ai artifact with `--share`; triages failures, fixes confirmed bugs, and offers a re-test
 - `/ship` — pre-launch checklist ending in go/no-go
 
 **Refactor**
@@ -178,6 +179,7 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `improve-codebase-architecture` | Consolidating coupled modules; more testable, AI-navigable code |
 | `security-and-hardening` | Untrusted input, auth, sessions, storage, third-party integrations |
 | `manual-test-plan` | Per-step manual plan with literal expected outputs |
+| `interactive-test-plan` | Business-logic test plan as a pass/fail form, with failures triaged and confirmed bugs fixed from the results |
 | `grill-with-docs` | Challenging a plan against the domain model, updating `CONTEXT.md` and ADRs |
 | `idea-refine` | Structured divergent/convergent thinking on an idea |
 | `zoom-out` | Broader context on unfamiliar code |
