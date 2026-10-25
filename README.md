@@ -40,7 +40,7 @@ The orchestrator stays in the main session and delegates every subtask to a chea
 Every tier uses the bare model alias (`haiku`, `sonnet`, `opus`), so each follows the current default model. `Explore` is set to `haiku`.
 
 ```
-.agents/           shared content: 7 agent bodies, 21 workflows, 23 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 25 workflows, 19 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          7 architecture decision records
