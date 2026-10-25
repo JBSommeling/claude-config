@@ -1,6 +1,8 @@
 # claude-config
 
-One configuration for **Claude Code** and **OpenAI Codex**. `install.sh` installs the same agents, skills, workflows, and hooks to both platforms, and the config routes each task to the right model tier. One shared source means you aren't locked in to either vendor.
+One configuration for **Claude Code** and **OpenAI Codex**, built to spend fewer tokens. Opus plans, debugs, and reviews. It hands implementation to Sonnet, and reading, searching, and boilerplate to Haiku, so the expensive model only does the work that needs it. Hooks keep the split honest: the orchestrator can't edit files or commit itself, and pushes to the default branch are blocked.
+
+On top of that sit skills and pipelines that take a change from spec to draft PR, with review built in. `install.sh` installs the same agents, skills, workflows, and hooks to both platforms (on Codex the tiers are gpt-5.6-sol, gpt-5.6-terra, and gpt-5.6-luna), so you aren't locked in to either vendor.
 
 ## Install
 
