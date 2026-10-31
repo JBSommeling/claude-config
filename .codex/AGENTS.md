@@ -108,3 +108,5 @@ Invoke a skill via `$skillname` — for example, `$full-pipeline-cycle` to run t
 Every pipeline command saves the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
 
 Every pipeline command accepts an optional `repos=<path>` parameter. A single path is supported in v1: relative paths resolve against `$HOME`, absolute and `~/` paths are used as-is. The primary repo is always the repository containing the current working directory; sibling repos are direct children of the `repos=` path holding a `.git` entry. When present, the spec allocates work across repos, the plan tags tasks per repo, and the build, PR, review, and judging phases all run per repo — PRs dispatch to `gh` for GitHub or `az repos` for Azure DevOps. Absent the parameter, behaviour is unchanged.
+
+Pipeline commands also accept an optional `--copilot` flag: after the spec and plan are drafted, and before each checkpoint, GitHub Copilot CLI's rubber duck critiques the draft and Claude folds in the feedback it agrees with. It is skipped with a note if `copilot` is unavailable, and each run consumes Copilot premium requests.

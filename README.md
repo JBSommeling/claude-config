@@ -90,7 +90,7 @@ On Claude, every agent uses the bare model alias (`haiku`, `sonnet`, `opus`), so
 ### Repository layout
 
 ```
-.agents/           shared content: 7 agent bodies, 26 workflows, 20 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 27 workflows, 20 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          7 architecture decision records
@@ -162,6 +162,8 @@ Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several sk
 The spec and plan are the only checkpoints; everything after runs on its own. Every pipeline runs `/branch-preflight` before the Phase 3 commits, `/code-simplify` at Phase 3b, and `/validate` after the build.
 
 All pipeline commands accept an optional `repos=<path>`. Direct children of that path with a `.git` directory become visible as sibling repositories: the spec allocates work across them, the plan orders tasks contract-first, and the build, PR, review, and judging phases run per repo. Without the parameter, nothing changes.
+
+All pipeline commands also accept an optional `--copilot`. Before each checkpoint (spec and plan), GitHub Copilot's rubber duck critiques the draft, Claude folds in the points it agrees with, and the revised draft is presented with a short review summary. It requires the GitHub Copilot CLI (`copilot`) on PATH and logged in; if it is missing or fails, the critique is skipped with a one-line note. Each run consumes Copilot premium requests (one per checkpoint).
 
 ## Skills
 

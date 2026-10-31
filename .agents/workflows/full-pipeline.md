@@ -8,11 +8,13 @@ Run the full development pipeline — spec, plan, build, validate, simplify — 
 
 `$ARGUMENTS` may include `repos=<path>` to run the pipeline across sibling repositories. When present, follow `/cross-repo` for every phase that has a section there. When absent, no discovery runs, no cross-repo work happens, and the rest of this file is complete on its own.
 
+`$ARGUMENTS` may include `--copilot` to have GitHub Copilot's rubber duck critique the spec and plan before each checkpoint. When present, follow `/copilot-rubber-duck` in Phases 1 and 2. When absent, no critique runs. It combines with `repos=<path>`.
+
 ## Phase 1 — Spec (checkpoint)
 
 Invoke the spec-driven-development skill. Write a structured specification for the requested feature.
 
-When the spec is complete, present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the spec until approved.
+When the spec is complete, if `--copilot` was passed, run the rubber-duck critique per `/copilot-rubber-duck` and fold it in before presenting. Then present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the spec until approved.
 
 Once approved, derive a kebab-case slug from the spec's feature title, create the directory `~/Desktop/<slug>/` (create it if it does not exist), and save the approved spec there as `spec.md`. Remember this directory for Phase 2.
 
@@ -20,7 +22,7 @@ Once approved, derive a kebab-case slug from the spec's feature title, create th
 
 Invoke the planning-and-task-breakdown skill. Break the approved spec into ordered tasks with acceptance criteria and dependency ordering.
 
-When the plan is complete, present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the plan until approved.
+When the plan is complete, if `--copilot` was passed, run the rubber-duck critique per `/copilot-rubber-duck` and fold it in before presenting. Then present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the plan until approved.
 
 Once approved, save the approved plan as `plan.md` in the same `~/Desktop/<slug>/` directory created in Phase 1.
 

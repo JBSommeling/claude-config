@@ -6,7 +6,7 @@ Chain two existing commands to go from a reported bug all the way to a PR'd fix.
 
 ## Arguments
 
-`$ARGUMENTS` may include `repos=<path>`. It passes straight through to the Stage 2 pipeline, where it takes effect for spec, plan, build, and PR phases. Stage 1 diagnosis runs against the repository containing the current working directory only and is unaffected.
+`$ARGUMENTS` may include `repos=<path>` and `--copilot`. Both pass straight through to the Stage 2 pipeline, where `repos=` takes effect for spec, plan, build, and PR phases and `--copilot` adds a rubber-duck critique at the spec and plan checkpoints. Stage 1 diagnosis runs against the repository containing the current working directory only and is unaffected.
 
 ## Stage 1 — Diagnose (via `/diagnose`)
 
@@ -24,6 +24,6 @@ If Stage 1 cannot confirm a root cause (no reliable feedback loop, or the cause 
 
 Run `/full-pipeline-cycle`, using the Stage 1 diagnosis as the feature request. The diagnosis is the input to Phase 1 — the pipeline specs and builds the FIX, not a new feature:
 
-- **Phase 1 — Spec (checkpoint):** Specify the fix. Objective = eliminate the confirmed root cause. Acceptance criteria MUST include: the Stage 1 reproduction no longer reproduces, and a regression test exists at the correct seam. Feed in the affected files and the diagnosis evidence. Pauses for your approval, then saves `spec.md` to the Desktop folder.
-- **Phase 2 — Plan (checkpoint):** Break the fix into ordered tasks. Pauses for your approval, then saves `plan.md` to the same Desktop folder.
+- **Phase 1 — Spec (checkpoint):** Specify the fix. Objective = eliminate the confirmed root cause. Acceptance criteria MUST include: the Stage 1 reproduction no longer reproduces, and a regression test exists at the correct seam. Feed in the affected files and the diagnosis evidence. Pauses for your approval (after the rubber-duck critique when `--copilot` is passed), then saves `spec.md` to the Desktop folder.
+- **Phase 2 — Plan (checkpoint):** Break the fix into ordered tasks. Pauses for your approval (after the rubber-duck critique when `--copilot` is passed), then saves `plan.md` to the same Desktop folder.
 - **Phases 3–6 (automatic):** Build (TDD — reuse the Stage 1 feedback loop as the failing test wherever possible), validate, converge (`/review-cycle` → push → open draft PR), and judge. No further pauses; ends at an open draft PR for human merge.
