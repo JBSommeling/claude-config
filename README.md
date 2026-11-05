@@ -163,7 +163,7 @@ The spec and plan are the only checkpoints; everything after runs on its own. Ev
 
 All pipeline commands accept an optional `repos=<path>`. Direct children of that path with a `.git` directory become visible as sibling repositories: the spec allocates work across them, the plan orders tasks contract-first, and the build, PR, review, and judging phases run per repo. Without the parameter, nothing changes.
 
-All pipeline commands also accept an optional `--copilot`. Before each checkpoint (spec and plan), GitHub Copilot's rubber duck critiques the draft, Claude folds in the points it agrees with, and the revised draft is presented with a short review summary. It requires the GitHub Copilot CLI (`copilot`) on PATH and logged in; if it is missing or fails, the critique is skipped with a one-line note. Each run consumes Copilot premium requests (one per checkpoint).
+All pipeline commands also accept an optional `--copilot`. Before each checkpoint (spec and plan), GitHub Copilot's rubber duck critiques the draft, Claude folds in the points it agrees with, and the revised draft is presented with a short review summary. During Phase 6 it also critiques the PR diff alongside the judges, and the findings that hold up join the merged report. It requires the GitHub Copilot CLI (`copilot`) on PATH and logged in; if it is missing or fails, the critique is skipped with a one-line note. Each critique consumes Copilot premium requests (up to three per run).
 
 ## Skills
 

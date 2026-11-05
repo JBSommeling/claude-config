@@ -8,7 +8,7 @@ Run the full development pipeline — spec, plan, build, validate, simplify — 
 
 `$ARGUMENTS` may include `repos=<path>` to run the pipeline across sibling repositories. When present, follow `/cross-repo` for every phase that has a section there. When absent, no discovery runs, no cross-repo work happens, and the rest of this file is complete on its own.
 
-`$ARGUMENTS` may include `--copilot` to have GitHub Copilot's rubber duck critique the spec and plan before each checkpoint. When present, follow `/copilot-rubber-duck` in Phases 1 and 2. When absent, no critique runs. It combines with `repos=<path>`.
+`$ARGUMENTS` may include `--copilot` to have GitHub Copilot's rubber duck critique the spec and plan before each checkpoint, and the PR diff during judging. When present, follow `/copilot-rubber-duck` in Phases 1, 2, and 6. When absent, no critique runs. It combines with `repos=<path>`.
 
 ## Phase 1 — Spec (checkpoint)
 
@@ -103,6 +103,8 @@ Spawn four subagents in parallel against the **PR's current state** (not the loc
 2. **security-auditor** — vulnerability and threat-model pass
 3. **test-engineer** — coverage gap analysis
 4. **maintainer-reviewer** — the five-year maintenance lens and the house-consistency lens
+
+If `--copilot` was passed, also run the diff critique per `/copilot-rubber-duck` alongside the subagents, and merge the findings that hold up into the report.
 
 Merge the reports into a GO/NO-GO recommendation with:
 - Blockers (must fix before merge)
