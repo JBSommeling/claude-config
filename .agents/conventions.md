@@ -78,3 +78,6 @@ watch it. If a test run, a build, or work running in parallel drives CPU load hi
 it and report to the human what was running and the load you saw. Then continue in a
 way that keeps the load down: fewer workers or test shards, serial instead of parallel
 runs, or a narrower subset first. Never add parallelism to finish faster.
+
+A runtime watchdog kills agent-started jobs that hold high CPU for minutes; see
+`docs/watchdog/cpu-watchdog.md`.

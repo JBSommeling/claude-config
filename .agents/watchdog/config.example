@@ -1,0 +1,29 @@
+# CPU watchdog config — plain KEY=value lines, never sourced or evaluated.
+# Unknown keys are ignored; invalid values fall back to the default shown.
+
+# Agent total CPU at or above ncpu*100*LOAD_FRACTION counts as high (0 < x <= 1).
+LOAD_FRACTION=0.75
+
+# A single job at or above JOB_CORES*100 %CPU also counts as high.
+JOB_CORES=4
+
+# Whole-machine CPU (all users) at or above ncpu*100*MACHINE_FRACTION counts as high (0 < x <= 1)...
+MACHINE_FRACTION=0.9
+
+# ...but only while the agents use at least MACHINE_AGENT_CORES cores (1 or more, decimals allowed).
+MACHINE_AGENT_CORES=2
+
+# Seconds of continuous high load before the warning notification.
+WARN_AFTER=120
+
+# Seconds of continuous high load before the kill (or the notice in notify mode).
+KILL_AFTER=300
+
+# kill = SIGTERM the heaviest job, then SIGKILL stragglers; notify = notify only.
+MODE=kill
+
+# Process names (space separated) whose descendants are watched.
+ROOT_NAMES=claude codex
+
+# Seconds between SIGTERM and the SIGKILL check on a later tick.
+GRACE=10

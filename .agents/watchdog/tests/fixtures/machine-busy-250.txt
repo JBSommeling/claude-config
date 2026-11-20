@@ -1,0 +1,6 @@
+    1     0     0   0.1 /sbin/launchd
+  500     1   501   1.0 /Applications/Terminal.app/Contents/MacOS/Terminal
+  600     1   501 900.0 /Applications/Xcode.app/Contents/MacOS/Xcode
+  100     1   501   2.0 /usr/local/bin/claude
+  210   100   501   0.0 /bin/zsh
+  211   210   501 250.0 node

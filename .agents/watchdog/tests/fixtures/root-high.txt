@@ -1,0 +1,6 @@
+    1     0     0   0.1 /sbin/launchd
+  500     1   501   1.0 /Applications/Terminal.app/Contents/MacOS/Terminal
+  501   500   501   0.2 /bin/zsh
+  100     1   501 950.0 /usr/local/bin/claude
+  210   100   501   0.0 /bin/zsh
+  211   210   501   5.0 node

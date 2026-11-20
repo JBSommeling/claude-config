@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install.sh — install claude-config for Claude Code and/or Codex
 #
-# Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--help]
+# Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--no-watchdog] [--help]
 #
 #   No platform flag  Install BOTH Claude Code and Codex configs
 #   --claude          Install Claude Code config only
@@ -11,6 +11,7 @@
 #   --clean           Back up and clear installer-managed folders (skills, agents,
 #                     commands, hooks) before installing; never touches memory,
 #                     sessions, credentials or local settings.
+#   --no-watchdog     Skip the macOS CPU watchdog (Claude install only)
 #   --help            Print usage and exit 0
 #
 # Codex note: if --codex is selected without --apply, a dry-run is shown
@@ -28,6 +29,7 @@ do_codex=false
 dry_run=false
 apply=false
 clean=false
+no_watchdog=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -36,9 +38,10 @@ for arg in "$@"; do
     --dry-run) dry_run=true ;;
     --apply)   apply=true ;;
     --clean)   clean=true ;;
+    --no-watchdog) no_watchdog=true ;;
     --help)
       cat <<'EOF'
-Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--help]
+Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--no-watchdog] [--help]
 
   No platform flag  Install BOTH Claude Code and Codex configs
   --claude          Install Claude Code config only
@@ -48,6 +51,7 @@ Usage: install.sh [--claude] [--codex] [--dry-run] [--apply] [--clean] [--help]
   --clean           Back up and clear installer-managed folders (skills, agents,
                     commands, hooks) before installing; never touches memory,
                     sessions, credentials or local settings.
+  --no-watchdog     Skip the macOS CPU watchdog (Claude install only)
   --help            Print this help and exit 0
 
 Claude note: Claude Code config is written by default (no --apply needed).
@@ -81,6 +85,8 @@ fi
 # ...) is ever touched. Single files (CLAUDE.md, settings.json, AGENTS.md,
 # config.toml) are simply overwritten and are not part of --clean.
 CLAUDE_MANAGED=("${HOME}/.claude/skills" "${HOME}/.claude/agents" "${HOME}/.claude/commands" "${HOME}/.claude/hooks")
+# ~/.claude/watchdog is deliberately NOT managed: it holds the user's config, state
+# and log, so --clean must never move it. The installer only overwrites the script.
 CODEX_MANAGED=("${HOME}/.agents/skills" "${HOME}/.codex/agents" "${HOME}/.codex/hooks")
 
 # One timestamp per run. INSTALL_BACKUP_TS may be set to pin it (used for testing).
@@ -273,6 +279,50 @@ codex_transform_file() {
 }
 
 # --------------------------------------------------------------------------
+# CPU watchdog (macOS launchd agent; part of the Claude install)
+# --------------------------------------------------------------------------
+WATCHDOG_LABEL="com.claude-config.cpu-watchdog"
+
+# install_watchdog — copy the script, seed the config, expand the plist and
+# (re)load the launchd agent. Never overwrites an existing config.
+install_watchdog() {
+  local watchdog_dir="${HOME}/.claude/watchdog"
+  local plist_dest="${HOME}/Library/LaunchAgents/${WATCHDOG_LABEL}.plist"
+  local user_id
+  user_id="$(id -u)"
+
+  if $no_watchdog; then
+    echo "  watchdog: skipped (--no-watchdog)"
+    return 0
+  fi
+  if [ "$(uname -s)" != "Darwin" ]; then
+    echo "  watchdog: skipped (macOS only)"
+    return 0
+  fi
+
+  do_mkdir "$watchdog_dir"
+  do_mkdir "${HOME}/Library/LaunchAgents"
+  do_cp "${SCRIPT_DIR}/.agents/watchdog/cpu-watchdog.sh" "${watchdog_dir}/cpu-watchdog.sh"
+  do_chmod_x "${watchdog_dir}/cpu-watchdog.sh"
+  if [ -e "${watchdog_dir}/config" ]; then
+    echo "  watchdog: keeping existing ${watchdog_dir}/config"
+  else
+    do_cp "${SCRIPT_DIR}/.agents/watchdog/config.example" "${watchdog_dir}/config"
+  fi
+  do_sed_expand_home "${SCRIPT_DIR}/.agents/watchdog/${WATCHDOG_LABEL}.plist" "$plist_dest"
+
+  action "launchctl bootout gui/${user_id}/${WATCHDOG_LABEL} 2>/dev/null || true"
+  action "launchctl bootstrap gui/${user_id} ${plist_dest}"
+  if ! $dry_run; then
+    launchctl bootout "gui/${user_id}/${WATCHDOG_LABEL}" 2>/dev/null || true
+    launchctl bootstrap "gui/${user_id}" "$plist_dest" \
+      || echo "  warning: launchctl bootstrap failed; load the agent manually"
+  fi
+  echo "  watchdog: CPU watchdog installed (runs every 30 s)"
+  echo "  watchdog uninstall: launchctl bootout gui/\$(id -u)/${WATCHDOG_LABEL} && rm ${plist_dest}"
+}
+
+# --------------------------------------------------------------------------
 # Claude Code install
 # --------------------------------------------------------------------------
 install_claude() {
@@ -401,6 +451,8 @@ install_claude() {
   do_sed_expand_home "${SCRIPT_DIR}/.claude/settings.json" \
                      "${HOME}/.claude/settings.json"
   echo "  settings.json (with \$HOME expanded)"
+
+  install_watchdog
 
   $clean || report_leftovers "${CLAUDE_MANAGED[@]}"
 

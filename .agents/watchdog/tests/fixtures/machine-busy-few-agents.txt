@@ -1,0 +1,8 @@
+    1     0     0   0.1 /sbin/launchd
+  150     1     0  76.0 /System/Library/PrivateFrameworks/SkyLight.framework/WindowServer
+  500     1   501   1.0 /Applications/Terminal.app/Contents/MacOS/Terminal
+  600     1   501  900.0 /Applications/Xcode.app/Contents/MacOS/Xcode
+  601     1   501 100.0 /Applications/Safari.app/Contents/MacOS/Safari
+  100     1   501   2.0 /usr/local/bin/claude
+  210   100   501   0.0 /bin/zsh
+  211   210   501 100.0 node

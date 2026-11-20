@@ -1,0 +1,11 @@
+    1     0     0   0.1 /sbin/launchd
+  500     1   501   1.0 /Applications/Terminal.app/Contents/MacOS/Terminal
+  501   500   501   0.2 /bin/zsh
+  100     1   501   2.0 /usr/local/bin/claude
+  210   100   501   0.0 /bin/zsh
+  211   210   501 300.0 node
+  150     1   501   2.0 /opt/homebrew/bin/codex
+  250   150   501   0.0 /bin/sh
+  251   250   501 350.0 node
+  260   150   501   0.0 /bin/sh
+  261   260   501 300.0 node

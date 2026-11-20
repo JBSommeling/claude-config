@@ -110,6 +110,10 @@ Four `PreToolUse` hooks back up the routing rules. Each can be bypassed for one 
 - **Push protection.** Blocks any `git push` that resolves to the default branch. The default branch is looked up via `gh repo view`, then `origin/HEAD`, then conventional names; if none resolves, the push is blocked. Bypass: `CLAUDE_BYPASS_PUSH_GUARD=1` or `CODEX_BYPASS_PUSH_GUARD=1`.
 - **CPU load.** Denies synthetic burners (`stress`, fork bombs, busy loops, `/dev/zero` hashing, unbounded `make -j`, miners) and asks the human before load-test tools, benchmark-named scripts, or very high parallelism; on Codex and in `bypassPermissions`/`dontAsk` an ask becomes a deny, and it is best-effort text matching, see [docs/hooks/block-cpu-load.md](docs/hooks/block-cpu-load.md). Bypass: `CLAUDE_BYPASS_CPU_LOAD_GUARD=1` or `CODEX_BYPASS_CPU_LOAD_GUARD=1`.
 
+### CPU watchdog
+
+On macOS, `install.sh --claude` also installs a launchd agent that checks every 30 seconds for agent-started jobs holding high CPU, warns after 2 minutes and stops the heaviest job after 5. Skip it with `--no-watchdog`; pause it with `touch ~/.claude/watchdog/paused`. See [docs/watchdog/cpu-watchdog.md](docs/watchdog/cpu-watchdog.md).
+
 ### On Codex
 
 - **Effort** is capped at medium for every Codex agent.

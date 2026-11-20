@@ -1,0 +1,12 @@
+    1     0     0   0.1 /sbin/launchd
+  500     1   501   1.0 /Applications/Terminal.app/Contents/MacOS/Terminal
+  501   500   501   0.2 /bin/zsh
+  100     1   501   2.0 /usr/local/bin/claude
+  220   100   501   0.0 /bin/bash
+  221   220   501 150.0 make
+  222   221   501 120.0 cc1
+  230   100   501   0.0 /bin/sh
+  231   230   501 260.0 python3
+  240   100   501   0.0 /bin/zsh
+  241   240   501 100.0 go
+  242   240   501 100.0 go
