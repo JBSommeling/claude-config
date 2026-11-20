@@ -28,6 +28,10 @@
           },
           {
             "type": "command",
+            "command": "$HOME/.claude/hooks/block-cpu-load.sh"
+          },
+          {
+            "type": "command",
             "command": "$HOME/.claude/hooks/enforce-commit-ownership.sh"
           },
           {

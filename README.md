@@ -103,16 +103,17 @@ Workflows install as `~/.claude/commands/<name>.md` for Claude (invoked as `/nam
 
 ## Guardrails
 
-Three `PreToolUse` hooks back up the routing rules. Each can be bypassed for one session with an environment variable.
+Four `PreToolUse` hooks back up the routing rules. Each can be bypassed for one session with an environment variable.
 
 - **Delegation.** Blocks `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, and file-writing Bash (`>`/`>>`, `sed -i`, `perl -i`, `tee`, heredocs, `python -c`/`node -e`) from the orchestrator, so edits go through `implementer`. Subagent calls, memory writes, and redirects to temp paths are exempt. Bypass: `CLAUDE_BYPASS_DELEGATION=1`.
 - **Commit ownership.** Only the orchestrator commits; `git commit` from a subagent is blocked. Bypass: `CLAUDE_BYPASS_DELEGATION=1`.
 - **Push protection.** Blocks any `git push` that resolves to the default branch. The default branch is looked up via `gh repo view`, then `origin/HEAD`, then conventional names; if none resolves, the push is blocked. Bypass: `CLAUDE_BYPASS_PUSH_GUARD=1` or `CODEX_BYPASS_PUSH_GUARD=1`.
+- **CPU load.** Blocks shell commands that start artificial CPU load: `stress`/`stress-ng`, `yes > /dev/null`, fork bombs, empty busy loops, `dd` or hash/compress burners on `/dev/zero`/`/dev/urandom`, `openssl speed`, `sysbench cpu`, and inline-interpreter infinite loops. Bypass: `CLAUDE_BYPASS_CPU_LOAD_GUARD=1` or `CODEX_BYPASS_CPU_LOAD_GUARD=1`.
 
 ### On Codex
 
 - **Effort** is capped at medium for every Codex agent.
-- **Delegation and commit ownership** are enforced *detectively*, not preventively, because the shipped release doesn't reliably populate `agent_id`/`agent_type` ([ADR 0003](docs/adr/0003-detective-delegation-enforcement-on-codex.md)). Both hooks ship enabled and no-op until Codex populates those fields; then they become preventive with no config change. Push protection is already preventive.
+- **Delegation and commit ownership** are enforced *detectively*, not preventively, because the shipped release doesn't reliably populate `agent_id`/`agent_type` ([ADR 0003](docs/adr/0003-detective-delegation-enforcement-on-codex.md)). Both hooks ship enabled and no-op until Codex populates those fields; then they become preventive with no config change. Push protection and CPU-load blocking are already preventive.
 - **Naming.** `diagnose`, `manual-test-plan`, `tdd`, and `zoom-out` collide with skill names in Codex's single namespace, so they install with a `-workflow` suffix.
 
 ## Commands

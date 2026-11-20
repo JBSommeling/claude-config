@@ -61,3 +61,20 @@ Every pull request is opened as a draft — `gh pr create --draft ...` — with 
 
 Promoting a PR out of draft is the human's call. No agent marks a PR ready for review, and
 no workflow does it automatically.
+
+## Machine Safety
+
+### No artificial CPU load
+
+Never start artificial CPU load on the machine: no stress tools (`stress`, `stress-ng`),
+`yes > /dev/null`, busy loops, fork bombs, or synthetic benchmarks run to saturate cores.
+This holds even when reproducing a performance problem or testing behaviour under load —
+if a task seems to need it, stop and ask the human instead. The `block-cpu-load.sh`
+hook enforces the common patterns.
+
+Ordinary work that happens to use CPU — builds, test suites, linters — is allowed, but
+watch it. If a test run, a build, or work running in parallel drives CPU load high
+(sustained load average above the core count, or the machine turning sluggish), stop
+it and report to the human what was running and the load you saw. Then continue in a
+way that keeps the load down: fewer workers or test shards, serial instead of parallel
+runs, or a narrower subset first. Never add parallelism to finish faster.

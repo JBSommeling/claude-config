@@ -61,6 +61,17 @@ matcher = "Bash|bash|shell"
   command = "$HOME/.codex/hooks/block-push.sh"
   timeout = 10
 
+# REGISTERED — preventive on Codex now: Block commands that start artificial CPU
+# load (stress tools, fork bombs, empty busy loops). Unlike the delegation hooks it
+# does not depend on caller identity, so it needs no worker identity from Codex.
+[[hooks.PreToolUse]]
+matcher = "Bash|bash|shell"
+
+  [[hooks.PreToolUse.hooks]]
+  type    = "command"
+  command = "$HOME/.codex/hooks/block-cpu-load.sh"
+  timeout = 10
+
 # REGISTERED — no-op until Codex exposes worker identity; becomes preventive
 # automatically when it does (see ADR 0003): Enforce commit ownership — deny
 # git commit from subagents. hook_caller returns "unknown" when agent_id /
