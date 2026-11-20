@@ -225,6 +225,11 @@ hook_is_shell_tool() {
   esac
 }
 
+# hook_supports_ask — fail: Codex hooks cannot prompt, so hook_ask falls back to deny.
+hook_supports_ask() {
+  return 1
+}
+
 # hook_caller — echo one of: subagent, root, unknown.
 #
 # On Codex, agent_id / agent_type are UNVERIFIED (see header). Their absence

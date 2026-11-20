@@ -108,7 +108,7 @@ Four `PreToolUse` hooks back up the routing rules. Each can be bypassed for one 
 - **Delegation.** Blocks `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, and file-writing Bash (`>`/`>>`, `sed -i`, `perl -i`, `tee`, heredocs, `python -c`/`node -e`) from the orchestrator, so edits go through `implementer`. Subagent calls, memory writes, and redirects to temp paths are exempt. Bypass: `CLAUDE_BYPASS_DELEGATION=1`.
 - **Commit ownership.** Only the orchestrator commits; `git commit` from a subagent is blocked. Bypass: `CLAUDE_BYPASS_DELEGATION=1`.
 - **Push protection.** Blocks any `git push` that resolves to the default branch. The default branch is looked up via `gh repo view`, then `origin/HEAD`, then conventional names; if none resolves, the push is blocked. Bypass: `CLAUDE_BYPASS_PUSH_GUARD=1` or `CODEX_BYPASS_PUSH_GUARD=1`.
-- **CPU load.** Blocks shell commands that start artificial CPU load: `stress`/`stress-ng`, `yes > /dev/null`, fork bombs, empty busy loops, `dd` or hash/compress burners on `/dev/zero`/`/dev/urandom`, `openssl speed`, `sysbench cpu`, and inline-interpreter infinite loops. Bypass: `CLAUDE_BYPASS_CPU_LOAD_GUARD=1` or `CODEX_BYPASS_CPU_LOAD_GUARD=1`.
+- **CPU load.** Denies synthetic burners (`stress`, fork bombs, busy loops, `/dev/zero` hashing, unbounded `make -j`, miners) and asks the human before load-test tools, benchmark-named scripts, or very high parallelism; on Codex and in `bypassPermissions`/`dontAsk` an ask becomes a deny, and it is best-effort text matching, see [docs/hooks/block-cpu-load.md](docs/hooks/block-cpu-load.md). Bypass: `CLAUDE_BYPASS_CPU_LOAD_GUARD=1` or `CODEX_BYPASS_CPU_LOAD_GUARD=1`.
 
 ### On Codex
 

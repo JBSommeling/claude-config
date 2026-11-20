@@ -1,0 +1,601 @@
+# block-cpu-load.cases — table for block-cpu-load.test.sh
+# Format: expect<TAB>command. expect is deny, ask or allow. "#" starts a comment.
+# \n, \r and \t in a command become a literal newline, carriage return and tab.
+# Commands are only ever sent to the hook as JSON text. They are never executed.
+
+# ===== migrated: stress tools =====
+deny	stress --cpu 8 --timeout 60
+deny	stress-ng --cpu 4
+deny	sudo stress-ng --cpu 4
+deny	nohup stress --cpu 2 &
+deny	nice -n 10 stress --cpu 2
+deny	timeout 30 stress-ng --cpu 2
+deny	echo start && stress --cpu 1
+deny	make build; stress --cpu 1
+deny	true || stress-ng --cpu 1
+deny	ls | stress --cpu 1
+deny	(stress --cpu 1)
+deny	/usr/bin/stress --cpu 1
+
+# ===== migrated: yes to /dev/null =====
+deny	yes > /dev/null
+deny	yes >/dev/null &
+deny	yes y > /dev/null
+deny	yes   >   /dev/null
+deny	for n in 1 2 3 4; do yes > /dev/null & done
+
+# ===== migrated: fork bombs =====
+deny	:(){ :|:& };:
+deny	:() { : | : & } ; :
+deny	bomb(){ bomb|bomb& };bomb
+deny	bomb ( ) {  bomb | bomb &  } ; bomb
+
+# ===== migrated: empty busy loops =====
+deny	while true; do :; done
+deny	while :; do :; done
+deny	while true; do true; done
+deny	while [ 1 ]; do :; done
+deny	for ((;;)); do :; done
+deny	until false; do :; done
+deny	while true;do :;done
+deny	while  true;  do  :;  done &
+deny	while true\ndo\n  :\ndone
+
+# ===== migrated: dd =====
+deny	dd if=/dev/zero of=/dev/null
+deny	dd if=/dev/urandom of=/dev/null
+deny	dd of=/dev/null if=/dev/zero
+deny	dd if=/dev/zero bs=1m of=/dev/null
+deny	dd if=/dev/urandom of=/dev/null bs=1m count=100000000
+
+# ===== migrated: hash and compress burners =====
+deny	cat /dev/urandom | gzip > /dev/null
+deny	cat /dev/zero | xz > /dev/null
+deny	cat /dev/urandom | md5sum > /dev/null
+deny	cat /dev/urandom > /dev/null
+deny	md5 < /dev/zero
+deny	sha256sum /dev/zero
+deny	shasum -a 256 /dev/urandom
+deny	md5sum /dev/urandom
+
+# ===== migrated: benchmarks =====
+deny	openssl speed
+deny	openssl speed -multi 8 rsa2048
+deny	sysbench cpu run
+deny	sysbench --test=cpu run
+deny	sysbench --threads=8 cpu run
+
+# ===== migrated: inline interpreter loops =====
+deny	python -c "while True: pass"
+deny	python3 -c "while 1: pass"
+deny	python3 -c 'while True:  pass'
+deny	node -e 'while(true){}'
+deny	node -e 'while (1) { }'
+deny	node -e 'for(;;){}'
+deny	perl -e 'while(1){}'
+deny	perl -e '1 while 1'
+deny	ruby -e 'while(true){}'
+deny	ruby -e 'for ( ; ; ) {}'
+deny	npm test -- -c ci && cat /dev/urandom > /dev/null
+deny	ls -n ; sha256sum /dev/zero
+deny	head -5 file.txt; cat /dev/urandom | gzip > /dev/null
+
+# ===== migrated: allowed legitimate loops =====
+allow	while true; do curl -s localhost:8080/health; sleep 5; done
+allow	while ! pg_isready; do sleep 1; done
+allow	while true; do :; sleep 1; done
+allow	until false; do sleep 2; done
+allow	for n in 1 2 3; do echo "$n"; done
+
+# ===== migrated: allowed lookalikes and ordinary commands =====
+allow	yes | apt-get install foo
+allow	yes | some-installer
+allow	git log --grep stress
+allow	git log --grep=stress-ng
+allow	grep stress file.txt
+allow	cat stress-notes.md
+allow	vim stress-test.md
+allow	echo I felt stressed today
+allow	npm test
+allow	make -j8
+allow	cargo build --release
+allow	head -c 100 /dev/urandom | base64
+allow	head -c 1000 /dev/urandom | md5
+allow	dd if=/dev/zero of=disk.img bs=1m count=10
+allow	python3 -c "print(1)"
+allow	node -e "console.log(1)"
+allow	openssl rand -hex 16
+allow	openssl s_client -connect example.com:443
+allow	sysbench fileio run
+allow	cat /dev/urandom | head -c 10 | gzip > /dev/null
+allow	npm test && head -c 100 /dev/urandom | base64
+
+# ===== audit 1: newlines keep command position =====
+deny	echo hi\nstress --cpu 1
+deny	ls\n\nstress-ng --cpu 2
+deny	echo hi\r\nstress --cpu 1\r\n
+deny	ls && \\nstress --cpu 1
+deny	echo hi\n  yes > /dev/null
+deny	echo hi\nk6 run x.js && stress --cpu 1
+allow	echo hi\necho stress
+allow	echo hi \\n stress-notes
+
+# ===== audit 2: command position and wrappers =====
+deny	bash -c "stress --cpu 1"
+deny	sh -c 'stress --cpu 1'
+deny	zsh -c 'stress --cpu 1'
+deny	bash -lc 'echo hi; stress --cpu 1'
+deny	/bin/bash -c "nice -n 5 stress --cpu 1"
+deny	"stress" --cpu 1
+deny	'stress-ng' --cpu 1
+deny	st''ress --cpu 1
+deny	st""ress-ng --cpu 1
+deny	\stress --cpu 1
+deny	echo `stress --cpu 1`
+deny	echo $(stress --cpu 1)
+deny	{ stress --cpu 1; }
+deny	! stress --cpu 1
+deny	FOO=1 stress --cpu 1
+deny	A=1 B=2 stress --cpu 1
+deny	env FOO=1 stress --cpu 1
+deny	env -i FOO=1 stress --cpu 1
+deny	env -u HOME stress --cpu 1
+deny	/usr/bin/env FOO=1 /usr/local/bin/stress --cpu 1
+deny	timeout -s KILL 30 stress --cpu 1
+deny	timeout -k 5 30s stress --cpu 1
+deny	timeout --signal=KILL 30 stress --cpu 1
+deny	nice stress --cpu 1
+deny	nice -10 stress --cpu 1
+deny	nice -n -5 stress --cpu 1
+deny	caffeinate -i stress --cpu 1
+deny	caffeinate -t 60 -i stress --cpu 1
+deny	taskpolicy -b stress --cpu 1
+deny	echo 1 | xargs -n 1 stress --cpu
+deny	echo 1 | xargs -I {} stress --cpu {}
+deny	parallel stress --cpu ::: 1 2
+deny	watch -n 5 stress --cpu 1
+deny	sudo -u nobody stress --cpu 1
+deny	sudo -E stress --cpu 1
+deny	doas stress --cpu 1
+deny	nohup nice -n 5 timeout 10 sudo stress --cpu 1
+deny	exec stress --cpu 1
+deny	command stress --cpu 1
+deny	time stress --cpu 1
+deny	eval stress --cpu 1
+deny	eval "stress --cpu 1"
+deny	if stress --cpu 1; then echo ok; fi
+deny	for n in 1 2; do stress --cpu 1; done
+deny	sudo sh -c "stress-ng --cpu 2"
+allow	command -v stress
+allow	command -v stress-ng
+allow	which stress
+allow	type stress
+allow	man stress
+allow	brew install stress
+allow	apt-get install stress-ng
+allow	env
+allow	env FOO=1 echo stress
+allow	timeout 30 echo stress
+allow	sudo -u nobody ls /tmp
+allow	bash -c "echo stress"
+
+# ===== audit 3: only head, dd count= and pv -S are real size limits =====
+deny	cat /dev/urandom | gzip -c > /dev/null
+deny	cat /dev/urandom | gzip -n > /dev/null
+deny	cat /dev/zero | xz -c > /dev/null
+deny	cat /dev/zero | zstd -n > /dev/null
+deny	cat /dev/urandom | md5sum -c > /dev/null
+deny	cat /dev/urandom | bzip2 -n > /dev/null
+allow	head -c 100 /dev/urandom | gzip -c > /dev/null
+allow	cat /dev/urandom | head -n 100 | gzip -c > /dev/null
+allow	cat /dev/zero | head --bytes=100 | gzip > /dev/null
+allow	dd if=/dev/zero count=100 | gzip > /dev/null
+allow	pv -S 100M < /dev/zero | gzip > /dev/null
+allow	pv --stop-at-size -s 100M /dev/zero | xz > /dev/null
+
+# ===== audit 4: burner forms that used to slip through =====
+deny	gzip < /dev/zero > /dev/null
+deny	xz < /dev/urandom > /dev/null
+deny	openssl sha256 < /dev/zero
+deny	openssl dgst -sha256 /dev/urandom
+deny	yes | cat > /dev/null
+deny	yes | gzip > /dev/null
+deny	yes | md5sum
+deny	yes y | pv > /dev/null
+deny	node -e 'while(true);'
+deny	node -e 'for(;;);'
+deny	nodejs -e 'while (true) { x++ }'
+deny	deno eval 'while(true){}'
+deny	bun -e 'for(;;){}'
+deny	ruby -e 'loop{}'
+deny	ruby -e 'loop do end'
+deny	ruby -e 'loop do x += 1 end'
+deny	php -r 'while(true);'
+deny	php -r 'while (1) { $x++; }'
+deny	python3 -c 'while True: x=1'
+deny	python -c 'while 1: x += 1'
+deny	perl -e 'while(1){$x++}'
+deny	perl -e 'for(;;){}'
+allow	python3 -c 'import time\nwhile True: time.sleep(1)'
+allow	python3 -c 'while True: input()'
+allow	node -e 'setInterval(()=>{},1000)'
+allow	node -e 'while(true){ await sleep(1) }'
+allow	ruby -e 'loop { break }'
+allow	php -r 'while(true){ sleep(1); }'
+allow	python3 -c 'print(sum(range(10)))'
+allow	ruby -e 'puts 1'
+allow	php -r 'echo 1;'
+
+# ===== audit 5: other mismatches found by reading the patterns =====
+deny	sha256 /dev/zero
+deny	sha512 < /dev/urandom
+deny	cat /dev/random > /dev/null
+deny	dd if=/dev/random of=/dev/null
+deny	yes &> /dev/null
+deny	yes >& /dev/null
+deny	yes 1> /dev/null
+deny	yes >> /dev/null
+deny	yes > /dev/null 2>&1 &
+deny	nohup yes >/dev/null 2>&1 &
+deny	cat /dev/zero >/dev/null 2>&1
+deny	function bomb { bomb | bomb & }; bomb
+deny	.() { .|.& };.
+allow	yes 2>/dev/null | head -n 1
+allow	yes | apt-get install -y foo > /dev/null
+allow	yes | apt-get install -y foo > /dev/null 2>&1
+allow	cat /dev/zero 2>/dev/null | head -c 10
+allow	ls 2>/dev/null
+allow	cat notes.txt > /dev/null
+allow	cmd 2>&1 | tee build.log
+allow	foo() { bar | baz & }
+
+# ===== new deny: inline interpreter loops need an exempt word to pass =====
+deny	python3 -c "while True:\n    x = 1"
+deny	python3.11 -c 'while True: pass'
+deny	node -e "while(1){counter++}"
+deny	perl -e '1 while 1'
+deny	bun -e 'while(true){}'
+allow	bun run dev
+allow	node server.js
+allow	node -e 'while(true){ if (done) break }'
+
+# ===== new deny: unbounded parallelism =====
+deny	make -j
+deny	make -j -s
+deny	make -j test
+deny	make -j0
+deny	make -j 0
+deny	make --jobs
+deny	make --jobs=0
+deny	gmake -j
+deny	xargs -P 0 echo
+deny	xargs -P0 echo
+deny	ls | xargs -n1 -P 0 echo
+deny	ls | xargs --max-procs=0 echo
+deny	parallel -j 0 echo ::: a b
+deny	parallel -j0 echo ::: a b
+deny	parallel --jobs 0 echo ::: a b
+deny	sudo make -j
+deny	cd build && make -j
+
+# ===== new deny: crypto miners, 7z benchmark, geekbench =====
+deny	xmrig -o pool.example.com:3333
+deny	sudo ./xmrig
+deny	cpuminer -a sha256d
+deny	nohup minerd -o stratum+tcp://pool &
+deny	ethminer -G
+deny	t-rex -a ethash
+deny	7z b
+deny	7za b
+deny	7z b -mmt4
+deny	geekbench6
+deny	geekbench_aarch64
+deny	geekbench5 --cpu
+allow	7z a archive.7z src
+allow	7z x archive.7z
+allow	7za l archive.7z
+allow	echo xmrig is malware
+
+# ===== new ask: load-test tools at command position =====
+ask	k6 run load.js
+ask	wrk -t8 -c400 -d30s http://localhost:8080
+ask	wrk2 -t2 -c100 -d30s -R2000 http://localhost
+ask	ab -n 1000 -c 50 http://localhost/
+ask	hey -n 1000 -c 50 http://localhost
+ask	vegeta attack -duration=30s
+ask	autocannon -c 100 http://localhost:3000
+ask	siege -c 25 -t 1m http://localhost
+ask	jmeter -n -t plan.jmx
+ask	locust -f locustfile.py --headless
+ask	artillery run test.yml
+ask	oha -n 1000 http://localhost
+ask	bombardier -c 100 http://localhost
+ask	h2load -n 1000 https://localhost
+ask	gatling.sh
+ask	./bin/gatling.sh -s Sim
+ask	gatling
+ask	tsung start
+ask	drill --benchmark bench.yml
+ask	ddosify -t http://localhost
+ask	sudo k6 run load.js
+ask	time wrk -t2 http://localhost
+ask	cd /tmp && k6 run load.js
+ask	/usr/local/bin/k6 run load.js
+ask	"k6" run load.js
+ask	bash -c "k6 run load.js"
+ask	echo go\nk6 run load.js
+ask	npx autocannon http://localhost:3000
+ask	npx k6 run load.js
+ask	npx --yes artillery run test.yml
+ask	bunx autocannon http://localhost
+ask	docker run --rm grafana/k6 run /script.js
+ask	docker run --rm -i locustio/locust -f x.py
+ask	docker run polinux/stress stress --cpu 1
+ask	docker run --rm alexeiled/stress-ng --cpu 1
+ask	podman run --rm grafana/k6 run x.js
+ask	docker compose run k6 run x.js
+ask	docker-compose run locust
+ask	docker run -d --name loadgen williamyeh/wrk -t2 http://x
+
+# ===== new allow: help and version of load tools =====
+allow	k6 --help
+allow	k6 version
+allow	k6 inspect script.js
+allow	k6 run --help
+allow	wrk --version
+allow	wrk -h
+allow	ab -V
+allow	ab -h
+allow	hey -h
+allow	locust --help
+allow	locust --version
+allow	siege --version
+allow	vegeta -h
+allow	npx autocannon --help
+allow	docker run --rm grafana/k6 version
+allow	jmeter --version
+allow	oha --help
+
+# ===== new allow: mentions and installs of load tools =====
+allow	echo "stress --cpu 8"
+allow	echo 'k6 run load.js'
+allow	grep -r stress .
+allow	grep -rn "wrk" docs
+allow	git commit -m "add wrk benchmark notes"
+allow	brew install k6
+allow	brew install wrk
+allow	npm install autocannon
+allow	pip install locust
+allow	cat k6.js
+allow	ls hey
+allow	which k6
+allow	man wrk
+allow	docker run hello-world
+allow	docker run --rm node:20 npm test
+allow	docker compose up -d
+allow	docker build .
+allow	docker compose build
+allow	docker exec app ls
+allow	podman ps
+
+# ===== new ask: indirect runners matched by name (no fixtures in cwd) =====
+ask	npm run bench
+ask	npm run benchmark
+ask	npm run loadtest
+ask	npm run load-test
+ask	npm run load:test
+ask	npm run test:stress
+ask	npm run stress-test
+ask	npm run perf-test
+ask	npm run soak
+ask	npm run spike
+ask	npm run burn
+ask	npm run flood
+ask	npm run test:performance
+ask	npm run-script bench
+ask	npm --silent run bench
+ask	yarn bench
+ask	yarn run loadtest
+ask	pnpm bench
+ask	pnpm run stress
+ask	bun run perf-test
+ask	composer stress
+ask	composer run-script loadtest
+ask	make bench
+ask	make benchmark
+ask	gmake stress
+ask	make -j8 loadtest
+ask	just bench
+ask	task loadtest
+ask	php artisan bench:run
+ask	php artisan load:test
+ask	php artisan stress
+ask	./scripts/perf-test.sh
+ask	./bench.sh
+ask	./benchmarks/run.sh
+ask	cd app && npm run bench
+ask	NODE_ENV=test npm run bench
+ask	sudo npm run bench
+ask	NPM RUN BENCH_not_a_runner; npm run Benchmark
+
+# ===== new allow: never ask for ordinary project commands =====
+allow	npm test
+allow	npm run test
+allow	npm run build
+allow	npm run dev
+allow	npm run lint
+allow	npm run test:unit
+allow	npm run test:watch
+allow	npm install
+allow	npm ci
+allow	npm start
+allow	npm --silent run build
+allow	yarn install
+allow	yarn build
+allow	yarn test
+allow	pnpm install
+allow	pnpm test
+allow	pnpm run build
+allow	bun run dev
+allow	bun install
+allow	composer install
+allow	composer update
+allow	composer dump-autoload
+allow	composer run-script post-install-cmd
+allow	php artisan migrate
+allow	php artisan migrate:fresh --seed
+allow	php artisan test
+allow	php artisan serve
+allow	php artisan queue:work
+allow	make
+allow	make test
+allow	make build
+allow	make clean install
+allow	make -j8
+allow	just build
+allow	task test
+allow	bash setup.sh
+allow	sh ./missing-script.sh
+allow	./gradlew test
+allow	./vendor/bin/phpunit
+allow	./node_modules/.bin/jest
+
+# ===== new ask: explicit parallelism above twice the core count =====
+ask	make -j1000
+ask	make -j 1000
+ask	make --jobs=1000
+ask	make -j1000 test
+ask	gmake -j999
+ask	xargs -P 1000 echo
+ask	xargs -P1000 echo
+ask	ls | xargs -n 1 -P 1000 echo
+ask	ls | xargs --max-procs=1000 echo
+ask	parallel -j 1000 echo ::: a b
+ask	parallel --jobs 1000 echo ::: a b
+ask	ninja -j 1000
+ask	ninja -j1000
+ask	cmake --build build --parallel 1000
+ask	cmake --build build -j 1000
+ask	cmake --build build -j1000
+allow	make -j4
+allow	make -j 8
+allow	make -j$(nproc)
+allow	make -j $(nproc)
+allow	make -j$(sysctl -n hw.ncpu)
+allow	make -j "$(nproc)"
+allow	make -j${JOBS} test
+allow	make -j $JOBS
+allow	make -l 4 -j4
+allow	xargs -P 4 echo
+allow	ls | xargs -n 1 -P 8 echo
+allow	parallel -j 4 echo ::: a b
+allow	parallel -j2 echo ::: a b
+allow	ninja -j 8
+allow	ninja
+allow	cmake --build build --parallel 4
+allow	cmake --build build --parallel
+allow	cmake --build build -j 4
+allow	xargs echo
+allow	pytest -n auto
+allow	pytest -n 4
+allow	jest --maxWorkers=50%
+
+# ===== new ask: literal-infinite shell loops without a pause =====
+ask	while true; do npm start; done
+ask	while :; do node server.js; done
+ask	while [ 1 ]; do cat queue.txt; done
+ask	while [[ 1 ]]; do ./poll.sh; done
+ask	until false; do ./run.sh; done
+ask	for ((;;)); do ./run.sh; done
+ask	while true\ndo\n  curl -s localhost\ndone
+ask	while true; do curl -s localhost; done &
+ask	nohup bash -c 'while true; do curl -s localhost; done' &
+allow	while true; do foo; sleep 1; done
+allow	while true; do read line; echo "$line"; done
+allow	while true; do wait; done
+allow	while true; do timeout 5 foo; done
+allow	while true\ndo\n  curl -s localhost\n  sleep 5\ndone
+allow	until false; do ./run.sh; sleep 2; done
+allow	while read line; do echo "$line"; done < input.txt
+allow	while ! curl -s localhost; do sleep 1; done
+allow	for n in 1 2 3; do ./run.sh; done
+allow	while [ "$count" -lt 5 ]; do count=$((count+1)); done
+
+# ===== allow: tests, builds, dev servers, bounded benchmarks =====
+allow	vendor/bin/phpunit
+allow	go test ./...
+allow	cargo test
+allow	cargo bench
+allow	go test -bench=.
+allow	pytest --benchmark-only
+allow	hyperfine 'sleep 1'
+allow	hyperfine --warmup 3 'make build'
+allow	time make
+allow	time make test
+allow	git status
+allow	ls -la
+allow	php artisan queue:listen --tries=1
+allow	cargo run --release
+allow	python3 manage.py runserver
+allow	flask run
+allow	uvicorn app:app --reload
+allow	node --watch server.js
+allow	docker run --rm node:20 npm test
+
+# ===== whitespace and quoting variations =====
+deny	stress\t--cpu\t1
+deny	\tstress --cpu 1
+deny	    stress    --cpu    1
+deny	echo ok;\tstress --cpu 1
+deny	sudo\tstress --cpu 1
+deny	echo ok\r\n\r\nstress --cpu 1\r\n
+deny	stress --cpu 1\r
+deny	echo ok;stress --cpu 1
+deny	echo ok&&stress --cpu 1
+deny	echo ok||stress --cpu 1
+deny	echo ok|stress --cpu 1
+deny	(echo ok;stress --cpu 1)
+deny	timeout 10 "stress" --cpu 1
+deny	'yes' > /dev/null
+deny	y''es > /dev/null
+deny	nice   -n   10   stress   --cpu   2
+ask	k6\trun\tload.js
+ask	\tk6 run load.js
+ask	echo ok\r\nk6 run load.js\r\n
+allow	echo\tstress
+allow	grep\t-r\tstress\t.
+allow	echo ok\r\necho done\r\n
+
+# ===== background, pipes and redirections =====
+deny	stress --cpu 2 &
+deny	stress --cpu 2 > /dev/null 2>&1 &
+deny	stress --cpu 2 2>&1 | tee out.log
+deny	nohup stress --cpu 2 > out.log 2>&1 &
+deny	ls | grep x | stress --cpu 1
+deny	cat /dev/urandom | gzip > /dev/null &
+deny	cat /dev/urandom | gzip > /dev/null 2>&1
+deny	gzip < /dev/urandom > /dev/null 2>&1 &
+deny	gzip </dev/zero >/dev/null
+deny	cat < /dev/zero > /dev/null
+deny	dd if=/dev/zero of=/dev/null bs=1m &
+deny	python3 -c 'while True: x=1' &
+deny	node -e 'for(;;){}' > /dev/null 2>&1 &
+deny	cat /dev/zero | cat | cat > /dev/null
+ask	k6 run load.js &
+ask	k6 run load.js 2>&1 | tee out.log
+ask	k6 run load.js > out.txt
+ask	nohup k6 run load.js > /dev/null 2>&1 &
+allow	cat /dev/zero | head -c 1000 > out.bin
+allow	echo hi > /dev/null
+allow	npm test > /dev/null 2>&1 &
+allow	npm test 2>&1 | tee test.log
+allow	cmd &> /dev/null
+allow	sleep 10 &
+
+# ===== known limitations (documented false denies and misses) =====
+deny	echo "done; stress --cpu 1"
+deny	git commit -m "fix\nstress --cpu notes"
+deny	echo "a | stress --cpu 1"
+allow	t=stress; $t --cpu 1
+allow	echo c3RyZXNzIC0tY3B1IDEK | base64 -d | sh
+allow	$'\x73tress' --cpu 1

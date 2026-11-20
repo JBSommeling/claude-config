@@ -63,6 +63,28 @@ hook_deny() {
   exit 0
 }
 
+# hook_ask <reason> — emit the ask envelope and exit 0, so the human approves the call.
+# Fails closed to hook_deny when the adapter cannot prompt or the mode cannot be prompted.
+hook_ask() {
+  local reason="$1" permission_mode
+  permission_mode=$(hook_json '.permission_mode // empty')
+  if ! declare -F hook_supports_ask >/dev/null 2>&1 \
+    || ! hook_supports_ask \
+    || [ "$permission_mode" = "bypassPermissions" ] \
+    || [ "$permission_mode" = "dontAsk" ]; then
+    hook_deny "Needs human approval, which cannot be prompted here: ${reason}"
+  fi
+  jq -n --arg reason "$reason" '
+  {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "ask",
+      permissionDecisionReason: $reason
+    }
+  }'
+  exit 0
+}
+
 # hook_allow — exit 0 with no output (explicit allow).
 hook_allow() {
   exit 0

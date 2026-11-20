@@ -39,6 +39,11 @@ hook_is_shell_tool() {
   [ "$1" = "Bash" ]
 }
 
+# hook_supports_ask — succeed: Claude Code can prompt the human for an "ask" decision.
+hook_supports_ask() {
+  return 0
+}
+
 # hook_caller — echo one of: subagent, root, unknown.
 #
 # On Claude Code, agent_id / agent_type are reliably absent for the main
