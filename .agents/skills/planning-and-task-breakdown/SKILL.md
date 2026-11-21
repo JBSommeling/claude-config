@@ -50,6 +50,7 @@ Each task needs:
 - [ ] Build succeeds
 
 **Dependencies:** [Task numbers or "None"]
+**Reuses:** [Existing helper, component, standard-library or platform feature, or installed dependency this task builds on — or "New code: <why nothing existing fits>"]
 **Estimated scope:** [S: 1-2 files | M: 3-5 files | L: 5+ files — break down further]
 ```
 
