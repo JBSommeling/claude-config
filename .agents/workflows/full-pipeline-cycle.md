@@ -22,6 +22,8 @@ Once approved, derive a kebab-case slug from the spec's feature title, create th
 
 Invoke the planning-and-task-breakdown skill. Break the approved spec into ordered tasks with acceptance criteria and dependency ordering.
 
+Each task names the first rung of the smallest-change ladder (below) that covers it — already in this codebase, standard library or platform feature, installed dependency, or new code — and the existing code it reuses. A task that would add an abstraction, option, or dependency the spec does not require is cut or merged before the plan is presented.
+
 When the plan is complete, if `--copilot` was passed, run the rubber-duck critique per `/copilot-rubber-duck` and fold it in before presenting. Then present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the plan until approved.
 
 Once approved, save the approved plan as `plan.md` in the same `~/Desktop/<slug>/` directory created in Phase 1.
@@ -29,6 +31,20 @@ Once approved, save the approved plan as `plan.md` in the same `~/Desktop/<slug>
 ## Phase 3 — Build (automatic)
 
 Before committing anything, invoke `/branch-preflight` for the primary repo. If it refuses or fails closed, stop the pipeline.
+
+### Smallest-change ladder
+
+Before writing code for a task, read the code it touches and list every place the change must reach — callers, tests, fixtures, config, exports. Then take the first rung that fully works:
+
+1. Does it need to exist? Skip features, options, and flexibility the spec did not ask for.
+2. Already in this codebase (a helper, component, service, pattern)? Use it the way the surrounding code does.
+3. Standard library or a platform feature? Use it, unless the project has its own.
+4. An installed dependency? Use it. Never add a dependency for a few lines.
+5. Otherwise, the minimum code that works, in the structure the codebase already has.
+
+Lazy about the solution, never about the change: finish every caller, test, and fixture the change breaks. Never cut validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything the spec requires. The ladder does not relax the TDD steps below — every task still starts with a failing test.
+
+### Per task
 
 Invoke the incremental-implementation and tdd skills. For each task in the approved plan:
 
