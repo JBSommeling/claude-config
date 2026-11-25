@@ -142,7 +142,7 @@ tick agg-high.txt 1119
 assert_no_actions "no action at 119 s"
 tick agg-high.txt 1120
 assert_contains "warn at 120 s names the heaviest job pid and comm" "$last_output" "pid 210 (zsh)"
-assert_contains "warn shows CPU percent" "$last_output" "282%"
+assert_contains "warn shows CPU percent" "$last_output" "2.8 of 12 cores (24%"
 assert_contains "warn shows elapsed time" "$last_output" "2m00s"
 tick agg-high.txt 1299
 assert_not_contains "no kill at 299 s" "$last_output" "SIGTERM"
@@ -178,7 +178,7 @@ assert_equals "kill 300 s after the restart" "213 212 211 210 " "$(signal_pids S
 new_scenario "single job over JOB_CORES with aggregate under"
 tick job-over.txt 1000
 tick job-over.txt 1120
-assert_contains "single heavy job warns" "$last_output" "pid 310 (sh) at 500% CPU"
+assert_contains "single heavy job warns" "$last_output" "pid 310 (sh) using 5.0 of 12 cores (42% of the machine)"
 tick job-over.txt 1300
 assert_equals "single heavy job is killed" "311 310 " "$(signal_pids SIGTERM "$last_output")"
 
@@ -289,7 +289,7 @@ assert_no_actions "claude is not a root when ROOT_NAMES=codex"
 new_scenario "two roots: claude and codex"
 tick two-roots.txt 1000
 tick two-roots.txt 1120
-assert_contains "aggregate spans both roots; heaviest job is under codex" "$last_output" "pid 250 (sh) at 350% CPU"
+assert_contains "aggregate spans both roots; heaviest job is under codex" "$last_output" "pid 250 (sh) using 3.5 of 12 cores (29% of the machine)"
 tick two-roots.txt 1300
 assert_equals "kill targets the codex job subtree" "251 250 " "$(signal_pids SIGTERM "$last_output")"
 
@@ -326,7 +326,7 @@ tick machine-busy.txt 1300
 assert_equals "machine: kill hits the heaviest agent job subtree" "211 210 " "$(signal_pids SIGTERM "$last_output")"
 assert_not_contains "machine: user apps are never signalled" "$all_output" " 600 "
 assert_not_contains "machine: other user apps are never signalled" "$all_output" " 601 "
-assert_contains "machine: log records the condition" "$(cat "$scenario_log")" "high load began: total=450.0% jobs=3 machine="
+assert_contains "machine: log records the condition" "$(cat "$scenario_log")" "high load began: total=4.5 of 12 cores (38%) jobs=3 machine="
 
 new_scenario "machine busy without a real agent share"
 tick machine-busy-few-agents.txt 1000

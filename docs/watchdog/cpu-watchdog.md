@@ -57,7 +57,7 @@ longest-running high condition drives the warning and the kill.
 
 ## Actions
 
-- **Warn** at `WARN_AFTER`: one macOS notification per episode naming the heaviest job (pid, command), its CPU and the elapsed time.
+- **Warn** at `WARN_AFTER`: one macOS notification per episode naming the heaviest job (pid, command), its CPU (shown as cores used out of the total and as a share of the whole machine) and the elapsed time.
 - **Kill** at `KILL_AFTER` with `MODE=kill`: SIGTERM to every process in the heaviest eligible job, deepest first, then a notification. One job per tick; the next tick re-evaluates.
 - **SIGKILL** on a later tick: once `GRACE` seconds have passed since SIGTERM, any recorded pid that still exists with the same command gets SIGKILL. A job awaiting this check is not terminated again.
 - **Notify mode**: at `KILL_AFTER` one extra notification per episode and no signals.

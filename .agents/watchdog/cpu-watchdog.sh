@@ -435,7 +435,7 @@ update_tracks() {
 
   if [ -n "$new_tracks" ]; then
     printf '%s' "$new_tracks" > "${tracks_file}.tmp" && mv "${tracks_file}.tmp" "$tracks_file"
-    $had_tracks || log_event "high load began: total=${total_cpu}% jobs=$(printf '%s\n' "$job_lines" | grep -c .)${machine_summary:+ ${machine_summary}}"
+    $had_tracks || log_event "high load began: total=$(describe_cpu_load "$total_cpu") jobs=$(printf '%s\n' "$job_lines" | grep -c .)${machine_summary:+ ${machine_summary}}"
   else
     rm -f "$tracks_file" "${state_dir}/episode_warned" "${state_dir}/episode_notified"
     $had_tracks && log_event "high load cleared"
@@ -460,10 +460,17 @@ pick_kill_target() {
   return 0
 }
 
+# Formats a pcpu sum (100 = one core) as cores used plus a share of the whole machine.
+# The optional second argument is appended inside the parentheses after the percent.
+describe_cpu_load() {
+  awk -v cpu_percent="$1" -v share_label="${2:-}" -v ncpu="$ncpu" \
+    'BEGIN { printf "%.1f of %d cores (%.0f%%%s)", cpu_percent / 100, ncpu, cpu_percent / ncpu, share_label }'
+}
+
 describe_job() {
   local _ job_pid job_cpu job_comm
   read -r _ job_pid job_cpu job_comm _ <<< "$1"
-  printf 'pid %s (%s) at %.0f%% CPU' "$job_pid" "$job_comm" "$job_cpu"
+  printf 'pid %s (%s) using %s' "$job_pid" "$job_comm" "$(describe_cpu_load "$job_cpu" " of the machine")"
 }
 
 tick() {
