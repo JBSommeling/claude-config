@@ -8,6 +8,7 @@ Usage:
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -16,6 +17,8 @@ from pathlib import Path
 MAX_BODY_CHARS = 10000
 VALID_ACTIONS = {"post", "skip"}
 AZURE_API_VERSION = "7.1"
+GITHUB_REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f]")
 
 
 class ValidationError(Exception):
@@ -92,7 +95,7 @@ def run_with_payload_file(payload, build_command, runner):
     with tempfile.NamedTemporaryFile(
         "w", encoding="utf-8", suffix=".json", prefix="manual-pr-review-", delete=False
     ) as payload_file:
-        json.dump(payload, payload_file, ensure_ascii=False)
+        json.dump(payload, payload_file, ensure_ascii=True)
         payload_path = Path(payload_file.name)
     try:
         return runner(build_command(str(payload_path)), capture_output=True, text=True, encoding="utf-8")
@@ -147,6 +150,31 @@ def post(host, comments, head_sha=None, repo=None, number=None, org_url=None, pr
     return report
 
 
+def validate_target(arguments, review):
+    """Reject a PR number that disagrees with review.json and host values that could act as CLI options."""
+    if arguments.number != int(review["pr"]["number"]):
+        raise ValidationError(
+            f"--number {arguments.number} does not match review.json PR number {review['pr']['number']}"
+        )
+    if arguments.host == "github":
+        if not GITHUB_REPO_PATTERN.match(arguments.repo):
+            raise ValidationError("--repo must look like owner/name")
+        return
+    for option, value in (("--org-url", arguments.org_url), ("--project", arguments.project),
+                          ("--repository", arguments.repository)):
+        if not value or value.startswith("-") or CONTROL_CHARACTER.search(value):
+            raise ValidationError(f"{option} must be non-empty, not start with '-', and have no control characters")
+    if not arguments.org_url.startswith("https://"):
+        raise ValidationError("--org-url must start with https://")
+
+
+def read_json_file(path, label):
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValidationError(f"cannot read {label} ({path}): {error}")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description="Post curated review comments to a PR.")
     parser.add_argument("--review", required=True)
@@ -169,10 +197,11 @@ def main(argv=None, runner=subprocess.run):
     if arguments.host == "azure" and not (arguments.org_url and arguments.project and arguments.repository):
         parser.error("--org-url, --project and --repository are required for azure")
 
-    review = json.loads(Path(arguments.review).read_text(encoding="utf-8"))
     results_path = Path(arguments.results)
-    results = json.loads(results_path.read_text(encoding="utf-8"))
     try:
+        review = read_json_file(arguments.review, "review.json")
+        results = read_json_file(arguments.results, "results.json")
+        validate_target(arguments, review)
         comments = validate_results(review, results)
     except ValidationError as error:
         print(f"Validation failed: {error}", file=sys.stderr)

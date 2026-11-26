@@ -5,6 +5,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -37,6 +38,7 @@ class ServeTests(unittest.TestCase):
         response = connection.getresponse()
         payload = response.read()
         connection.close()
+        self.last_headers = dict(response.getheaders())
         return response.status, payload
 
     def post_results(self, payload, **kwargs):
@@ -123,6 +125,41 @@ class ServeTests(unittest.TestCase):
             "POST", "/other", "{}", {"Content-Type": "application/json"}
         )
         self.assertEqual(status, 404)
+
+
+    def assert_security_headers(self):
+        self.assertEqual(self.last_headers["X-Frame-Options"], "DENY")
+        self.assertEqual(self.last_headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(self.last_headers["Content-Security-Policy"], serve.CONTENT_SECURITY_POLICY)
+        self.assertIn("frame-ancestors 'none'", serve.CONTENT_SECURITY_POLICY)
+
+    def test_security_headers_on_get(self):
+        self.request("GET", "/")
+        self.assert_security_headers()
+
+    def test_security_headers_on_post_and_errors(self):
+        self.post_results({"reviewId": "r1", "status": "in_progress"})
+        self.assert_security_headers()
+        self.request("GET", "/nope")
+        self.assert_security_headers()
+
+    def test_non_object_json_body_rejected(self):
+        for body in ("[1, 2]", '"text"', "7", "null"):
+            with self.subTest(body):
+                status, _ = self.request(
+                    "POST", "/results.json", body, {"Content-Type": "application/json"}
+                )
+                self.assertEqual(status, 400)
+
+    def test_handler_socket_timeout(self):
+        self.assertEqual(self.server.RequestHandlerClass.timeout, 10)
+
+    def test_temp_write_failure_returns_500_and_leaves_no_temp_file(self):
+        with mock.patch.object(serve.json, "dump", side_effect=OSError("disk full")):
+            status, _ = self.post_results({"reviewId": "r1", "status": "in_progress"})
+        self.assertEqual(status, 500)
+        self.assertEqual(list(self.run_dir.glob(".results-*")), [])
+        self.assertFalse((self.run_dir / "results.json").exists())
 
 
 if __name__ == "__main__":

@@ -16,6 +16,10 @@ from pathlib import Path
 MAX_BODY_BYTES = 1024 * 1024
 ALLOWED_STATUSES = {"in_progress", "submitted"}
 DEFAULT_FORM_PATH = Path(__file__).resolve().parent.parent / "assets" / "form.html"
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+    "img-src 'self' data:; frame-ancestors 'none'"
+)
 PAGE_HEAD = (
     '<!doctype html><html><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -30,6 +34,7 @@ def build_handler(run_dir: Path, form_path: Path = DEFAULT_FORM_PATH):
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "ManualPrReviewServer"
+        timeout = 10
 
         def log_message(self, format, *args):
             pass
@@ -39,6 +44,9 @@ def build_handler(run_dir: Path, form_path: Path = DEFAULT_FORM_PATH):
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
             self.end_headers()
             self.wfile.write(body)
 
@@ -128,12 +136,18 @@ def build_handler(run_dir: Path, form_path: Path = DEFAULT_FORM_PATH):
             if submitted.get("status") not in ALLOWED_STATUSES:
                 return fail(400, "status must be 'in_progress' or 'submitted'")
 
-            with tempfile.NamedTemporaryFile(
-                "w", encoding="utf-8", dir=run_dir, prefix=".results-", suffix=".tmp", delete=False
-            ) as temp_file:
-                json.dump(submitted, temp_file, indent=2, ensure_ascii=False)
-                temp_path = temp_file.name
-            os.replace(temp_path, results_path)
+            temp_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    "w", encoding="utf-8", dir=run_dir, prefix=".results-", suffix=".tmp", delete=False
+                ) as temp_file:
+                    temp_path = temp_file.name
+                    json.dump(submitted, temp_file, indent=2, ensure_ascii=False)
+                os.replace(temp_path, results_path)
+            except OSError:
+                if temp_path is not None:
+                    Path(temp_path).unlink(missing_ok=True)
+                return fail(500, "Could not write results.json")
             self.send_json(200, {"ok": True})
             return 200, f"status={submitted['status']}"
 

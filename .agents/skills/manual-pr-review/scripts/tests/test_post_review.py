@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -122,7 +124,7 @@ class EmojiTests(unittest.TestCase):
 
         post_review.post("github", [{"id": "I1", "path": "a.py", "line": 3, "body": EMOJI_BODY}],
                          head_sha="abc", repo="o/r", number=5, runner=runner)
-        self.assertIn(EMOJI_BODY, seen["raw"])
+        self.assertTrue(seen["raw"].isascii())
         self.assertEqual(json.loads(seen["raw"])["comments"][0]["body"], EMOJI_BODY)
 
     def test_azure_payload_file_keeps_emoji(self):
@@ -136,7 +138,7 @@ class EmojiTests(unittest.TestCase):
         post_review.post("azure", [{"id": "I1", "path": "a.py", "line": 3, "body": EMOJI_BODY}],
                          number=5, org_url="https://dev.azure.com/o", project="P",
                          repository="R", runner=runner)
-        self.assertIn(EMOJI_BODY, seen["raw"])
+        self.assertTrue(seen["raw"].isascii())
         self.assertEqual(json.loads(seen["raw"])["comments"][0]["content"], EMOJI_BODY)
 
     def test_azure_thread_keeps_emoji(self):
@@ -233,6 +235,130 @@ class PostTests(unittest.TestCase):
                 "--host", "github", "--repo", "o/r", "--number", "5",
             ], runner=mock.Mock())
             self.assertNotEqual(exit_code, 0)
+
+
+class MainHarness(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.root = Path(self.directory.name)
+        self.addCleanup(self.directory.cleanup)
+        (self.root / "review.json").write_text(json.dumps(REVIEW))
+
+    def write_results(self, decisions):
+        (self.root / "results.json").write_text(json.dumps(make_results(decisions)))
+
+    def run_main(self, extra=None, runner=None, host_args=None):
+        arguments = ["--review", str(self.root / "review.json"), "--results", str(self.root / "results.json")]
+        arguments += host_args or ["--host", "github", "--repo", "o/r"]
+        arguments += extra if extra is not None else ["--number", "5"]
+        with contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()) as err:
+            try:
+                code = post_review.main(arguments, runner=runner or mock.Mock())
+            except SystemExit as exit_signal:
+                code = exit_signal.code
+        return code, out.getvalue(), err.getvalue()
+
+
+class MainBehaviorTests(MainHarness):
+    POST_BOTH = [{"id": "I1", "action": "post", "body": "a"}, {"id": "I2", "action": "post", "body": "b"}]
+
+    def test_github_nonzero_rc_fails_every_comment(self):
+        self.write_results(self.POST_BOTH)
+        failing = lambda command, **kwargs: subprocess.CompletedProcess(command, 1, "", "nope")
+        code, _, _ = self.run_main(runner=failing)
+        self.assertEqual(code, 1)
+        report = json.loads((self.root / "post-report.json").read_text())
+        self.assertEqual(report["failed"], 2)
+        self.assertEqual([failure["id"] for failure in report["failures"]], ["I1", "I2"])
+
+    def test_azure_dry_run_never_calls_runner(self):
+        self.write_results(self.POST_BOTH)
+        runner = mock.Mock()
+        code, out, _ = self.run_main(
+            extra=["--number", "5", "--dry-run"], runner=runner,
+            host_args=["--host", "azure", "--org-url", "https://dev.azure.com/o",
+                       "--project", "P", "--repository", "R"],
+        )
+        runner.assert_not_called()
+        self.assertEqual(code, 0)
+        self.assertFalse((self.root / "post-report.json").exists())
+
+    def test_stdout_counts_mixed_post_and_skip(self):
+        self.write_results([{"id": "I1", "action": "post", "body": "a"}, {"id": "I2", "action": "skip", "body": ""}])
+        ok = lambda command, **kwargs: subprocess.CompletedProcess(command, 0, "", "")
+        code, out, _ = self.run_main(runner=ok)
+        self.assertEqual(code, 0)
+        self.assertIn("posted=1 skipped=1 unpostable=1 failed=0", out)
+
+    def test_payload_file_removed_when_runner_raises(self):
+        seen = {}
+
+        def raising(command, **kwargs):
+            seen["path"] = Path(command[command.index("--input") + 1])
+            raise RuntimeError("gh exploded")
+
+        with self.assertRaises(RuntimeError):
+            post_review.post("github", [{"id": "I1", "path": "a.py", "line": 1, "body": "x"}],
+                             head_sha="abc", repo="o/r", number=5, runner=raising)
+        self.assertTrue(seen["path"].name.startswith("manual-pr-review-"))
+        self.assertFalse(seen["path"].exists())
+
+
+class MainArgumentErrorTests(MainHarness):
+    def setUp(self):
+        super().setUp()
+        self.write_results([{"id": "I1", "action": "post", "body": "a"}])
+
+    def assert_exit_two_without_posting(self, **kwargs):
+        runner = mock.Mock()
+        code, _, err = self.run_main(runner=runner, **kwargs)
+        self.assertEqual(code, 2)
+        runner.assert_not_called()
+        return err
+
+    def test_missing_repo_for_github(self):
+        self.assert_exit_two_without_posting(host_args=["--host", "github"])
+
+    def test_missing_azure_arguments(self):
+        self.assert_exit_two_without_posting(host_args=["--host", "azure", "--project", "P"])
+
+    def test_missing_number(self):
+        self.assert_exit_two_without_posting(extra=[])
+
+    def test_number_mismatch(self):
+        err = self.assert_exit_two_without_posting(extra=["--number", "6"])
+        self.assertIn("number", err)
+
+    def test_bad_github_repo_values(self):
+        for repo in ("o", "o/r/x", "o/r; rm", "-o/r bad", "o/ r", "/r", "o/"):
+            with self.subTest(repo):
+                self.assert_exit_two_without_posting(host_args=["--host", "github", "--repo", repo])
+
+    def test_bad_azure_values(self):
+        good = {"--org-url": "https://dev.azure.com/o", "--project": "P", "--repository": "R"}
+        bad_values = {
+            "--org-url": ["http://dev.azure.com/o", "ftp://x", "-https://x", "https://x\n"],
+            "--project": ["-P", "P\x07", "P\n"],
+            "--repository": ["-R", "R\x00", "R\t"],
+        }
+        for option, values in bad_values.items():
+            for value in values:
+                with self.subTest(option=option, value=value):
+                    options = dict(good, **{option: value})
+                    host_args = ["--host", "azure"] + [part for pair in options.items() for part in pair]
+                    self.assert_exit_two_without_posting(host_args=host_args)
+
+    def test_missing_review_file_has_clear_message(self):
+        (self.root / "review.json").unlink()
+        err = self.assert_exit_two_without_posting()
+        self.assertIn("review.json", err)
+        self.assertNotIn("Traceback", err)
+
+    def test_invalid_results_json_has_clear_message(self):
+        (self.root / "results.json").write_text("{nope")
+        err = self.assert_exit_two_without_posting()
+        self.assertIn("results.json", err)
+        self.assertNotIn("Traceback", err)
 
 
 if __name__ == "__main__":

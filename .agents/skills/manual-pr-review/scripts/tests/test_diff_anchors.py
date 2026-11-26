@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -177,6 +179,133 @@ class CliTests(unittest.TestCase):
             ])
             review = json.loads((root / "review.json").read_text())
             self.assertEqual(review["issues"][0]["id"], "I1")
+
+
+QUOTED_DIFF = (
+    'diff --git "a/caf\\303\\251.txt" "b/caf\\303\\251.txt"\n'
+    '--- "a/caf\\303\\251.txt"\t\n'
+    '+++ "b/caf\\303\\251.txt"\t\n'
+    "@@ -1 +1 @@\n-old\n+new\n"
+    'diff --git "a/tab\\there \\"q\\" \\\\.txt" "b/tab\\there \\"q\\" \\\\.txt"\n'
+    "--- /dev/null\n"
+    '+++ "b/tab\\there \\"q\\" \\\\.txt"\n'
+    "@@ -0,0 +1,3 @@\n+a\n+b\n+c\n"
+)
+
+
+class QuotedPathTests(unittest.TestCase):
+    def test_octal_escapes_decode_as_utf8(self):
+        files = diff_anchors.parse_diff(QUOTED_DIFF)
+        self.assertIn("caf\u00e9.txt", files)
+        self.assertEqual(files["caf\u00e9.txt"]["valid_lines"], {1})
+
+    def test_backslash_quote_and_tab_escapes(self):
+        files = diff_anchors.parse_diff(QUOTED_DIFF)
+        self.assertIn('tab\there "q" \\.txt', files)
+
+    def test_trailing_tab_on_unquoted_plus_line_is_stripped(self):
+        diff = "diff --git a/x y.txt b/x y.txt\n--- a/x y.txt\t\n+++ b/x y.txt\t\n@@ -1 +1 @@\n-a\n+b\n"
+        self.assertIn("x y.txt", diff_anchors.parse_diff(diff))
+
+
+class DiffShapeTests(unittest.TestCase):
+    def test_new_file_all_lines_valid(self):
+        diff = "diff --git a/n.py b/n.py\nnew file mode 100644\n--- /dev/null\n+++ b/n.py\n@@ -0,0 +1,3 @@\n+a\n+b\n+c\n"
+        info = diff_anchors.parse_diff(diff)["n.py"]
+        self.assertEqual(info["valid_lines"], {1, 2, 3})
+        self.assertTrue(all(entry["kind"] == "add" for entry in info["hunks"][0][1:]))
+
+    def test_hunk_header_without_counts(self):
+        diff = "diff --git a/n.py b/n.py\n--- a/n.py\n+++ b/n.py\n@@ -1 +1 @@\n-a\n+b\n"
+        self.assertEqual(diff_anchors.parse_diff(diff)["n.py"]["valid_lines"], {1})
+
+    def test_context_line_is_postable_with_context_kind(self):
+        meta = BuildReviewTests.META
+        review = diff_anchors.build_review(SAMPLE_DIFF, [make_finding("app.py", 1)], meta)
+        issue = review["issues"][0]
+        self.assertTrue(issue["postable"])
+        anchor = [entry for entry in issue["hunk"] if entry["anchor"]][0]
+        self.assertEqual(anchor["kind"], "context")
+
+    def test_binary_file_finding_is_unpostable(self):
+        diff = "diff --git a/i.png b/i.png\nindex 1..2 100644\nBinary files a/i.png and b/i.png differ\n"
+        review = diff_anchors.build_review(diff, [make_finding("i.png", 1)], BuildReviewTests.META)
+        self.assertFalse(review["issues"][0]["postable"])
+
+    def changed_lines_diff(self, count):
+        body = "".join(f"+row {number}\n" for number in range(count))
+        return f"diff --git a/big.py b/big.py\n--- a/big.py\n+++ b/big.py\n@@ -0,0 +1,{count} @@\n" + body
+
+    def test_large_diff_boundary(self):
+        meta = BuildReviewTests.META
+        self.assertEqual(diff_anchors.build_review(self.changed_lines_diff(1000), [], meta)["warnings"], [])
+        warnings = diff_anchors.build_review(self.changed_lines_diff(1001), [], meta)["warnings"]
+        self.assertEqual(len(warnings), 1)
+
+
+class FindingValidationTests(unittest.TestCase):
+    META = BuildReviewTests.META
+
+    def build_with(self, finding):
+        return diff_anchors.build_review(SAMPLE_DIFF, [finding], self.META)
+
+    def with_field(self, **overrides):
+        finding = make_finding("app.py", 3)
+        finding.update(overrides)
+        return finding
+
+    def test_invalid_findings_are_dropped_with_warning(self):
+        invalid = {
+            "severity": self.with_field(severity="Blocker"),
+            "path": self.with_field(path=""),
+            "line_zero": self.with_field(line=0),
+            "line_bool": self.with_field(line=True),
+            "line_str": self.with_field(line="3"),
+            "title_long": self.with_field(title="x" * 301),
+            "title_type": self.with_field(title=5),
+            "recommendation_long": self.with_field(recommendation="x" * 10001),
+            "reviewers": self.with_field(reviewers=[1]),
+            "missing_title": {key: value for key, value in make_finding("app.py", 3).items() if key != "title"},
+            "not_object": "oops",
+        }
+        for name, finding in invalid.items():
+            with self.subTest(name), contextlib.redirect_stderr(io.StringIO()) as captured:
+                review = self.build_with(finding)
+                self.assertEqual(review["issues"], [])
+                self.assertTrue(review["warnings"][0].startswith("Dropped finding #1: "))
+                self.assertIn("Dropped finding #1", captured.getvalue())
+
+    def test_boundary_lengths_and_default_reviewers_accepted(self):
+        finding = self.with_field(title="x" * 300, recommendation="y" * 10000)
+        del finding["reviewers"]
+        review = self.build_with(finding)
+        self.assertEqual(len(review["issues"]), 1)
+        self.assertEqual(review["issues"][0]["reviewers"], [])
+        self.assertEqual(review["warnings"], [])
+
+    def test_finding_number_is_one_based_position(self):
+        bad = self.with_field(severity="Nope")
+        with contextlib.redirect_stderr(io.StringIO()):
+            review = diff_anchors.build_review(SAMPLE_DIFF, [make_finding("app.py", 3), bad], self.META)
+        self.assertEqual(len(review["issues"]), 1)
+        self.assertTrue(review["warnings"][0].startswith("Dropped finding #2: "))
+
+
+class NonAsciiCliTests(unittest.TestCase):
+    def test_non_ascii_round_trips_through_main(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            finding = make_finding("app.py", 3, title="caf\u00e9 \U0001F44D")
+            (root / "pr.diff").write_bytes(SAMPLE_DIFF.replace("line one", "na\u00efve").encode("utf-8"))
+            (root / "findings.json").write_text(json.dumps([finding], ensure_ascii=False), encoding="utf-8")
+            (root / "meta.json").write_text(json.dumps(BuildReviewTests.META))
+            diff_anchors.main([
+                "--diff", str(root / "pr.diff"), "--findings", str(root / "findings.json"),
+                "--meta", str(root / "meta.json"), "--out", str(root / "review.json"),
+            ])
+            raw = (root / "review.json").read_text(encoding="utf-8")
+            self.assertIn("caf\u00e9 \U0001F44D", raw)
+            self.assertIn("na\u00efve", raw)
 
 
 if __name__ == "__main__":

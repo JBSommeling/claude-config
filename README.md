@@ -114,6 +114,10 @@ Four `PreToolUse` hooks back up the routing rules. Each can be bypassed for one 
 
 On macOS, `install.sh --claude` also installs a launchd agent that checks every 30 seconds for agent-started jobs holding high CPU, warns after 2 minutes and stops the heaviest job after 5. Skip it with `--no-watchdog`; pause it with `touch ~/.claude/watchdog/paused`. See [docs/watchdog/cpu-watchdog.md](docs/watchdog/cpu-watchdog.md).
 
+### Tests
+
+Run the `/manual-pr-review` script tests with `python3 -m unittest discover -s .agents/skills/manual-pr-review/scripts/tests`.
+
 ### On Codex
 
 - **Effort** is capped at medium for every Codex agent.
@@ -141,8 +145,8 @@ Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several sk
 **Review and test**
 - `/review` — five-axis review: correctness, readability, architecture, security, performance
 - `/review-cycle` — loop `/review` and fixes until green, emitting residuals
-- `/review-pr` — post inline comments on a GitHub PR
-- `/manual-pr-review <pr> [--copilot] [--share]` — review a GitHub or Azure DevOps PR, curate findings in a form with GitHub-style diff hunks, and post only the selected inline comments
+- `/review-pr` — post inline comments on a GitHub PR (automatic, GitHub only)
+- `/manual-pr-review <pr> [--copilot] [--share]` — human-curated review of a GitHub or Azure DevOps PR: you edit, post or skip each finding in a form with GitHub-style diff hunks, and only the comments you select are posted
 - `/test-adversarial` — find coverage gaps with proof, ranked by blast radius
 - `/manual-test-plan [branch | uncommitted | <base>..<head> | pr <n>] [--share]` — alias of `/test-plan`, with the same args
 - `/test-plan [branch | uncommitted | <base>..<head> | pr <n>] [--share]` — business-logic test plan as a pass/fail form, served locally or as a shareable claude.ai artifact with `--share`; triages failures, fixes confirmed bugs, and offers a re-test

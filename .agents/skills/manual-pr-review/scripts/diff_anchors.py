@@ -12,7 +12,43 @@ from pathlib import Path
 
 SEVERITY_ORDER = {"Critical": 0, "Important": 1, "Suggestion": 2, "Nit": 3}
 LARGE_DIFF_CHANGED_LINES = 1000
+MAX_TITLE_CHARS = 300
+MAX_RECOMMENDATION_CHARS = 10000
+C_ESCAPES = {"\\": b"\\", '"': b'"', "t": b"\t", "n": b"\n", "r": b"\r", "a": b"\a", "b": b"\b", "f": b"\f", "v": b"\v"}
+OCTAL_ESCAPE = re.compile(r"[0-7]{1,3}")
 HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
+
+def unquote_git_path(text):
+    """Decode a git C-quoted path ("caf\\303\\251.txt"); unquoted text is returned unchanged."""
+    if not (len(text) >= 2 and text.startswith('"') and text.endswith('"')):
+        return text
+    inner = text[1:-1]
+    decoded = bytearray()
+    position = 0
+    while position < len(inner):
+        character = inner[position]
+        if character != "\\" or position + 1 >= len(inner):
+            decoded += character.encode("utf-8")
+            position += 1
+            continue
+        octal_match = OCTAL_ESCAPE.match(inner, position + 1)
+        if octal_match:
+            decoded.append(int(octal_match.group(), 8) & 0xFF)
+            position = octal_match.end()
+        else:
+            decoded += C_ESCAPES.get(inner[position + 1], inner[position + 1].encode("utf-8"))
+            position += 2
+    return decoded.decode("utf-8", errors="replace")
+
+
+def diff_header_new_path(header_line):
+    """Best-effort new path from a `diff --git` line; the `+++` line overrides it when present."""
+    quoted_match = re.search(r' ("b/(?:[^"\\]|\\.)*")$', header_line)
+    if quoted_match:
+        return unquote_git_path(quoted_match.group(1))[2:]
+    path_match = re.search(r" b/(.+)$", header_line)
+    return path_match.group(1) if path_match else None
 
 
 def parse_diff(diff_text):
@@ -25,13 +61,13 @@ def parse_diff(diff_text):
         if raw_line.startswith("diff --git"):
             current = None
             in_hunk = False
-            path_match = re.search(r" b/(.+)$", raw_line)
-            if path_match:
+            header_path = diff_header_new_path(raw_line)
+            if header_path is not None:
                 current = files.setdefault(
-                    path_match.group(1), {"valid_lines": set(), "hunks": [], "changed": 0}
+                    header_path, {"valid_lines": set(), "hunks": [], "changed": 0}
                 )
         elif not in_hunk and raw_line.startswith("+++ "):
-            target = raw_line[4:].strip()
+            target = unquote_git_path(raw_line[4:].rstrip("\t\r"))
             if target == "/dev/null":
                 continue
             if target.startswith("b/") and current is not None:
@@ -93,10 +129,41 @@ def excerpt_for(file_info, line, context):
     return []
 
 
+def finding_problem(finding):
+    """Return why a finding is malformed, or None when it is valid."""
+    if not isinstance(finding, dict):
+        return "finding is not an object"
+    if finding.get("severity") not in SEVERITY_ORDER:
+        return f"severity must be one of {', '.join(SEVERITY_ORDER)}"
+    path = finding.get("path")
+    if not isinstance(path, str) or not path:
+        return "path must be a non-empty string"
+    line = finding.get("line")
+    if isinstance(line, bool) or not isinstance(line, int) or line < 1:
+        return "line must be an integer >= 1"
+    title = finding.get("title")
+    if not isinstance(title, str) or len(title) > MAX_TITLE_CHARS:
+        return f"title must be a string of at most {MAX_TITLE_CHARS} characters"
+    recommendation = finding.get("recommendation")
+    if not isinstance(recommendation, str) or len(recommendation) > MAX_RECOMMENDATION_CHARS:
+        return f"recommendation must be a string of at most {MAX_RECOMMENDATION_CHARS} characters"
+    reviewers = finding.get("reviewers", [])
+    if not isinstance(reviewers, list) or not all(isinstance(name, str) for name in reviewers):
+        return "reviewers must be a list of strings"
+    return None
+
+
 def build_review(diff_text, findings, meta, context=3):
     files = parse_diff(diff_text)
     issues = []
-    for finding in findings:
+    drop_warnings = []
+    for finding_number, finding in enumerate(findings, start=1):
+        problem = finding_problem(finding)
+        if problem:
+            message = f"Dropped finding #{finding_number}: {problem}"
+            drop_warnings.append(message)
+            print(message, file=sys.stderr)
+            continue
         file_info = files.get(finding["path"])
         hunk = []
         reason = None
@@ -122,7 +189,7 @@ def build_review(diff_text, findings, meta, context=3):
         issue["id"] = f"I{position}"
     issues = [{"id": issue.pop("id"), **issue} for issue in issues]
 
-    warnings = list(meta.get("warnings", []))
+    warnings = list(meta.get("warnings", [])) + drop_warnings
     changed_lines = sum(info["changed"] for info in files.values())
     if changed_lines > LARGE_DIFF_CHANGED_LINES:
         warnings.append(

@@ -692,9 +692,8 @@
     const postableIds = new Set(postableIssues().map((issue) => issue.id));
     for (const decision of source) {
       if (!decision || !postableIds.has(decision.id) || !ACTIONS.includes(decision.action)) continue;
-      const issue = state.issueList.find((candidate) => candidate.id === decision.id);
       const savedBody = typeof decision.body === "string" ? decision.body : "";
-      state.decisions[decision.id] = { action: decision.action, body: savedBody || (issue.recommendation || "") };
+      state.decisions[decision.id] = { action: decision.action, body: savedBody };
     }
   }
 
