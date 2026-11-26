@@ -17,8 +17,8 @@ REVIEW = {
     "pr": {"host": "github", "url": "u", "number": 5, "title": "T", "headSha": "abc123"},
     "warnings": [],
     "issues": [
-        {"id": "I1", "path": "a.py", "line": 3, "postable": True, "unpostableReason": None},
-        {"id": "I2", "path": "b.py", "line": 9, "postable": True, "unpostableReason": None},
+        {"id": "I1", "path": "a.py", "line": 3, "recommendation": "rec one", "postable": True, "unpostableReason": None},
+        {"id": "I2", "path": "b.py", "line": 9, "recommendation": "rec two", "postable": True, "unpostableReason": None},
         {"id": "I3", "path": "c.py", "line": 1, "postable": False, "unpostableReason": "file not in diff"},
     ],
 }
@@ -59,8 +59,27 @@ class ValidateTests(unittest.TestCase):
     def test_bad_action(self):
         self.assert_rejected(make_results([{"id": "I1", "action": "delete", "body": "x"}]), "action")
 
-    def test_empty_body(self):
-        self.assert_rejected(make_results([{"id": "I1", "action": "post", "body": "   "}]), "body")
+    def test_empty_body_posts_recommendation(self):
+        for body in ("", "   \n"):
+            comments = post_review.validate_results(
+                REVIEW, make_results([{"id": "I1", "action": "post", "body": body}])
+            )
+            self.assertEqual(comments[0]["body"], "rec one")
+
+    def test_missing_body_posts_recommendation(self):
+        comments = post_review.validate_results(REVIEW, make_results([{"id": "I2", "action": "post"}]))
+        self.assertEqual(comments[0]["body"], "rec two")
+
+    def test_override_body_posted_verbatim(self):
+        comments = post_review.validate_results(
+            REVIEW, make_results([{"id": "I1", "action": "post", "body": "  mine \n"}])
+        )
+        self.assertEqual(comments[0]["body"], "  mine \n")
+
+    def test_empty_body_without_recommendation_rejected(self):
+        review = {**REVIEW, "issues": [{**REVIEW["issues"][0], "recommendation": ""}]}
+        with self.assertRaises(post_review.ValidationError):
+            post_review.validate_results(review, make_results([{"id": "I1", "action": "post", "body": ""}]))
 
     def test_non_string_body(self):
         self.assert_rejected(make_results([{"id": "I1", "action": "post", "body": 5}]), "body")

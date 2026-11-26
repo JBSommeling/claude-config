@@ -1,6 +1,6 @@
 ---
 name: manual-pr-review
-description: Review an existing GitHub or Azure DevOps pull request with the reviewer agents, let the human curate every finding in an HTML form (GitHub-style diff hunk, editable comment, post/skip), then post only the curated inline comments to the PR. Local browser page by default, shareable claude.ai artifact with --share. Use when the user says "/manual-pr-review", "review this PR manually", "curate review comments", "post selected review comments on a PR", or "review PR and let me pick the comments".
+description: Review an existing GitHub or Azure DevOps pull request with the reviewer agents, let the human curate every finding in an HTML form (GitHub-style diff hunk, read-only recommendation, optional comment override that starts empty, post/skip; the recommendations shown are the plain-English versions), then post only the curated inline comments to the PR. Local browser page by default, shareable claude.ai artifact with --share. Use when the user says "/manual-pr-review", "review this PR manually", "curate review comments", "post selected review comments on a PR", or "review PR and let me pick the comments".
 ---
 
 # Manual PR Review
@@ -88,6 +88,8 @@ With `--copilot`: follow the Diff section of `/copilot-rubber-duck`, but feed it
 
 Merge findings: same path, lines within about 3, same underlying problem → one issue, reviewers unioned, highest severity kept.
 
+Then, before `findings.json` is written, rewrite every merged finding's `title` and `recommendation` following the `/plain` rules (read the `plain` command for the rules): keep every fact, lead with the problem and the fix, one idea per sentence, gloss or drop jargon, concrete nouns and verbs, no preamble or closing summary. Keep file paths, identifiers and code in backticks, and include a short code snippet of the fix where it makes the change concrete. Work only from the reviewer's finding and the diff; do not invent new claims. The orchestrator does this inline; it already holds the findings.
+
 Delegate writing `findings.json` and `meta.json` to the `implementer` agent. Then run:
 
 ```bash
@@ -123,7 +125,7 @@ The page saves by republishing `results.json`. Never claim a watch the publish r
 2. Re-fetch the PR head SHA (`headRefOid` / `lastMergeSourceCommit.commitId`). If it differs from `meta.json` `headSha`:
    - GitHub: AskUserQuestion with "post anyway against the reviewed commit" or "abort".
    - Azure DevOps: abort only, because threads would attach to the newest iteration. Tell the user to re-run.
-3. Share mode only: print each comment to post (id, `path:line`, first 80 characters of body) and confirm with AskUserQuestion; abort on no.
+3. Share mode only: print each comment to post (id, `path:line`, first 80 characters of the effective body, marked "(recommendation)" when `body` is empty or whitespace-only, else "(your comment)") and confirm with AskUserQuestion; abort on no.
 4. Post:
 
 ```bash
@@ -160,10 +162,10 @@ Per issue: `id`, `severity`, `reviewers`, `path`, `line`, `title`, `recommendati
 
 ```json
 {"reviewId": "...", "status": "in_progress | submitted", "savedAt": "<ISO-8601>",
- "decisions": [{"id": "I1", "action": "post | skip", "body": "comment text"}]}
+ "decisions": [{"id": "I1", "action": "post | skip", "body": "optional override"}]}
 ```
 
-Comment bodies are UTF-8. Emoji post as-is on both GitHub and Azure DevOps.
+`body` is the human's optional override. For `post`, a non-empty body (after trim) is posted verbatim; an empty or missing body posts the issue's `recommendation` from `review.json`. `skip` posts nothing. Bodies are at most 10000 characters and UTF-8. Emoji post as-is on both GitHub and Azure DevOps.
 
 ## Rules
 

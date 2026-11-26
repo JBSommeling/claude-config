@@ -270,6 +270,9 @@
   .emoji-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
   .emoji-btn { cursor: pointer; padding: 2px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 2px; font-size: 16px; line-height: 1.4; }
   .emoji-btn:hover { border-color: var(--fg); }
+  .recommendation-block { margin: 12px 0 8px; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface-sunken); }
+  .recommendation-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .issue[data-action="skip"] .comment-fields { opacity: 0.5; }
   .field-error { color: var(--fail); font-size: 13px; font-weight: 600; }
 
   .actions { margin-top: 32px; display: grid; gap: 12px; }
@@ -364,7 +367,7 @@
     return element;
   }
 
-  function draftKey() { return "manual-pr-review-draft:" + state.review.reviewId; }
+  function draftKey() { return "manual-pr-review-draft-v2:" + state.review.reviewId; }
 
   function readDraft() {
     try {
@@ -479,7 +482,7 @@
 
     if (issue.hunk && issue.hunk.length) card.append(buildDiffTable(issue.hunk));
 
-    const bodyField = createElement("textarea", { attributes: { id: `${issue.id}-body`, rows: "4", placeholder: "Comment to post on this line" } });
+    const bodyField = createElement("textarea", { attributes: { id: `${issue.id}-body`, rows: "4", placeholder: "Leave empty to post the recommendation as-is" } });
     bodyField.addEventListener("input", () => { ensureDecision(issue.id).body = bodyField.value; onChange(issue.id); });
     const emojiRow = createElement("div", { className: "emoji-row", attributes: { role: "group", "aria-label": "Quick insert emoji" } });
     for (const [emoji, emojiName] of EMOJI_CHOICES) {
@@ -495,8 +498,13 @@
     }
     const bodyError = createElement("p", { className: "field-error", attributes: { id: `${issue.id}-body-error` } });
     bodyError.hidden = true;
-    const bodyWrapper = createElement("div", {}, [
-      createElement("label", { text: "Comment", attributes: { for: `${issue.id}-body` } }),
+    const recommendationBlock = createElement("div", { className: "recommendation-block" }, [
+      createElement("div", { className: "field-label", text: "Recommendation" }),
+      createElement("p", { className: "recommendation-text", text: issue.recommendation || "(none)" }),
+    ]);
+    const bodyWrapper = createElement("div", { className: "comment-fields" }, [
+      recommendationBlock,
+      createElement("label", { text: "Your comment (optional \u2014 replaces the recommendation)", attributes: { for: `${issue.id}-body` } }),
       bodyField,
       emojiRow,
       bodyError,
@@ -508,8 +516,7 @@
 
   function ensureDecision(issueId) {
     if (!state.decisions[issueId]) {
-      const issue = state.issueList.find((candidate) => candidate.id === issueId);
-      state.decisions[issueId] = { action: "post", body: (issue && issue.recommendation) || "" };
+      state.decisions[issueId] = { action: "post", body: "" };
     }
     return state.decisions[issueId];
   }
@@ -539,8 +546,7 @@
       button.tabIndex = action === decision.action ? 0 : -1;
     }
     if (parts.bodyField.value !== decision.body) parts.bodyField.value = decision.body;
-    parts.bodyWrapper.hidden = decision.action === "skip";
-    if (decision.action === "skip" || decision.body.trim()) parts.bodyError.hidden = true;
+    if (decision.action === "skip" || decision.body.length <= MAX_BODY_LENGTH) parts.bodyError.hidden = true;
   }
 
   function countActions() {
@@ -582,7 +588,7 @@
       const decision = ensureDecision(issue.id);
       parts.bodyError.hidden = true;
       if (decision.action !== "post") continue;
-      const problem = !decision.body.trim() ? "Add a comment or switch this issue to Skip." : decision.body.length > MAX_BODY_LENGTH ? `Comment is longer than ${MAX_BODY_LENGTH} characters.` : "";
+      const problem = decision.body.length > MAX_BODY_LENGTH ? `Comment is longer than ${MAX_BODY_LENGTH} characters.` : "";
       if (problem) {
         parts.bodyError.textContent = problem;
         parts.bodyError.hidden = false;
@@ -658,7 +664,7 @@
     elementById("confirm-strip").hidden = true;
     const invalidId = validateBodies();
     if (invalidId) {
-      showErrorStrip("Some comments to post are empty or too long. Fix the highlighted issues and submit again.");
+      showErrorStrip("Some comments are too long. Fix the highlighted issues and submit again.");
       state.partsById[invalidId].card.scrollIntoView({ block: "center" });
       return;
     }

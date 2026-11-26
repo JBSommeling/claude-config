@@ -57,11 +57,15 @@ def validate_results(review, results):
         issue = issues_by_id[decision_id]
         if not issue.get("postable"):
             raise ValidationError(f"{decision_id}: cannot post on an unpostable issue")
-        body = decision.get("body")
-        if not isinstance(body, str) or not body.strip():
-            raise ValidationError(f"{decision_id}: body must be a non-empty string")
+        body = decision.get("body", "")
+        if not isinstance(body, str):
+            raise ValidationError(f"{decision_id}: body must be a string")
         if len(body) > MAX_BODY_CHARS:
             raise ValidationError(f"{decision_id}: body exceeds {MAX_BODY_CHARS} characters")
+        if not body.strip():
+            body = issue.get("recommendation")
+            if not isinstance(body, str) or not body.strip():
+                raise ValidationError(f"{decision_id}: no comment given and the issue has no recommendation")
         comments.append({"id": decision_id, "path": issue["path"], "line": issue["line"], "body": body})
     return comments
 
