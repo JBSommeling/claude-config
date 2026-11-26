@@ -90,7 +90,7 @@ On Claude, every agent uses the bare model alias (`haiku`, `sonnet`, `opus`), so
 ### Repository layout
 
 ```
-.agents/           shared content: 7 agent bodies, 28 workflows, 21 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 28 workflows, 20 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          7 architecture decision records
@@ -118,7 +118,7 @@ On macOS, `install.sh --claude` also installs a launchd agent that checks every 
 
 - **Effort** is capped at medium for every Codex agent.
 - **Delegation and commit ownership** are enforced *detectively*, not preventively, because the shipped release doesn't reliably populate `agent_id`/`agent_type` ([ADR 0003](docs/adr/0003-detective-delegation-enforcement-on-codex.md)). Both hooks ship enabled and no-op until Codex populates those fields; then they become preventive with no config change. Push protection and CPU-load blocking are already preventive.
-- **Naming.** `diagnose`, `manual-pr-review`, `manual-test-plan`, `tdd`, and `zoom-out` collide with skill names in Codex's single namespace, so they install with a `-workflow` suffix.
+- **Naming.** `diagnose`, `manual-pr-review`, `tdd`, and `zoom-out` collide with skill names in Codex's single namespace, so they install with a `-workflow` suffix.
 
 ## Commands
 
@@ -144,7 +144,7 @@ Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several sk
 - `/review-pr` — post inline comments on a GitHub PR
 - `/manual-pr-review <pr> [--copilot] [--share]` — review a GitHub or Azure DevOps PR, curate findings in a form with GitHub-style diff hunks, and post only the selected inline comments
 - `/test-adversarial` — find coverage gaps with proof, ranked by blast radius
-- `/manual-test-plan` — per-step plan with literal expected outputs
+- `/manual-test-plan [branch | uncommitted | <base>..<head> | pr <n>] [--share]` — alias of `/test-plan`, with the same args
 - `/test-plan [branch | uncommitted | <base>..<head> | pr <n>] [--share]` — business-logic test plan as a pass/fail form, served locally or as a shareable claude.ai artifact with `--share`; triages failures, fixes confirmed bugs, and offers a re-test
 - `/ship` — pre-launch checklist ending in go/no-go
 
@@ -186,7 +186,6 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `code-simplification` | Working-but-messy code, behavior unchanged |
 | `improve-codebase-architecture` | Consolidating coupled modules; more testable, AI-navigable code |
 | `security-and-hardening` | Untrusted input, auth, sessions, storage, third-party integrations |
-| `manual-test-plan` | Per-step manual plan with literal expected outputs |
 | `manual-pr-review` | Reviewing a GitHub or Azure DevOps PR with a human-curated form before posting inline comments |
 | `interactive-test-plan` | Business-logic test plan as a pass/fail form, with failures triaged and confirmed bugs fixed from the results |
 | `grill-with-docs` | Challenging a plan against the domain model, updating `CONTEXT.md` and ADRs |
