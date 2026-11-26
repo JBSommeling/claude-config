@@ -14,6 +14,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from diff_anchors import parse_diff
+
 MAX_BODY_CHARS = 10000
 VALID_ACTIONS = {"post", "skip"}
 AZURE_API_VERSION = "7.1"
@@ -68,6 +70,34 @@ def validate_results(review, results):
                 raise ValidationError(f"{decision_id}: no comment given and the issue has no recommendation")
         comments.append({"id": decision_id, "path": issue["path"], "line": issue["line"], "body": body})
     return comments
+
+
+def parse_skip_ids(raw_skip_ids, comments):
+    """Return the set of ids to drop; each must be a comment currently being posted."""
+    skip_ids = {item.strip() for item in (raw_skip_ids or "").split(",") if item.strip()}
+    posting_ids = {comment["id"] for comment in comments}
+    for skip_id in sorted(skip_ids - posting_ids):
+        raise ValidationError(f"--skip-ids: {skip_id} is not a comment being posted")
+    return skip_ids
+
+
+def validate_line_overrides(overrides, comments, files):
+    """Check overrides are {posted id: right-side line of that comment's path}."""
+    if not isinstance(overrides, dict):
+        raise ValidationError("line overrides must be a JSON object")
+    comments_by_id = {comment["id"]: comment for comment in comments}
+    for override_id, line in overrides.items():
+        if override_id not in comments_by_id:
+            raise ValidationError(f"line override {override_id}: not a comment being posted")
+        if isinstance(line, bool) or not isinstance(line, int):
+            raise ValidationError(f"line override {override_id}: line must be an integer")
+        check_right_side_line(override_id, comments_by_id[override_id]["path"], line, files)
+
+
+def check_right_side_line(comment_id, path, line, files):
+    file_info = files.get(path)
+    if file_info is None or line not in file_info["valid_lines"]:
+        raise ValidationError(f"{comment_id}: line {line} of {path} is not a right-side line of the diff")
 
 
 def github_payload(head_sha, comments):
@@ -179,6 +209,13 @@ def read_json_file(path, label):
         raise ValidationError(f"cannot read {label} ({path}): {error}")
 
 
+def read_text_file(path, label):
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise ValidationError(f"cannot read {label} ({path}): {error}")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description="Post curated review comments to a PR.")
     parser.add_argument("--review", required=True)
@@ -190,6 +227,9 @@ def build_parser():
     parser.add_argument("--project", help="Azure DevOps project")
     parser.add_argument("--repository", help="Azure DevOps repository")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--diff", help="PR diff; every posted line is re-checked against it")
+    parser.add_argument("--line-overrides", help='JSON file {"I3": 58}; requires --diff')
+    parser.add_argument("--skip-ids", help="Comma-separated ids to drop from the posting set")
     return parser
 
 
@@ -207,6 +247,18 @@ def main(argv=None, runner=subprocess.run):
         results = read_json_file(arguments.results, "results.json")
         validate_target(arguments, review)
         comments = validate_results(review, results)
+        if arguments.line_overrides and not arguments.diff:
+            raise ValidationError("--line-overrides requires --diff")
+        skip_ids = parse_skip_ids(arguments.skip_ids, comments)
+        comments = [comment for comment in comments if comment["id"] not in skip_ids]
+        if arguments.diff:
+            files = parse_diff(read_text_file(arguments.diff, "diff"))
+            if arguments.line_overrides:
+                overrides = read_json_file(arguments.line_overrides, "line overrides")
+                validate_line_overrides(overrides, comments, files)
+                comments = [{**comment, "line": overrides.get(comment["id"], comment["line"])} for comment in comments]
+            for comment in comments:
+                check_right_side_line(comment["id"], comment["path"], comment["line"], files)
     except ValidationError as error:
         print(f"Validation failed: {error}", file=sys.stderr)
         return 2

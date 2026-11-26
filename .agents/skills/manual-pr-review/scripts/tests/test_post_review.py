@@ -380,5 +380,111 @@ class MainArgumentErrorTests(MainHarness):
         self.assertNotIn("Traceback", err)
 
 
+OVERRIDE_DIFF = """diff --git a/a.py b/a.py
+--- a/a.py
++++ b/a.py
+@@ -1,3 +1,4 @@
+ one
++two
+ three
+ four
+diff --git a/b.py b/b.py
+--- a/b.py
++++ b/b.py
+@@ -8,2 +8,3 @@
+ eight
++nine
+ ten
+"""
+
+
+class LineOverrideTests(MainHarness):
+    BOTH = [{"id": "I1", "action": "post", "body": "a"}, {"id": "I2", "action": "post", "body": "b"}]
+
+    def setUp(self):
+        super().setUp()
+        (self.root / "pr.diff").write_text(OVERRIDE_DIFF)
+        self.write_results(self.BOTH)
+
+    def write_overrides(self, overrides):
+        (self.root / "overrides.json").write_text(json.dumps(overrides))
+
+    def run_with(self, overrides=None, diff=True, skip_ids=None, host_args=None):
+        extra = ["--number", "5", "--dry-run"]
+        if diff:
+            extra += ["--diff", str(self.root / "pr.diff")]
+        if overrides is not None:
+            self.write_overrides(overrides)
+            extra += ["--line-overrides", str(self.root / "overrides.json")]
+        if skip_ids:
+            extra += ["--skip-ids", skip_ids]
+        return self.run_main(extra=extra, host_args=host_args)
+
+    def test_github_override_changes_payload_line(self):
+        code, out, _ = self.run_with({"I1": 2})
+        self.assertEqual(code, 0)
+        lines = {entry["path"]: entry["line"] for entry in json.loads(out.split("\nposted=")[0])["comments"]}
+        self.assertEqual(lines, {"a.py": 2, "b.py": 9})
+
+    def test_azure_override_changes_payload_line(self):
+        host_args = ["--host", "azure", "--org-url", "https://dev.azure.com/o", "--project", "p", "--repository", "r"]
+        code, out, _ = self.run_with({"I1": 2}, host_args=host_args)
+        self.assertEqual(code, 0)
+        self.assertIn('"line": 2', out)
+        self.assertNotIn('"line": 3', out)
+
+    def test_override_outside_diff_rejected(self):
+        code, _, err = self.run_with({"I1": 50})
+        self.assertEqual(code, 2)
+        self.assertIn("I1", err)
+
+    def test_override_for_decision_skipped_id_rejected(self):
+        self.write_results([{"id": "I1", "action": "post", "body": "a"}, {"id": "I2", "action": "skip", "body": ""}])
+        code, _, err = self.run_with({"I2": 9})
+        self.assertEqual(code, 2)
+        self.assertIn("I2", err)
+
+    def test_override_for_unknown_id_rejected(self):
+        code, _, _ = self.run_with({"I9": 2})
+        self.assertEqual(code, 2)
+
+    def test_override_with_non_integer_rejected(self):
+        code, _, _ = self.run_with({"I1": "2"})
+        self.assertEqual(code, 2)
+        code, _, _ = self.run_with({"I1": True})
+        self.assertEqual(code, 2)
+
+    def test_override_without_diff_rejected(self):
+        code, _, err = self.run_with({"I1": 2}, diff=False)
+        self.assertEqual(code, 2)
+        self.assertIn("--diff", err)
+
+    def test_diff_rechecks_posted_lines(self):
+        (self.root / "pr.diff").write_text(OVERRIDE_DIFF.replace("+8,3", "+20,3"))
+        code, _, err = self.run_with()
+        self.assertEqual(code, 2)
+        self.assertIn("I2", err)
+
+    def test_diff_without_overrides_passes(self):
+        code, _, _ = self.run_with()
+        self.assertEqual(code, 0)
+
+    def test_skip_ids_removes_comment_from_payload(self):
+        code, out, _ = self.run_with(skip_ids="I1")
+        self.assertEqual(code, 0)
+        paths = [entry["path"] for entry in json.loads(out.split("\nposted=")[0])["comments"]]
+        self.assertEqual(paths, ["b.py"])
+
+    def test_skip_ids_must_be_in_posting_set(self):
+        self.write_results([{"id": "I1", "action": "post", "body": "a"}, {"id": "I2", "action": "skip", "body": ""}])
+        code, _, err = self.run_with(skip_ids="I2")
+        self.assertEqual(code, 2)
+        self.assertIn("I2", err)
+
+    def test_override_for_check_skipped_id_rejected(self):
+        code, _, _ = self.run_with({"I1": 2}, skip_ids="I1")
+        self.assertEqual(code, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
