@@ -1,0 +1,741 @@
+<meta charset="utf-8">
+<title>Manual PR Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root {
+    --bg: #f2f3f1;
+    --surface: #ffffff;
+    --surface-sunken: #e9ebe8;
+    --fg: #1b2124;
+    --fg-muted: #566268;
+    --border: #cdd2d0;
+    --border-strong: #8d9798;
+    --accent: #1d5c80;
+    --accent-fg: #ffffff;
+    --focus: #1d5c80;
+    --pass: #1f7a45;
+    --pass-bg: #dff1e5;
+    --fail: #b3261e;
+    --fail-bg: #f8e1df;
+    --warn: #a15c00;
+    --warn-bg: #fbebd0;
+    --skip: #5c6670;
+    --diff-add-bg: #e6ffec;
+    --diff-add-num-bg: #ccffd8;
+    --diff-del-bg: #ffebe9;
+    --diff-del-num-bg: #ffd7d5;
+    --diff-header-bg: #ddf4ff;
+    --diff-header-fg: #566268;
+    --diff-anchor-accent: #bf8700;
+    --font-body: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181a;
+      --surface: #1c2225;
+      --surface-sunken: #111516;
+      --fg: #e4e8e8;
+      --fg-muted: #9aa6a9;
+      --border: #333c40;
+      --border-strong: #6a777b;
+      --accent: #6cb4da;
+      --accent-fg: #0c1417;
+      --focus: #6cb4da;
+      --pass: #5fcf8a;
+      --pass-bg: #17301f;
+      --fail: #ff8a80;
+      --fail-bg: #3a1a18;
+      --warn: #f0b050;
+      --warn-bg: #35270f;
+      --skip: #a3adb6;
+      --diff-add-bg: #12261e;
+      --diff-add-num-bg: #1a4028;
+      --diff-del-bg: #2d1517;
+      --diff-del-num-bg: #4a1d20;
+      --diff-header-bg: #11263a;
+      --diff-header-fg: #9aa6a9;
+      --diff-anchor-accent: #e3b341;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding-block: 0 64px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  h1, h2, h3, p { margin: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .state-panel {
+    margin-top: 48px;
+    padding: 24px;
+    border: 1px dashed var(--border-strong);
+    background: var(--surface);
+  }
+  .state-panel h2 { font-size: 18px; margin-bottom: 8px; }
+  .state-panel p { color: var(--fg-muted); }
+  .state-panel code { font-family: var(--font-mono); font-size: 13px; }
+  .loading-bar { height: 4px; margin-top: 16px; background: var(--surface-sunken); overflow: hidden; }
+  .loading-bar::after {
+    content: "";
+    display: block;
+    width: 35%;
+    height: 100%;
+    background: var(--accent);
+    animation: sweep 1.2s ease-in-out infinite;
+  }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+  .review-header { padding-top: 28px; display: grid; gap: 12px; }
+  .run-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+  .review-header h1 { font-size: 26px; line-height: 1.2; overflow-wrap: anywhere; }
+  .review-header h1 a { color: var(--accent); text-decoration: none; }
+  .review-header h1 a:hover { text-decoration: underline; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--fg-muted); }
+  .meta-row span { min-width: 0; overflow-wrap: anywhere; }
+  .meta-row b { font-family: var(--font-mono); font-weight: 600; color: var(--fg); }
+
+  .toolbar {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 5;
+    margin-top: 20px;
+    padding-block: 10px;
+    background: var(--bg);
+    border-bottom: 2px solid var(--border-strong);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 16px;
+  }
+  .summary-text { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .count-chip {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 8px;
+    border: 1px solid currentColor;
+    font-variant-numeric: tabular-nums;
+  }
+  .count-post { color: var(--pass); }
+  .count-skip { color: var(--skip); }
+  .count-unpostable { color: var(--warn); }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 88px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    padding: 6px 8px;
+    border-radius: 2px;
+  }
+  label { font-size: 13px; color: var(--fg-muted); }
+
+  .btn {
+    cursor: pointer;
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--fg); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+
+  .notice {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .notice p { min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; }
+  .notice ul { margin: 0; padding-left: 18px; flex: 1 1 100%; }
+  .notice-error { border-color: var(--fail); background: var(--fail-bg); }
+  .notice-warn { border-color: var(--warn); background: var(--warn-bg); }
+
+  .done-panel { margin-top: 20px; padding: 20px; border: 2px solid var(--pass); background: var(--pass-bg); }
+  .done-panel h2 { font-size: 20px; color: var(--pass); }
+
+  .issues { margin-top: 24px; display: grid; gap: 14px; }
+  .issue {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 6px solid var(--pass);
+    padding: 14px 16px;
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+  .issue[data-action="skip"] { border-left-color: var(--skip); }
+  .issue[data-action="skip"] .issue-title { color: var(--fg-muted); }
+  .issue[data-postable="false"] { border-left-color: var(--border-strong); opacity: 0.7; }
+  .issue-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .issue-id { font-family: var(--font-mono); font-weight: 700; font-size: 13px; }
+  .issue-title { font-size: 17px; font-weight: 650; min-width: 0; overflow-wrap: anywhere; flex: 1 1 200px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 6px;
+    border: 1px solid var(--border-strong);
+    color: var(--fg-muted);
+  }
+  .sev-critical { color: var(--fail); border-color: var(--fail); font-weight: 700; }
+  .sev-important { color: var(--warn); border-color: var(--warn); font-weight: 700; }
+  .sev-suggestion { color: var(--accent); border-color: var(--accent); }
+  .sev-nit { color: var(--fg-muted); }
+  .location { font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted); overflow-wrap: anywhere; min-width: 0; }
+  .unpostable-reason { color: var(--warn); font-size: 13px; font-weight: 600; }
+  .field-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-muted);
+    margin-bottom: 2px;
+  }
+
+  .diff-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .diff-table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: max-content;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 20px;
+  }
+  .diff-table td { padding: 0; vertical-align: top; }
+  .diff-num {
+    width: 1%;
+    min-width: 44px;
+    padding: 0 8px;
+    text-align: right;
+    color: var(--fg-muted);
+    user-select: none;
+    white-space: nowrap;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .diff-marker { width: 1%; padding: 0 6px; text-align: center; user-select: none; color: var(--fg-muted); white-space: pre; }
+  .diff-code { padding: 0 8px 0 2px; white-space: pre; }
+  .diff-row[data-kind="add"] td { background: var(--diff-add-bg); }
+  .diff-row[data-kind="add"] td.diff-num { background: var(--diff-add-num-bg); }
+  .diff-row[data-kind="del"] td { background: var(--diff-del-bg); }
+  .diff-row[data-kind="del"] td.diff-num { background: var(--diff-del-num-bg); }
+  .diff-row[data-kind="header"] td { background: var(--diff-header-bg); color: var(--diff-header-fg); }
+  .diff-row[data-anchor="true"] td { box-shadow: inset 0 -1px 0 var(--diff-anchor-accent), inset 0 1px 0 var(--diff-anchor-accent); font-weight: 600; }
+  .diff-row[data-anchor="true"] td:first-child { box-shadow: inset 4px 0 0 var(--diff-anchor-accent), inset 0 -1px 0 var(--diff-anchor-accent), inset 0 1px 0 var(--diff-anchor-accent); }
+
+  .action-group { display: flex; flex-wrap: wrap; gap: 6px; border: 0; padding: 0; margin: 0; min-width: 0; }
+  .action-group legend { padding: 0; margin-bottom: 4px; }
+  .action-btn { min-width: 76px; }
+  .action-btn[data-action="post"][aria-checked="true"] { background: var(--pass); border-color: var(--pass); color: var(--surface); }
+  .action-btn[data-action="skip"][aria-checked="true"] { background: var(--skip); border-color: var(--skip); color: var(--surface); }
+  .emoji-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .emoji-btn { cursor: pointer; padding: 2px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 2px; font-size: 16px; line-height: 1.4; }
+  .emoji-btn:hover { border-color: var(--fg); }
+  .field-error { color: var(--fail); font-size: 13px; font-weight: 600; }
+
+  .actions { margin-top: 32px; display: grid; gap: 12px; }
+  .action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .status-line { min-height: 1.5em; color: var(--fg-muted); font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap" id="app">
+  <section class="state-panel" id="loading-panel" aria-live="polite">
+    <h2>Loading review</h2>
+    <p>Reading <code>review.json</code> from the run directory.</p>
+    <div class="loading-bar" aria-hidden="true"></div>
+  </section>
+
+  <section class="state-panel" id="error-panel" role="alert" hidden>
+    <h2>Review not found</h2>
+    <p id="error-message">review.json could not be loaded. Check that the run directory contains review.json and that the server is still running.</p>
+  </section>
+
+  <div id="review-root" hidden>
+    <header class="review-header">
+      <p class="run-label" id="run-label">Manual PR review</p>
+      <h1 id="review-title"></h1>
+      <div class="meta-row" id="review-meta"></div>
+      <div class="notice notice-warn" id="warnings-box" role="status" hidden>
+        <ul id="warnings-list"></ul>
+      </div>
+    </header>
+
+    <div class="toolbar" id="toolbar">
+      <span class="summary-text" id="summary-text"></span>
+      <div class="counts" id="summary-counts"></div>
+    </div>
+
+    <form id="results-form" novalidate>
+      <div class="issues" id="issues-root"></div>
+
+      <div class="actions">
+        <div class="notice notice-error" id="error-strip" role="alert" hidden><p id="error-strip-message"></p></div>
+        <div class="notice notice-warn" id="confirm-strip" role="alert" hidden>
+          <p id="confirm-message"></p>
+          <button type="button" class="btn btn-primary" id="confirm-submit-button">Submit</button>
+          <button type="button" class="btn" id="cancel-submit-button">Keep reviewing</button>
+        </div>
+        <div class="action-row">
+          <button type="button" class="btn" id="save-button" disabled>Save draft</button>
+          <button type="submit" class="btn btn-primary" id="submit-button" disabled>Submit</button>
+        </div>
+        <p class="status-line" id="status-line" aria-live="polite">Preparing save connection...</p>
+      </div>
+    </form>
+
+    <section class="done-panel" id="done-panel" role="status" hidden>
+      <h2>Review sent</h2>
+      <p>Review sent. Return to your agent session — it will validate and post the selected comments.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const ACTIONS = ["post", "skip"];
+  const ACTION_LABELS = { post: "Post", skip: "Skip" };
+  const MAX_BODY_LENGTH = 10000;
+  const EMOJI_CHOICES = [["👍", "thumbs up"], ["🎉", "party popper"], ["🤔", "thinking face"], ["💡", "light bulb"], ["⚠️", "warning"], ["🐛", "bug"], ["❤️", "red heart"], ["🙏", "folded hands"]];
+  const MARKERS = { add: "+", del: "-", context: " ", header: "" };
+
+  const elementById = (id) => document.getElementById(id);
+  const state = {
+    review: null,
+    issueList: [],
+    decisions: {},
+    transport: null,
+    transportKnown: false,
+    submitted: false,
+    saving: false,
+    partsById: {},
+  };
+
+  function createElement(tagName, options = {}, children = []) {
+    const element = document.createElement(tagName);
+    if (options.className) element.className = options.className;
+    if (options.text !== undefined) element.textContent = options.text;
+    if (options.attributes) {
+      for (const [name, value] of Object.entries(options.attributes)) element.setAttribute(name, value);
+    }
+    for (const child of children) element.append(child);
+    return element;
+  }
+
+  function draftKey() { return "manual-pr-review-draft:" + state.review.reviewId; }
+
+  function readDraft() {
+    try {
+      const stored = localStorage.getItem(draftKey());
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) { return null; }
+  }
+
+  function writeDraft() {
+    try {
+      localStorage.setItem(draftKey(), JSON.stringify({ decisions: state.decisions, savedAt: new Date().toISOString() }));
+    } catch (error) { /* storage unavailable; saving to the server still works */ }
+  }
+
+  function showLoadError(message) {
+    elementById("loading-panel").hidden = true;
+    elementById("error-message").textContent = message;
+    elementById("error-panel").hidden = false;
+  }
+
+  function isSafeUrl(url) { return typeof url === "string" && /^https?:\/\//i.test(url); }
+
+  function renderHeader() {
+    const review = state.review;
+    const pr = review.pr || {};
+    const titleText = `#${pr.number} ${pr.title || "Untitled pull request"}`;
+    const titleNode = elementById("review-title");
+    if (isSafeUrl(pr.url)) {
+      titleNode.append(createElement("a", { text: titleText, attributes: { href: pr.url, target: "_blank", rel: "noopener noreferrer" } }));
+    } else {
+      titleNode.textContent = titleText;
+    }
+    document.title = titleText + " — Manual PR Review";
+    elementById("run-label").textContent = "Manual PR review " + review.reviewId;
+    const meta = elementById("review-meta");
+    const entries = [["Host", pr.host], ["Head", pr.headSha ? String(pr.headSha).slice(0, 12) : ""], ["Issues", String(state.issueList.length)]];
+    for (const [label, value] of entries) {
+      if (!value) continue;
+      meta.append(createElement("span", { text: label + " " }, [createElement("b", { text: String(value) })]));
+    }
+    const warnings = review.warnings || [];
+    for (const warning of warnings) elementById("warnings-list").append(createElement("li", { text: warning }));
+    elementById("warnings-box").hidden = warnings.length === 0;
+  }
+
+  function buildDiffTable(hunk) {
+    const body = createElement("tbody");
+    for (const line of hunk) {
+      const kind = MARKERS[line.kind] !== undefined ? line.kind : "context";
+      const row = createElement("tr", { className: "diff-row", attributes: { "data-kind": kind, "data-anchor": String(Boolean(line.anchor)) } }, [
+        createElement("td", { className: "diff-num", text: line.oldLine == null ? "" : String(line.oldLine) }),
+        createElement("td", { className: "diff-num", text: line.newLine == null ? "" : String(line.newLine) }),
+        createElement("td", { className: "diff-marker", text: MARKERS[kind] }),
+        createElement("td", { className: "diff-code", text: line.text == null ? "" : String(line.text) }),
+      ]);
+      body.append(row);
+    }
+    const table = createElement("table", { className: "diff-table" }, [body]);
+    return createElement("div", { className: "diff-scroll", attributes: { role: "region", tabindex: "0", "aria-label": "Diff excerpt" } }, [table]);
+  }
+
+  function buildActionGroup(issue) {
+    const group = createElement("fieldset", { className: "action-group", attributes: { role: "radiogroup", "aria-label": "Action for " + issue.id } });
+    group.append(createElement("legend", { className: "field-label", text: "Action" }));
+    for (const action of ACTIONS) {
+      const button = createElement("button", {
+        className: "btn action-btn",
+        text: ACTION_LABELS[action],
+        attributes: { type: "button", role: "radio", id: `${issue.id}-action-${action}`, "data-action": action, "aria-checked": "false" },
+      });
+      button.addEventListener("click", () => setAction(issue.id, action));
+      button.addEventListener("keydown", (event) => {
+        const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        event.preventDefault();
+        const nextAction = ACTIONS[(ACTIONS.indexOf(action) + step + ACTIONS.length) % ACTIONS.length];
+        setAction(issue.id, nextAction);
+        elementById(`${issue.id}-action-${nextAction}`).focus();
+      });
+      group.append(button);
+    }
+    return group;
+  }
+
+  function buildCard(issue) {
+    const card = createElement("article", { className: "issue", attributes: { id: "issue-" + issue.id, "data-issue-id": issue.id, "data-postable": String(Boolean(issue.postable)) } });
+    const severityKey = String(issue.severity || "").toLowerCase();
+    const chips = createElement("div", { className: "chips" }, [
+      createElement("span", { className: "chip sev-" + severityKey, text: issue.severity || "Unrated" }),
+    ]);
+    for (const reviewer of issue.reviewers || []) chips.append(createElement("span", { className: "chip", text: reviewer }));
+    card.append(
+      createElement("div", { className: "issue-head" }, [
+        createElement("span", { className: "issue-id", text: issue.id }),
+        createElement("h3", { className: "issue-title", text: issue.title }),
+      ]),
+      chips,
+      createElement("p", { className: "location", text: `${issue.path}:${issue.line}` }),
+    );
+
+    if (!issue.postable) {
+      card.append(createElement("p", { className: "unpostable-reason", text: "Cannot be posted: " + (issue.unpostableReason || "no valid anchor in the diff") }));
+      if (issue.recommendation) {
+        card.append(createElement("div", {}, [
+          createElement("div", { className: "field-label", text: "Recommendation" }),
+          createElement("p", { text: issue.recommendation }),
+        ]));
+      }
+      state.partsById[issue.id] = { card };
+      return card;
+    }
+
+    if (issue.hunk && issue.hunk.length) card.append(buildDiffTable(issue.hunk));
+
+    const bodyField = createElement("textarea", { attributes: { id: `${issue.id}-body`, rows: "4", placeholder: "Comment to post on this line" } });
+    bodyField.addEventListener("input", () => { ensureDecision(issue.id).body = bodyField.value; onChange(issue.id); });
+    const emojiRow = createElement("div", { className: "emoji-row", attributes: { role: "group", "aria-label": "Quick insert emoji" } });
+    for (const [emoji, emojiName] of EMOJI_CHOICES) {
+      const emojiButton = createElement("button", { className: "emoji-btn", text: emoji, attributes: { type: "button", "aria-label": "Insert " + emojiName } });
+      emojiButton.addEventListener("click", () => {
+        const selectionStart = bodyField.selectionStart;
+        const selectionEnd = bodyField.selectionEnd;
+        bodyField.setRangeText(emoji, selectionStart, selectionEnd, "end");
+        bodyField.focus();
+        bodyField.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      emojiRow.append(emojiButton);
+    }
+    const bodyError = createElement("p", { className: "field-error", attributes: { id: `${issue.id}-body-error` } });
+    bodyError.hidden = true;
+    const bodyWrapper = createElement("div", {}, [
+      createElement("label", { text: "Comment", attributes: { for: `${issue.id}-body` } }),
+      bodyField,
+      emojiRow,
+      bodyError,
+    ]);
+    card.append(bodyWrapper, buildActionGroup(issue));
+    state.partsById[issue.id] = { card, bodyField, bodyError, bodyWrapper };
+    return card;
+  }
+
+  function ensureDecision(issueId) {
+    if (!state.decisions[issueId]) {
+      const issue = state.issueList.find((candidate) => candidate.id === issueId);
+      state.decisions[issueId] = { action: "post", body: (issue && issue.recommendation) || "" };
+    }
+    return state.decisions[issueId];
+  }
+
+  function postableIssues() { return state.issueList.filter((issue) => issue.postable); }
+
+  function setAction(issueId, action) {
+    ensureDecision(issueId).action = action;
+    onChange(issueId);
+  }
+
+  function onChange(issueId) {
+    writeDraft();
+    refreshCard(issueId);
+    refreshSummary();
+    elementById("confirm-strip").hidden = true;
+  }
+
+  function refreshCard(issueId) {
+    const parts = state.partsById[issueId];
+    if (!parts || !parts.bodyField) return;
+    const decision = ensureDecision(issueId);
+    parts.card.dataset.action = decision.action;
+    for (const action of ACTIONS) {
+      const button = elementById(`${issueId}-action-${action}`);
+      button.setAttribute("aria-checked", String(action === decision.action));
+      button.tabIndex = action === decision.action ? 0 : -1;
+    }
+    if (parts.bodyField.value !== decision.body) parts.bodyField.value = decision.body;
+    parts.bodyWrapper.hidden = decision.action === "skip";
+    if (decision.action === "skip" || decision.body.trim()) parts.bodyError.hidden = true;
+  }
+
+  function countActions() {
+    const counts = { post: 0, skip: 0, unpostable: 0 };
+    for (const issue of state.issueList) {
+      if (!issue.postable) counts.unpostable += 1;
+      else counts[ensureDecision(issue.id).action] += 1;
+    }
+    return counts;
+  }
+
+  function refreshSummary() {
+    const counts = countActions();
+    elementById("summary-text").textContent = `${counts.post} to post, ${counts.skip} skipped`;
+    const countsNode = elementById("summary-counts");
+    countsNode.replaceChildren();
+    for (const name of ["post", "skip", "unpostable"]) {
+      countsNode.append(createElement("span", { className: "count-chip count-" + name, text: `${counts[name]} ${name}` }));
+    }
+  }
+
+  function refreshAll() {
+    for (const issue of postableIssues()) refreshCard(issue.id);
+    refreshSummary();
+  }
+
+  function buildPayload(status) {
+    const decisions = postableIssues().map((issue) => {
+      const decision = ensureDecision(issue.id);
+      return { id: issue.id, action: decision.action, body: decision.action === "post" ? decision.body : "" };
+    });
+    return { reviewId: state.review.reviewId, status, savedAt: new Date().toISOString(), decisions };
+  }
+
+  function validateBodies() {
+    let firstInvalidId = null;
+    for (const issue of postableIssues()) {
+      const parts = state.partsById[issue.id];
+      const decision = ensureDecision(issue.id);
+      parts.bodyError.hidden = true;
+      if (decision.action !== "post") continue;
+      const problem = !decision.body.trim() ? "Add a comment or switch this issue to Skip." : decision.body.length > MAX_BODY_LENGTH ? `Comment is longer than ${MAX_BODY_LENGTH} characters.` : "";
+      if (problem) {
+        parts.bodyError.textContent = problem;
+        parts.bodyError.hidden = false;
+        if (!firstInvalidId) firstInvalidId = issue.id;
+      }
+    }
+    return firstInvalidId;
+  }
+
+  function setStatusLine(message) { elementById("status-line").textContent = message; }
+
+  function showErrorStrip(message) {
+    elementById("error-strip-message").textContent = message;
+    elementById("error-strip").hidden = !message;
+  }
+
+  function describeSaveError(error) {
+    switch (error && error.code) {
+      case "conflict": return "Someone else saved since you opened this page. Reload to merge their changes, then save again.";
+      case "not_writer":
+      case "not_granted":
+      case "capability_disabled": return "You can view this review but not save it here.";
+      case "rate_limited": return "Saving too fast. Wait a moment, then try again.";
+      default: return "Saving failed: " + ((error && error.message) || "unknown error") + ".";
+    }
+  }
+
+  async function sendPayload(payload) {
+    const body = JSON.stringify(payload, null, 2);
+    if (state.transport.kind === "artifact") {
+      await state.transport.api.publish({ "results.json": { content: body, contentType: "application/json" } });
+      return;
+    }
+    const response = await fetch("results.json", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    if (!response.ok) {
+      let message = "server returned " + response.status;
+      try { message = (await response.json()).error || message; } catch (error) { /* keep status message */ }
+      throw new Error(message);
+    }
+  }
+
+  function refreshButtons() {
+    const disabled = !state.transportKnown || !state.transport || state.saving || state.submitted;
+    elementById("save-button").disabled = disabled;
+    elementById("submit-button").disabled = disabled;
+  }
+
+  async function save(status) {
+    showErrorStrip("");
+    state.saving = true;
+    refreshButtons();
+    setStatusLine(status === "submitted" ? "Submitting..." : "Saving...");
+    try {
+      await sendPayload(buildPayload(status));
+      if (status === "submitted") {
+        state.submitted = true;
+        elementById("done-panel").hidden = false;
+        elementById("done-panel").scrollIntoView({ block: "nearest" });
+        setStatusLine("Submitted at " + new Date().toLocaleTimeString());
+      } else {
+        setStatusLine("Draft saved at " + new Date().toLocaleTimeString());
+      }
+    } catch (error) {
+      setStatusLine("Not saved.");
+      showErrorStrip(describeSaveError(error));
+    } finally {
+      state.saving = false;
+      refreshButtons();
+    }
+  }
+
+  function requestSubmit() {
+    elementById("confirm-strip").hidden = true;
+    const invalidId = validateBodies();
+    if (invalidId) {
+      showErrorStrip("Some comments to post are empty or too long. Fix the highlighted issues and submit again.");
+      state.partsById[invalidId].card.scrollIntoView({ block: "center" });
+      return;
+    }
+    showErrorStrip("");
+    const counts = countActions();
+    elementById("confirm-message").textContent = `Submit ${counts.post} ${counts.post === 1 ? "comment" : "comments"} to post and ${counts.skip} skipped? Nothing is posted until the agent validates it.`;
+    elementById("confirm-strip").hidden = false;
+  }
+
+  async function resolveTransport() {
+    let artifactApi = null;
+    try {
+      artifactApi = window.claude?.use ? await window.claude.use("artifact") : null;
+    } catch (error) { artifactApi = null; }
+    state.transport = artifactApi ? { kind: "artifact", api: artifactApi } : { kind: "server" };
+    state.transportKnown = true;
+    setStatusLine(artifactApi ? "Ready. Saves are shared through the published artifact." : "Ready. Saves go to the local server.");
+    refreshButtons();
+  }
+
+  async function fetchJson(url) {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return { missing: true, status: response.status };
+    return { value: await response.json() };
+  }
+
+  function restoreDecisions(savedResults) {
+    const draft = readDraft();
+    const useDraft = draft && (!savedResults || (draft.savedAt || "") > (savedResults.savedAt || ""));
+    const source = useDraft ? Object.entries(draft.decisions || {}).map(([id, decision]) => ({ id, ...decision })) : (savedResults && savedResults.decisions) || [];
+    const postableIds = new Set(postableIssues().map((issue) => issue.id));
+    for (const decision of source) {
+      if (!decision || !postableIds.has(decision.id) || !ACTIONS.includes(decision.action)) continue;
+      const issue = state.issueList.find((candidate) => candidate.id === decision.id);
+      const savedBody = typeof decision.body === "string" ? decision.body : "";
+      state.decisions[decision.id] = { action: decision.action, body: savedBody || (issue.recommendation || "") };
+    }
+  }
+
+  async function start() {
+    resolveTransport();
+    let reviewResponse;
+    try {
+      reviewResponse = await fetchJson("review.json");
+    } catch (error) {
+      showLoadError("review.json could not be read: " + error.message);
+      return;
+    }
+    if (reviewResponse.missing) {
+      showLoadError(`review.json is missing (HTTP ${reviewResponse.status}). Check that the run directory contains review.json.`);
+      return;
+    }
+    state.review = reviewResponse.value;
+    state.issueList = state.review.issues || [];
+
+    let savedResults = null;
+    try {
+      const resultsResponse = await fetchJson("results.json");
+      if (!resultsResponse.missing) savedResults = resultsResponse.value;
+    } catch (error) { savedResults = null; }
+    if (savedResults && savedResults.reviewId !== state.review.reviewId) savedResults = null;
+
+    renderHeader();
+    const issuesRoot = elementById("issues-root");
+    for (const issue of state.issueList) issuesRoot.append(buildCard(issue));
+    restoreDecisions(savedResults);
+    refreshAll();
+    elementById("loading-panel").hidden = true;
+    elementById("review-root").hidden = false;
+    refreshButtons();
+  }
+
+  elementById("save-button").addEventListener("click", () => save("in_progress"));
+  elementById("results-form").addEventListener("submit", (event) => { event.preventDefault(); requestSubmit(); });
+  elementById("confirm-submit-button").addEventListener("click", () => { elementById("confirm-strip").hidden = true; save("submitted"); });
+  elementById("cancel-submit-button").addEventListener("click", () => { elementById("confirm-strip").hidden = true; });
+
+  start();
+})();
+</script>
