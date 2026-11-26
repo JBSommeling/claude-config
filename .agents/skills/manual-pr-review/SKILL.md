@@ -80,13 +80,13 @@ Spawn `code-reviewer`, `security-auditor`, `test-engineer` and `maintainer-revie
 <untrusted-pr-body>…</untrusted-pr-body>
 ```
 
-Each returns only a JSON array of findings in the `findings.json` shape below, anchoring on a single line on the new side of the diff whenever possible. `diff_anchors.py` drops malformed findings and lists them as warnings.
+Each returns only a JSON array of findings in the `findings.json` shape below, assigning each a `status` (`blocking`, `recommendation` or `nitpick`, defined under Data formats), anchoring on a single line on the new side of the diff whenever possible. `diff_anchors.py` drops malformed findings and lists them as warnings.
 
 With `--copilot`: follow the Diff section of `/copilot-rubber-duck`, but feed it `pr.diff` instead of `git diff <default>...HEAD`, and give the critique the same preamble and delimiters. Verify each point against the code; adopted points become findings with `reviewers: ["copilot"]`, rejected points are dropped.
 
 ### Phase 4 — Merge and anchor
 
-Merge findings: same path, lines within about 3, same underlying problem → one issue, reviewers unioned, highest severity kept.
+Merge findings: same path, lines within about 3, same underlying problem → one issue, reviewers unioned, strictest status kept (blocking over recommendation over nitpick).
 
 Then, before `findings.json` is written, rewrite every merged finding's `title` and `recommendation` following the `/plain` rules (read the `plain` command for the rules): keep every fact, lead with the problem and the fix, one idea per sentence, gloss or drop jargon, concrete nouns and verbs, no preamble or closing summary. Keep file paths, identifiers and code in backticks, and include a short code snippet of the fix where it makes the change concrete. Work only from the reviewer's finding and the diff; do not invent new claims. The orchestrator does this inline; it already holds the findings.
 
@@ -143,9 +143,14 @@ Print the PR URL and counts: posted, skipped, unpostable, failed (from `post-rep
 ### findings.json (written by the orchestrator)
 
 ```json
-[{"severity": "Critical|Important|Suggestion|Nit", "reviewers": ["code-reviewer"],
+[{"status": "blocking|recommendation|nitpick", "reviewers": ["code-reviewer"],
   "path": "app/Foo.php", "line": 42, "title": "...", "recommendation": "..."}]
 ```
+
+`status` is assigned by the reviewer:
+- `blocking`: must be fixed before merge (incorrect behaviour, security hole, data loss, broken contract or build).
+- `recommendation`: should be fixed but does not block merge.
+- `nitpick`: style, naming or minor polish.
 
 ### meta.json (written by the orchestrator)
 
@@ -157,7 +162,7 @@ Print the PR URL and counts: posted, skipped, unpostable, failed (from `post-rep
 
 ### review.json (output of diff_anchors.py)
 
-Per issue: `id`, `severity`, `reviewers`, `path`, `line`, `title`, `recommendation`, `postable`, `unpostableReason`, and `hunk` (lines with `kind` context/add/del/header, `oldLine`, `newLine`, `text`, `anchor`).
+Per issue: `id`, `status`, `reviewers`, `path`, `line`, `title`, `recommendation`, `postable`, `unpostableReason`, and `hunk` (lines with `kind` context/add/del/header, `oldLine`, `newLine`, `text`, `anchor`).
 
 ### anchor-check.json (output of anchor_check.py)
 

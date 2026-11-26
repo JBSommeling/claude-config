@@ -20,6 +20,12 @@
     --warn: #a15c00;
     --warn-bg: #fbebd0;
     --skip: #5c6670;
+    --status-blocking-fg: #a4161a;
+    --status-blocking-bg: #fde4e2;
+    --status-recommendation-fg: #7a4a00;
+    --status-recommendation-bg: #fbebd0;
+    --status-nitpick-fg: #4a525a;
+    --status-nitpick-bg: #e8ebee;
     --diff-add-bg: #e6ffec;
     --diff-add-num-bg: #ccffd8;
     --diff-del-bg: #ffebe9;
@@ -50,6 +56,12 @@
       --warn: #f0b050;
       --warn-bg: #35270f;
       --skip: #a3adb6;
+      --status-blocking-fg: #ffb4ab;
+      --status-blocking-bg: #4a1d1a;
+      --status-recommendation-fg: #f5c36a;
+      --status-recommendation-bg: #3d2d0f;
+      --status-nitpick-fg: #b4bdc4;
+      --status-nitpick-bg: #262d31;
       --diff-add-bg: #12261e;
       --diff-add-num-bg: #1a4028;
       --diff-del-bg: #2d1517;
@@ -143,6 +155,7 @@
   .count-post { color: var(--pass); }
   .count-skip { color: var(--skip); }
   .count-unpostable { color: var(--warn); }
+  .status-counts { font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 
   textarea {
     width: 100%;
@@ -211,10 +224,19 @@
     border: 1px solid var(--border-strong);
     color: var(--fg-muted);
   }
-  .sev-critical { color: var(--fail); border-color: var(--fail); font-weight: 700; }
-  .sev-important { color: var(--warn); border-color: var(--warn); font-weight: 700; }
-  .sev-suggestion { color: var(--accent); border-color: var(--accent); }
-  .sev-nit { color: var(--fg-muted); }
+  .status-chip {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 10px;
+    border: 2px solid currentColor;
+    white-space: nowrap;
+  }
+  .status-blocking { color: var(--status-blocking-fg); background: var(--status-blocking-bg); }
+  .status-recommendation { color: var(--status-recommendation-fg); background: var(--status-recommendation-bg); }
+  .status-nitpick { color: var(--status-nitpick-fg); background: var(--status-nitpick-bg); }
   .location { font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted); overflow-wrap: anywhere; min-width: 0; }
   .unpostable-reason { color: var(--warn); font-size: 13px; font-weight: 600; }
   .field-label {
@@ -452,16 +474,27 @@
     return group;
   }
 
+  const STATUS_LABELS = { blocking: "Blocking", recommendation: "Recommendation", nitpick: "Nitpick" };
+
+  function buildStatusChip(status) {
+    const known = Object.hasOwn(STATUS_LABELS, status);
+    return createElement("span", { className: "status-chip" + (known ? " status-" + status : ""), text: known ? STATUS_LABELS[status] : "Unrated" });
+  }
+
+  function countStatuses() {
+    const counts = { blocking: 0, recommendation: 0, nitpick: 0 };
+    for (const issue of state.issueList) if (Object.hasOwn(counts, issue.status)) counts[issue.status] += 1;
+    return counts;
+  }
+
   function buildCard(issue) {
     const card = createElement("article", { className: "issue", attributes: { id: "issue-" + issue.id, "data-issue-id": issue.id, "data-postable": String(Boolean(issue.postable)) } });
-    const severityKey = String(issue.severity || "").toLowerCase();
-    const chips = createElement("div", { className: "chips" }, [
-      createElement("span", { className: "chip sev-" + severityKey, text: issue.severity || "Unrated" }),
-    ]);
+    const chips = createElement("div", { className: "chips" });
     for (const reviewer of issue.reviewers || []) chips.append(createElement("span", { className: "chip", text: reviewer }));
     card.append(
       createElement("div", { className: "issue-head" }, [
         createElement("span", { className: "issue-id", text: issue.id }),
+        buildStatusChip(issue.status),
         createElement("h3", { className: "issue-title", text: issue.title }),
       ]),
       chips,
@@ -566,6 +599,9 @@
     for (const name of ["post", "skip", "unpostable"]) {
       countsNode.append(createElement("span", { className: "count-chip count-" + name, text: `${counts[name]} ${name}` }));
     }
+    const statusCounts = countStatuses();
+    const recommendationNoun = statusCounts.recommendation === 1 ? "recommendation" : "recommendations";
+    countsNode.append(createElement("span", { className: "status-counts", text: `${statusCounts.blocking} blocking · ${statusCounts.recommendation} ${recommendationNoun} · ${statusCounts.nitpick} nitpick` }));
   }
 
   function refreshAll() {

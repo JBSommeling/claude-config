@@ -10,7 +10,7 @@ import re
 import sys
 from pathlib import Path
 
-SEVERITY_ORDER = {"Critical": 0, "Important": 1, "Suggestion": 2, "Nit": 3}
+STATUS_ORDER = {"blocking": 0, "recommendation": 1, "nitpick": 2}
 LARGE_DIFF_CHANGED_LINES = 1000
 MAX_TITLE_CHARS = 300
 MAX_RECOMMENDATION_CHARS = 10000
@@ -133,8 +133,8 @@ def finding_problem(finding):
     """Return why a finding is malformed, or None when it is valid."""
     if not isinstance(finding, dict):
         return "finding is not an object"
-    if finding.get("severity") not in SEVERITY_ORDER:
-        return f"severity must be one of {', '.join(SEVERITY_ORDER)}"
+    if finding.get("status") not in STATUS_ORDER:
+        return f"status must be one of {', '.join(STATUS_ORDER)}"
     path = finding.get("path")
     if not isinstance(path, str) or not path:
         return "path must be a non-empty string"
@@ -174,7 +174,7 @@ def build_review(diff_text, findings, meta, context=3):
         else:
             hunk = excerpt_for(file_info, finding["line"], context)
         issues.append({
-            "severity": finding["severity"],
+            "status": finding["status"],
             "reviewers": list(finding.get("reviewers", [])),
             "path": finding["path"],
             "line": finding["line"],
@@ -184,7 +184,7 @@ def build_review(diff_text, findings, meta, context=3):
             "unpostableReason": reason,
             "hunk": hunk,
         })
-    issues.sort(key=lambda issue: (SEVERITY_ORDER.get(issue["severity"], 99), issue["path"], issue["line"]))
+    issues.sort(key=lambda issue: (STATUS_ORDER.get(issue["status"], 99), issue["path"], issue["line"]))
     for position, issue in enumerate(issues, start=1):
         issue["id"] = f"I{position}"
     issues = [{"id": issue.pop("id"), **issue} for issue in issues]

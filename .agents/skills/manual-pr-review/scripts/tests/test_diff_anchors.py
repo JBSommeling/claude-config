@@ -48,9 +48,9 @@ rename to new_name.py
 """
 
 
-def make_finding(path, line, severity="Important", title="t"):
+def make_finding(path, line, status="recommendation", title="t"):
     return {
-        "severity": severity,
+        "status": status,
         "reviewers": ["code-reviewer"],
         "path": path,
         "line": line,
@@ -147,10 +147,10 @@ class BuildReviewTests(unittest.TestCase):
 
     def test_sorting_and_ids(self):
         findings = [
-            make_finding("app.py", 5, "Nit", "n"),
-            make_finding("app.py", 3, "Critical", "c2"),
-            make_finding("app.py", 1, "Critical", "c1"),
-            make_finding("app.py", 2, "Suggestion", "s"),
+            make_finding("app.py", 5, "nitpick", "n"),
+            make_finding("app.py", 3, "blocking", "c2"),
+            make_finding("app.py", 1, "blocking", "c1"),
+            make_finding("app.py", 2, "recommendation", "s"),
         ]
         issues = self.build(findings)["issues"]
         self.assertEqual([issue["id"] for issue in issues], ["I1", "I2", "I3", "I4"])
@@ -256,7 +256,7 @@ class FindingValidationTests(unittest.TestCase):
 
     def test_invalid_findings_are_dropped_with_warning(self):
         invalid = {
-            "severity": self.with_field(severity="Blocker"),
+            "status": self.with_field(status="Critical"),
             "path": self.with_field(path=""),
             "line_zero": self.with_field(line=0),
             "line_bool": self.with_field(line=True),
@@ -284,7 +284,7 @@ class FindingValidationTests(unittest.TestCase):
         self.assertEqual(review["warnings"], [])
 
     def test_finding_number_is_one_based_position(self):
-        bad = self.with_field(severity="Nope")
+        bad = self.with_field(status="Nope")
         with contextlib.redirect_stderr(io.StringIO()):
             review = diff_anchors.build_review(SAMPLE_DIFF, [make_finding("app.py", 3), bad], self.META)
         self.assertEqual(len(review["issues"]), 1)
