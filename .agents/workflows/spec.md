@@ -16,4 +16,4 @@ Begin by understanding what the user wants to build. Ask clarifying questions ab
 
 Then generate a structured spec covering all seven core areas: objective, design, commands, project structure, code style, testing strategy, and boundaries.
 
-Save the spec as SPEC.md in the project root and confirm with the user before proceeding.
+Save the spec with `status: draft` following "Where the Spec Is Saved" in the spec-driven-development skill, confirm with the user, and set `status: accepted` once approved.

@@ -90,10 +90,10 @@ On Claude, every agent uses the bare model alias (`haiku`, `sonnet`, `opus`), so
 ### Repository layout
 
 ```
-.agents/           shared content: 7 agent bodies, 28 workflows, 20 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 29 workflows, 21 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
-docs/adr/          7 architecture decision records
+docs/adr/          11 architecture decision records
 install.sh
 ```
 
@@ -118,6 +118,8 @@ On macOS, `install.sh --claude` also installs a launchd agent that checks every 
 
 Run the `/manual-pr-review` script tests with `python3 -m unittest discover -s .agents/skills/manual-pr-review/scripts/tests`.
 
+Run the `/initialize-repo` script tests with `python3 -m unittest discover -s .agents/skills/initialize-repo/scripts/tests`.
+
 ### On Codex
 
 - **Effort** is capped at medium for every Codex agent.
@@ -129,7 +131,7 @@ Run the `/manual-pr-review` script tests with `python3 -m unittest discover -s .
 Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several skills and subagents; every other command loads a single skill.
 
 **Plan**
-- `/spec` — write a spec before code
+- `/spec` — write a spec before code, saved at the repo's `Specs:` path (e.g. `context/specs/`), else asking whether to adopt `context/specs/`, falling back to `SPEC.md`
 - `/plan` — break work into verifiable tasks with acceptance criteria
 - `/grill` — stress-test a plan against your domain model, updating `CONTEXT.md` and ADRs inline
 
@@ -161,6 +163,7 @@ Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several sk
 - `/validate` — run tests, build, linter, and type check, fixing until green
 
 **Meta**
+- `/initialize-repo` — audit a repo against the repo-structure guidelines, propose moves at a checkpoint, then apply them on a branch with a draft PR
 - `/plain` — re-explain the last answer in plain English
 - `/zoom-out` — step back for higher-level context
 
@@ -190,6 +193,7 @@ Methodology playbooks the orchestrator reads before acting and delegates within.
 | `code-simplification` | Working-but-messy code, behavior unchanged |
 | `improve-codebase-architecture` | Consolidating coupled modules; more testable, AI-navigable code |
 | `security-and-hardening` | Untrusted input, auth, sessions, storage, third-party integrations |
+| `initialize-repo` | Auditing a repo's structure against the guidelines and moving it into shape on a branch with a draft PR |
 | `manual-pr-review` | Reviewing a GitHub or Azure DevOps PR with a human-curated form before posting inline comments |
 | `interactive-test-plan` | Business-logic test plan as a pass/fail form, with failures triaged and confirmed bugs fixed from the results |
 | `grill-with-docs` | Challenging a plan against the domain model, updating `CONTEXT.md` and ADRs |

@@ -1,0 +1,37 @@
+# This workflow runs PR-head code. Never switch it to `pull_request_target`.
+name: Docs checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check generated indexes are fresh
+        run: python3 tools/build_index.py --check
+      - name: Check docs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/check_docs.py --base "$BASE_SHA"
+      - name: Check decision ids
+        run: python3 tools/check_ids.py
+      - name: Check changelog
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/check_changelog.py --base "$BASE_SHA"
+      - name: Skip changelog check (no-changelog label)
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        run: python3 tools/check_changelog.py --skip

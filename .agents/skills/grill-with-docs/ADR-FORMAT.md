@@ -1,8 +1,13 @@
 # ADR Format
 
-ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+## Location
 
-Create the `docs/adr/` directory lazily — only when the first ADR is needed.
+- A repo with a `## Repo profile` in `AGENTS.md` keeps ADRs in `context/adr/`.
+- Any other repo uses the folder where it already keeps ADRs, typically `docs/adr/`; detect existing numbered ADR files. Never create a second ADR folder next to an existing one.
+- An adopted repo whose ADRs still live in another folder keeps writing there until `/initialize-repo` moves them; never create a second ADR folder.
+- Only when the repo has no ADRs anywhere: `context/adr/` if adopted, else `docs/adr/`.
+
+Create the folder lazily — only when the first ADR is needed. Files are named `NNNN-kebab-title.md` (4-digit number).
 
 ## Template
 
@@ -24,7 +29,7 @@ Only include these when they add genuine value. Most ADRs won't need them.
 
 ## Numbering
 
-Scan `docs/adr/` for the highest existing number and increment by one.
+Scan the ADR folder (see Location) for the highest existing number and increment by one.
 
 ## When to offer an ADR
 
