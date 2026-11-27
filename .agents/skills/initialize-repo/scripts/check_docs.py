@@ -48,13 +48,13 @@ def link_targets(body):
 
 
 def check_document(path, root, text, allowed_fields):
-    """Return (failures, warnings) for one document."""
+    """Return (failures, warnings, fields) for one document; fields is None when absent or malformed."""
     relative = path.relative_to(root).as_posix()
     failures, warnings = [], []
     try:
         fields, body = frontmatter.split_frontmatter(text)
     except frontmatter.FrontmatterError as error:
-        return [f"{relative}: {error}"], warnings
+        return [f"{relative}: {error}"], warnings, None
     if fields is None:
         warnings.append(f"{relative}: unindexed (no frontmatter)")
     else:
@@ -67,7 +67,7 @@ def check_document(path, root, text, allowed_fields):
         base_dir = root if target_path.startswith("/") else path.parent
         if not (base_dir / target_path.lstrip("/")).exists():
             failures.append(f"{relative}: broken link target {target_path}")
-    return failures, warnings
+    return failures, warnings, fields
 
 
 def drift_warnings(documents, changed):
@@ -101,13 +101,10 @@ def main(argv=None) -> int:
         text = path.read_text(encoding="utf-8")
         if is_generated_index(text):
             continue
-        document_failures, document_warnings = check_document(path, root, text, allowed_fields)
+        document_failures, document_warnings, fields = check_document(path, root, text, allowed_fields)
         failures += document_failures
         warnings += document_warnings
-        try:
-            documents.append((path.relative_to(root).as_posix(), frontmatter.parse_frontmatter(text)))
-        except frontmatter.FrontmatterError:
-            pass
+        documents.append((path.relative_to(root).as_posix(), fields))
 
     if arguments.base:
         try:

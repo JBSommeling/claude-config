@@ -65,7 +65,7 @@ Report every finding. Do not fix anything in this stage.
 
 Present the proposal as numbered rows, and wait. The user approves, edits or rejects each row.
 
-1. **Repo profile** to write, with the evidence for Type and Platforms.
+1. **Repo profile** to write, with the evidence for Type and Platforms. When `CLAUDE.md` exists without `@AGENTS.md`, add a row to insert that one line.
 2. **Move table:** `# | current path | new path | reason`.
 3. **Files it cannot place,** with the question that blocks each one.
 4. **Changelog rows:** create a skeleton, `git mv` an existing file to the root, or record an override in the profile. Busy repos also get a `changes/` fragments row.
@@ -87,7 +87,7 @@ Use `git mv` for every move so history follows the file. Never copy and delete.
 ### 3. Profile and entry files
 
 - Write the Repo profile at the top of `AGENTS.md`. When `AGENTS.md` is missing, create it with the profile and a minimal repo map.
-- Create `CLAUDE.md` containing `@AGENTS.md` when it is missing. When `CLAUDE.md` exists without the import, propose adding the line as a row; do not rewrite the file.
+- Create `CLAUDE.md` containing `@AGENTS.md` when it is missing. When `CLAUDE.md` exists without the import, add the line only if that row was approved; never rewrite the rest of the file.
 
 ### 4. Frontmatter
 
