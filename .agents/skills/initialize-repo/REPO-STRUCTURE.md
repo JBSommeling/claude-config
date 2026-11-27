@@ -40,7 +40,7 @@ context/
   specs/           specs + DECISIONS.md (DEC- IDs)
   standards/       UX-PRINCIPLES.md (UXP- IDs)
   design-system/   tokens, components, brands
-  adr/             architectural decisions (always here, never docs/adr/)
+  adr/             architectural decisions (in adopted repos)
   process/         qa, links to project management
   current/         brownfield only
 legacy/            migration only: old code, read-only
@@ -88,7 +88,7 @@ Decisions are `DEC-` rows in `DECISIONS.md`, next to the Specs. One row each: ID
 
 ### ADRs
 
-ADRs live in `context/adr/`. Write one only for an architectural trade-off that is hard to reverse, surprising without context, and a real trade-off between options. Every other decision is a `DEC-` row.
+ADRs live in `context/adr/`, named `NNNN-kebab-title.md`; numbering continues from the highest existing number. A repo that is not adopted keeps its existing ADR folder until `/initialize-repo` moves and numbers its ADRs. Write one only for an architectural trade-off that is hard to reverse, surprising without context, and a real trade-off between options. Every other decision is a `DEC-` row.
 
 ## Rules
 

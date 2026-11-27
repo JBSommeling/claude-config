@@ -49,7 +49,9 @@ If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The ma
 │       └── context/adr/
 ```
 
-Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `context/adr/` exists, create it when the first ADR is needed.
+The trees show an adopted repo. The ADR folder is chosen by the location rule in [ADR-FORMAT.md](./ADR-FORMAT.md).
+
+Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If the repo has no ADR folder, create it when the first ADR is needed, at the location given in [ADR-FORMAT.md](./ADR-FORMAT.md).
 
 ## During the session
 

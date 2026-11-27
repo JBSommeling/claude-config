@@ -35,7 +35,7 @@ Platforms: `claude` by default; `codex` when `.agents/` or `.codex/` tooling exi
 
 ### 3. Inventory documentation
 
-List every document the repo already has: README sections, `docs/`, `docs/adr/`, ADR-like files, `SPEC.md` or spec folders (and `~/Desktop/<slug>/spec.md` files only when the user names them), `CONTEXT.md`, design system, UX principles, guidelines, meeting notes, release notes, `.claude/` and `.agents/` tooling, and existing scripts.
+List every document the repo already has: README sections, `docs/`, ADRs anywhere (`docs/adr/`, `doc/adr/`, `adr/`, `decisions/`, files that look like ADRs), `SPEC.md` or spec folders (and `~/Desktop/<slug>/spec.md` files only when the user names them), `CONTEXT.md`, design system, UX principles, guidelines, meeting notes, release notes, `.claude/` and `.agents/` tooling, and existing scripts.
 
 Map each to its target path per the Layout section of REPO-STRUCTURE.md. Migration repos use `context/target/...` for specs, standards and design system.
 
@@ -71,10 +71,11 @@ Present the proposal as numbered rows, and wait. The user approves, edits or rej
 
 1. **Repo profile** to write, with the evidence for Type and Platforms. When `CLAUDE.md` exists without `@AGENTS.md`, add a row to insert that one line.
 2. **Move table:** `# | current path | new path | reason`.
-3. **Files it cannot place,** with the question that blocks each one.
-4. **Changelog rows:** create a skeleton, `git mv` an existing file to the root, or record an override in the profile. Busy repos also get a `changes/` fragments row.
-5. **Tooling rows:** copy the five scripts (`build_index.py`, `check_docs.py`, `check_ids.py`, `check_changelog.py`, `frontmatter.py`) into `tools/`. The copies are a snapshot: a re-run of `/initialize-repo` proposes refreshing `tools/` when they differ from the skill's `scripts/`. Copy `assets/docs-checks.yml` to `.github/workflows/` for GitHub repos only. For any other CI, print the four commands from step 6 for the user to wire by hand.
-6. **Follow-ups it will NOT do:** content merges, writing missing docs, changelog backfill from tags, moving code.
+3. **ADR rows:** move every ADR into `context/adr/` with `git mv`. A file that already carries a number keeps it; a file without one gets `NNNN-<kebab-title>.md`, numbered after the current highest, oldest first by `git log --diff-filter=A --format=%ad --date=short -- <file>` (first-added date). When two files share a number, the later-added one gets the next free number. Show each rename in the move table. Links in other docs that point to a renamed ADR path are listed; updating those link paths is its own row (mechanical path replacement only).
+4. **Files it cannot place,** with the question that blocks each one.
+5. **Changelog rows:** create a skeleton, `git mv` an existing file to the root, or record an override in the profile. Busy repos also get a `changes/` fragments row.
+6. **Tooling rows:** copy the five scripts (`build_index.py`, `check_docs.py`, `check_ids.py`, `check_changelog.py`, `frontmatter.py`) into `tools/`. The copies are a snapshot: a re-run of `/initialize-repo` proposes refreshing `tools/` when they differ from the skill's `scripts/`. Copy `assets/docs-checks.yml` to `.github/workflows/` for GitHub repos only. For any other CI, print the four commands from step 6 for the user to wire by hand.
+7. **Follow-ups it will NOT do:** content merges, writing missing docs, changelog backfill from tags, moving code.
 
 In drift-audit mode the table holds only fixes for the findings. **Do not proceed without explicit approval.** Silence, or approval of only some rows, means only those rows.
 
@@ -86,7 +87,7 @@ Invoke `/branch-preflight`. On the default branch, create a feature branch first
 
 ### 2. Moves
 
-Use `git mv -- "<src>" "<dst>"` for every move so history follows the file, with every path quoted. Never copy and delete, and never build commands from unquoted file names.
+Use `git mv -- "<src>" "<dst>"` for every move so history follows the file, with every path quoted. Never copy and delete, and never build commands from unquoted file names. ADR moves and renames are `git mv` too.
 
 ### 3. Profile and entry files
 
@@ -97,6 +98,8 @@ Use `git mv -- "<src>" "<dst>"` for every move so history follows the file, with
 
 For each moved context document without frontmatter, add the block from REPO-STRUCTURE.md: `title` from the first heading, known values filled in, unknown values left empty. Leave the body untouched.
 
+For each moved ADR, `title` comes from the first heading, `status` from a `Status:` line when present (else empty), and other fields stay empty.
+
 ### 5. Changelog
 
 Create a Keep a Changelog skeleton (`# Changelog`, `## [Unreleased]`) when none exists, or `git mv` the existing file to the root. Do not create an empty `changes/` folder; document the fragment convention in `AGENTS.md` and let the first fragment create the folder.
@@ -106,6 +109,8 @@ Create a Keep a Changelog skeleton (`# Changelog`, `## [Unreleased]`) when none 
 Copy the approved scripts into `tools/`, and the CI template when approved.
 
 ### 7. Indexes and checks
+
+`build_index.py` indexes `context/adr/` along with the other context folders. New ADRs continue from the highest number there.
 
 ```bash
 python3 tools/build_index.py

@@ -21,7 +21,7 @@ Before writing a single finding:
 3. Note how they handle naming, file layout, error handling, configuration, logging,
    dependency direction, test structure, and comment style.
 4. Read the project's own instructions where present: `CLAUDE.md`, `AGENTS.md`,
-   `CONTRIBUTING.md`, `context/adr/`, `conventions.md`, and the linter, formatter, and type
+   `CONTRIBUTING.md`, the ADR folder (`context/adr/`, or an existing `docs/adr/`), `conventions.md`, and the linter, formatter, and type
    configuration.
 
 That baseline is your standard. Generic best practice is not. A finding that could have
