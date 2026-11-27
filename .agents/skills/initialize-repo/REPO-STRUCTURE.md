@@ -34,6 +34,7 @@ CLAUDE.md          @AGENTS.md (plus Claude-only notes)
 CHANGELOG.md       Unreleased + versions
 changes/           changelog fragments (busy repos only)
 CONTEXT.md         glossary
+REPO-STRUCTURE.md  this standard, copied in by /initialize-repo
 .claude/           rules/ (path-scoped), agents/, skills/, evals/ — written for this repo, never symlinked
 context/
   README.md        generated index

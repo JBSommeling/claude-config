@@ -75,7 +75,8 @@ Present the proposal as rows numbered globally (1, 2, 3, ...) across all groups,
 
 1. **Repo profile and entry files:**
    - Write the profile, with the evidence for Type and Platforms as trailing `#` comments on those lines. When a profile exists without `Type:`, complete it and keep its existing entries.
-   - Create `AGENTS.md` (the profile and a minimal repo map) when missing.
+   - Create `AGENTS.md` (the profile, a minimal repo map and the standard directive) when missing.
+   - The standard directive is the line "Before adding, moving or renaming docs, specs, ADRs or the changelog, read [REPO-STRUCTURE.md](REPO-STRUCTURE.md) and follow it." placed right after the profile. When `AGENTS.md` exists without it, add it.
    - Create `CLAUDE.md` (the single line `@AGENTS.md`) when missing; when it exists without the import, add that line.
 2. **Move table:** `# | current path | new path | reason`. A hand-written `README.md` that would land inside `context/` is renamed (for example `overview.md`) in the same row.
 3. **ADR and link rows:** move every ADR into `context/adr/` with `git mv`.
@@ -86,6 +87,7 @@ Present the proposal as rows numbered globally (1, 2, 3, ...) across all groups,
 4. **Files it cannot place,** with the question that blocks each one.
 5. **Changelog rows:** create a skeleton, or record an override in the profile. A changelog under another name (for example `HISTORY.md`, `docs/CHANGELOG.md`) is `git mv`-ed to root `CHANGELOG.md` with content unchanged; converting it to Keep a Changelog format is a follow-up. Busy repos also get a `changes/` fragments row.
 6. **Tooling rows:**
+   - Copy `REPO-STRUCTURE.md` from this skill's folder to the repo root, content unchanged. Like `tools/`, the copy is a snapshot: a re-run proposes refreshing it when it differs from the skill's copy.
    - Copy only the five scripts (`build_index.py`, `check_docs.py`, `check_ids.py`, `check_changelog.py`, `frontmatter.py`) into `tools/`, not `scripts/tests/`. The copies are a snapshot: a re-run proposes refreshing `tools/` when they differ from the skill's `scripts/`.
    - Create `.gitignore` or append `__pycache__/` when no such pattern exists.
    - Copy `assets/docs-checks.yml` to `.github/workflows/` for GitHub repos only. For any other CI, print the four commands from Stage 1 step 6 for the user to wire by hand.
@@ -123,7 +125,7 @@ Create a Keep a Changelog skeleton (`# Changelog`, `## [Unreleased]`) when none 
 
 ### 6. Tooling
 
-Copy the approved scripts into `tools/`, and the CI template when approved.
+Copy `REPO-STRUCTURE.md` to the repo root and the approved scripts into `tools/`, plus the CI template when approved.
 
 ### 7. Indexes and checks (first adoption runs the checks here for the first time)
 
@@ -143,7 +145,7 @@ Report the results. Failures go into the PR description. Do not auto-fix documen
 
 ### 8. Commit
 
-Commit in this order: (1) pure `git mv` moves and renames with no content changes, so history follows even small files; (2) link path updates; (3) frontmatter; (4) profile and entry files (`AGENTS.md`, `CLAUDE.md`, `.gitignore`); (5) tooling; (6) generated indexes. Run `git add -- "<path>"` on named paths only, with every path quoted.
+Commit in this order: (1) pure `git mv` moves and renames with no content changes, so history follows even small files; (2) link path updates; (3) frontmatter; (4) profile and entry files (`AGENTS.md`, `CLAUDE.md`, `.gitignore`); (5) tooling (`REPO-STRUCTURE.md`, `tools/`, CI template); (6) generated indexes. Run `git add -- "<path>"` on named paths only, with every path quoted.
 
 ### 9. Push and open a draft PR
 
