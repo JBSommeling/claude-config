@@ -57,7 +57,7 @@ The main agent drafts the plan.
 
 ### Phase 5 — Write the run directory
 
-Run directory: `~/Desktop/<branch-slug>/test-runs/<YYYYMMDD-HHMM>/`, matching the pipeline convention of `~/Desktop/<feature-slug>/`.
+Run directory: `~/Desktop/<branch-slug>/test-runs/<YYYYMMDD-HHMM>/`, next to the pipelines' `~/Desktop/<feature-slug>/` plan folder.
 
 - Delegate writing `plan.json` (schema below) to the `implementer` agent.
 - Copy the form with Bash, no agent needed: `cp <skill-dir>/assets/form.html <run-dir>/form.html`.

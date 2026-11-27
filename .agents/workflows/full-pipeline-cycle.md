@@ -16,7 +16,7 @@ Invoke the spec-driven-development skill. Write a structured specification for t
 
 When the spec is complete, if `--copilot` was passed, run the rubber-duck critique per `/copilot-rubber-duck` and fold it in before presenting. Then present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the spec until approved.
 
-Once approved, derive a kebab-case `<slug>` from the spec's title and create `~/Desktop/<slug>/` (create it if it does not exist), which Phase 2 uses for `plan.md`. Save the spec following "Where the Spec Is Saved" in the spec-driven-development skill. When the user declines adoption, or there is no Repo profile and they choose to keep the current location, save it as `~/Desktop/<slug>/spec.md`. A spec saved inside the repo is not committed in Phase 1. The first task commit also includes the spec file and its index update when Phase 1 saved the spec inside the repo.
+Once approved, derive a kebab-case `<slug>` from the spec's title and create `~/Desktop/<slug>/` (create it if it does not exist), which Phase 2 uses for `plan.md`. Save the spec following "Where the Spec Is Saved" in the spec-driven-development skill. When the user declines adoption, or there is no Repo profile and they choose to keep the current location, save it as `~/Desktop/<slug>/spec.md`. A spec saved inside the repo is not committed in Phase 1. The first task commit also includes the spec file, its index update, and any Repo profile Phase 1 added to `AGENTS.md` when Phase 1 saved the spec inside the repo.
 
 ## Phase 2 — Plan (checkpoint)
 
@@ -53,7 +53,7 @@ Invoke the incremental-implementation and tdd skills. For each task in the appro
 3. Implement minimum code to pass (GREEN)
 4. Refactor if needed
 5. Run full test suite — verify no regressions
-6. Orchestrator commits directly inline via `git add` / `git commit` (Bash) after reviewing the diff — do not spawn a subagent solely to commit. The first task commit also includes the spec file and its index update when Phase 1 saved the spec inside the repo.
+6. Orchestrator commits directly inline via `git add` / `git commit` (Bash) after reviewing the diff — do not spawn a subagent solely to commit. The first task commit also includes the spec file, its index update, and any Repo profile Phase 1 added to `AGENTS.md` when Phase 1 saved the spec inside the repo.
 7. Move to next task
 
 If a task adds or changes motion code, also invoke the `animate` skill (web) or the `animate-expo` skill (React Native/Expo) for that task. Motion code means — React Native: imports from `react-native-reanimated`, `react-native-gesture-handler`, `moti`, or `Animated` from `react-native`; web: `motion`/`framer-motion`, or CSS `transition`, `animation`, `@keyframes`, WAAPI `element.animate`.

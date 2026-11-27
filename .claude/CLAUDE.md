@@ -82,7 +82,9 @@ Available commands: check `~/.claude/commands/`
 
 `/diagnose-full-pipeline` is the same chain with the no-review-round pipeline: it runs `/diagnose`, then feeds the confirmed diagnosis into `/full-pipeline` rather than `/full-pipeline-cycle`.
 
-Every pipeline command saves the approved spec and plan to `~/Desktop/<feature-slug>/` as `spec.md` and `plan.md`.
+Every pipeline command saves the approved spec where the repo's Repo profile says (`Specs:` in `AGENTS.md`, e.g. `context/specs/`), asking once when the repo has no profile and falling back to `~/Desktop/<feature-slug>/spec.md`. The plan always goes to `~/Desktop/<feature-slug>/plan.md`.
+
+`/initialize-repo` audits a repo against the repo-structure guidelines, proposes moves at a checkpoint, then applies them on a branch and opens a draft PR. The full guidelines live in its `REPO-STRUCTURE.md`.
 
 Every pipeline command accepts an optional `repos=<path>` parameter. A single path is supported in v1: relative paths resolve against `$HOME`, absolute and `~/` paths are used as-is. The primary repo is always the repository containing the current working directory; sibling repos are direct children of the `repos=` path holding a `.git` entry. When present, the spec allocates work across repos, the plan tags tasks per repo, and the build, PR, review, and judging phases all run per repo — PRs dispatch to `gh` for GitHub or `az repos` for Azure DevOps. Absent the parameter, behaviour is unchanged.
 
