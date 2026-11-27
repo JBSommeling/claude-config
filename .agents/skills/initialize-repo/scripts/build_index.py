@@ -19,15 +19,24 @@ def format_text(value):
     return value or ""
 
 
+def escape_link_text(text):
+    return text.replace("]", "\\]")
+
+
 def describe_document(path):
     """Return the bullet for a document, or None when it cannot be indexed."""
     try:
         fields = frontmatter.parse_frontmatter(path.read_text(encoding="utf-8"))
-    except frontmatter.FrontmatterError:
+    except (frontmatter.FrontmatterError, UnicodeDecodeError):
         return None
     if fields is None:
         return None
-    line = f"- [{format_text(fields.get('title')) or path.name}]({path.name})"
+    return format_bullet(fields, path.name)
+
+
+def format_bullet(fields, name):
+    link_text = escape_link_text(format_text(fields.get("title")) or name)
+    line = f"- [{link_text}](<{name}>)"
     if format_text(fields.get("summary")):
         line += f" — {format_text(fields['summary'])}"
     if format_text(fields.get("read-when")):
@@ -42,10 +51,10 @@ def render_index(folder, indexed_lines, unindexed_names, subfolder_names):
     lines += indexed_lines
     if subfolder_names:
         lines += ["", "## Folders", ""]
-        lines += [f"- [{name}]({name}/{INDEX_NAME})" for name in subfolder_names]
+        lines += [f"- [{escape_link_text(name)}](<{name}/{INDEX_NAME}>)" for name in subfolder_names]
     if unindexed_names:
         lines += ["", "## Unindexed", ""]
-        lines += [f"- [{name}]({name})" for name in unindexed_names]
+        lines += [f"- [{escape_link_text(name)}](<{name}>)" for name in unindexed_names]
     return "\n".join(lines) + "\n"
 
 
@@ -54,7 +63,7 @@ def collect_indexes(folder, indexes, is_root=False):
     indexed_lines, unindexed_names = [], []
     documents = sorted(
         path for path in folder.iterdir()
-        if path.is_file() and path.suffix == ".md" and path.name != INDEX_NAME
+        if not path.is_symlink() and path.is_file() and path.suffix == ".md" and path.name != INDEX_NAME
     )
     for path in documents:
         line = describe_document(path)
@@ -64,7 +73,7 @@ def collect_indexes(folder, indexes, is_root=False):
             indexed_lines.append(line)
     subfolder_names = [
         child.name for child in sorted(folder.iterdir())
-        if child.is_dir() and collect_indexes(child, indexes)
+        if not child.is_symlink() and child.is_dir() and collect_indexes(child, indexes)
     ]
     if not (documents or subfolder_names or is_root):
         return False
@@ -89,7 +98,17 @@ def main(argv=None) -> int:
 
     stale, blocked = [], []
     for path, text in sorted(indexes.items()):
-        current = path.read_text(encoding="utf-8") if path.is_file() else None
+        if path.is_symlink():
+            blocked.append(path)
+            continue
+        if not path.resolve().is_relative_to(context_dir.resolve()):
+            blocked.append(path)
+            continue
+        try:
+            current = path.read_text(encoding="utf-8") if path.is_file() else None
+        except UnicodeDecodeError:
+            blocked.append(path)
+            continue
         if current == text:
             continue
         first_line = current.splitlines()[0].strip() if current else ""

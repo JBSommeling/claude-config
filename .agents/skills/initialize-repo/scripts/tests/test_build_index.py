@@ -42,14 +42,39 @@ class BuildIndexTest(unittest.TestCase):
         self.assertTrue(index.startswith(build_index.BANNER))
         self.assertIn("# Context index", index)
         self.assertIn(
-            "- [Auth](auth.md) — How login works · read when: touching login · status: active",
+            "- [Auth](<auth.md>) — How login works · read when: touching login · status: active",
             index,
         )
+
+    def test_name_with_space_is_wrapped_and_bracket_escaped(self):
+        write(self.root, "context/my doc.md", "---\ntitle: A [x]\n---\n")
+        run(self.root)
+        self.assertIn("- [A [x\\]](<my doc.md>)\n", self.read_index("context/README.md"))
+
+    def test_non_utf8_file_is_unindexed(self):
+        (self.root / "context").mkdir()
+        (self.root / "context" / "bad.md").write_bytes(b"\xff\xfe\x00bad")
+        self.assertEqual(run(self.root)[0], 0)
+        self.assertIn("- [bad.md](<bad.md>)", self.read_index("context/README.md"))
+
+    def test_symlinked_readme_is_not_written_through(self):
+        write(self.root, "context/a.md", DOC)
+        target = self.root / "outside.md"
+        target.write_text("keep\n", encoding="utf-8")
+        (self.root / "context" / "README.md").symlink_to(target)
+        run(self.root)
+        self.assertEqual(target.read_text(encoding="utf-8"), "keep\n")
+
+    def test_symlinked_folder_is_not_followed(self):
+        write(self.root, "context/a.md", DOC)
+        (self.root / "context" / "loop").symlink_to(self.root / "context")
+        self.assertEqual(run(self.root)[0], 0)
+        self.assertNotIn("loop", self.read_index("context/README.md"))
 
     def test_missing_parts_are_omitted(self):
         write(self.root, "context/a.md", "---\ntitle: A\nstatus: draft\n---\n")
         run(self.root)
-        self.assertIn("- [A](a.md) · status: draft\n", self.read_index("context/README.md"))
+        self.assertIn("- [A](<a.md>) · status: draft\n", self.read_index("context/README.md"))
 
     def test_unindexed_section_for_missing_or_bad_frontmatter(self):
         write(self.root, "context/plain.md", "# no frontmatter\n")
@@ -57,21 +82,21 @@ class BuildIndexTest(unittest.TestCase):
         run(self.root)
         index = self.read_index("context/README.md")
         self.assertIn("## Unindexed", index)
-        self.assertIn("- [plain.md](plain.md)", index)
-        self.assertIn("- [bad.md](bad.md)", index)
+        self.assertIn("- [plain.md](<plain.md>)", index)
+        self.assertIn("- [bad.md](<bad.md>)", index)
 
     def test_nested_folder_listed_and_indexed(self):
         write(self.root, "context/adr/0001.md", DOC)
         run(self.root)
         self.assertIn("## Folders", self.read_index("context/README.md"))
-        self.assertIn("[adr](adr/README.md)", self.read_index("context/README.md"))
+        self.assertIn("[adr](<adr/README.md>)", self.read_index("context/README.md"))
         self.assertIn("# Adr index", self.read_index("context/adr/README.md"))
 
     def test_readme_not_indexed(self):
         write(self.root, "context/README.md", "# hand written\n")
         write(self.root, "context/a.md", DOC)
         run(self.root)
-        self.assertNotIn("(README.md)", self.read_index("context/README.md"))
+        self.assertNotIn("(<README.md>)", self.read_index("context/README.md"))
 
     def test_does_not_touch_outside_context(self):
         write(self.root, "docs/x.md", DOC)

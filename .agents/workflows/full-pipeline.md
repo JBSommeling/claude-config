@@ -16,7 +16,7 @@ Invoke the spec-driven-development skill. Write a structured specification for t
 
 When the spec is complete, if `--copilot` was passed, run the rubber-duck critique per `/copilot-rubber-duck` and fold it in before presenting. Then present it to the user and ask for approval before continuing. Do not proceed until the user approves or requests changes. Iterate on the spec until approved.
 
-Once approved, derive a kebab-case `<slug>` from the spec's title and create `~/Desktop/<slug>/` (create it if it does not exist), which Phase 2 uses for `plan.md`. Save the spec following "Where the Spec Is Saved" in the spec-driven-development skill. When the user declines adoption, or there is no Repo profile and they choose to keep the current location, save it as `~/Desktop/<slug>/spec.md`. A spec saved inside the repo is not committed in Phase 1. The first task commit also includes the spec file, its index update, and any Repo profile Phase 1 added to `AGENTS.md` when Phase 1 saved the spec inside the repo.
+Once approved, derive a kebab-case `<slug>` from the spec's title and create `~/Desktop/<slug>/` (create it if it does not exist), which Phase 2 uses for `plan.md`. Save the spec following "Where the Spec Is Saved" in the spec-driven-development skill. When the user declines adoption, save it as `~/Desktop/<slug>/spec.md`. A spec saved inside the repo is not committed in Phase 1.
 
 ## Phase 2 — Plan (checkpoint)
 

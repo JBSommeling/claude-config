@@ -40,9 +40,29 @@ class CheckIdsTest(unittest.TestCase):
         write(self.root, "context/specs/DECISIONS.md", TABLE + "| DEC-001 | again |\n")
         code, output = run(self.root)
         self.assertEqual(code, 1)
-        self.assertIn("DEC-001", output)
-        self.assertIn("3", output)
-        self.assertIn("5", output)
+        self.assertIn("DEC-001 is defined more than once: ", output)
+        self.assertIn("DECISIONS.md:3", output)
+        self.assertIn("DECISIONS.md:5", output)
+
+    def test_specs_outside_root_is_usage_error(self):
+        write(self.root, "AGENTS.md", "## Repo profile\n- Specs: ../outside\n")
+        code, output = run(self.root)
+        self.assertEqual(code, 2)
+        self.assertIn("Specs", output)
+
+    def test_non_utf8_file_fails(self):
+        write(self.root, "context/specs/DECISIONS.md", TABLE)
+        (self.root / "context" / "bad.md").write_bytes(b"\xff\xfe\x00bad")
+        code, output = run(self.root)
+        self.assertEqual(code, 1)
+        self.assertIn("context/bad.md: not valid UTF-8", output)
+
+    def test_symlinked_file_is_skipped(self):
+        write(self.root, "context/specs/DECISIONS.md", TABLE)
+        outside = self.root / "outside.md"
+        outside.write_text("cites DEC-999\n", encoding="utf-8")
+        (self.root / "context" / "link.md").symlink_to(outside)
+        self.assertEqual(run(self.root)[0], 0)
 
     def test_dangling_citation(self):
         write(self.root, "context/specs/DECISIONS.md", TABLE)

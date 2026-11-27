@@ -201,7 +201,7 @@ Claude-only is the default, with tooling in `.claude/`. Claude Code reads `CLAUD
 |---|---|---|
 | `claude` | `.claude/` | Default. |
 | `codex` | `.agents/` | |
-| `both` | `.agents/` is the source | A repo script copies it into `.claude/`. Copy, never symlink. CI checks the copy is fresh. |
+| `both` | `.agents/` is the source | A repo script copies it into `.claude/`. Copy, never symlink. CI checks the copy is fresh. Both the copy and its freshness check are set up by hand; `/initialize-repo` lists them as a follow-up. |
 
 ## Where the pipelines save documents
 

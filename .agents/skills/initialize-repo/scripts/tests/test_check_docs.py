@@ -86,6 +86,44 @@ class CheckDocsTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("c.md: broken link target missing.md", out + err)
 
+    def test_percent_encoded_link_resolves(self):
+        write(self.root, "context/my doc.md", VALID)
+        write(self.root, "context/a.md", VALID + "[x](my%20doc.md)\n")
+        self.assertEqual(run(self.root)[0], 0)
+
+    def test_inline_code_link_ignored(self):
+        write(self.root, "context/a.md", VALID + "Use `[x](nope.md)` syntax.\n")
+        self.assertEqual(run(self.root)[0], 0)
+
+    def test_tilde_fence_hides_links_until_closed(self):
+        write(self.root, "context/a.md", VALID + "~~~\n[x](nope.md)\n~~~\n")
+        self.assertEqual(run(self.root)[0], 0)
+        write(self.root, "context/b.md", VALID + "~~~\n[x](nope.md)\n~~~\n[y](gone.md)\n")
+        code, out, err = run(self.root)
+        self.assertEqual(code, 1)
+        self.assertIn("b.md: broken link target gone.md", out + err)
+        self.assertNotIn("nope.md", out + err)
+
+    def test_covers_string_warns_and_still_works(self):
+        write(self.root, "context/a.md", VALID.replace("covers: []", "covers: src/*.py"))
+        code, out, err = run(self.root)
+        self.assertEqual(code, 0)
+        self.assertIn("warning: context/a.md: covers should be a list", out + err)
+
+    def test_non_utf8_file_fails(self):
+        (self.root / "context").mkdir()
+        (self.root / "context" / "bad.md").write_bytes(b"\xff\xfe\x00bad")
+        code, out, err = run(self.root)
+        self.assertEqual(code, 1)
+        self.assertIn("context/bad.md: not valid UTF-8", out + err)
+
+    def test_symlinked_document_is_skipped(self):
+        outside = self.root / "outside.md"
+        outside.write_text("[x](nope.md)\n", encoding="utf-8")
+        (self.root / "context").mkdir()
+        (self.root / "context" / "link.md").symlink_to(outside)
+        self.assertEqual(run(self.root)[0], 0)
+
     def test_drift_warning_with_base(self):
         git(self.root, "init")
         doc = VALID.replace("covers: []", "covers: [src/*.py]")
@@ -109,11 +147,15 @@ class CheckDocsTest(unittest.TestCase):
         write(self.root, "context/a.md", VALID)
         git(self.root, "add", "-A")
         git(self.root, "commit", "-m", "base")
-        self.assertEqual(run(self.root, "--base", "nope")[0], 2)
+        code, _, err = run(self.root, "--base", "nope")
+        self.assertEqual(code, 2)
+        self.assertIn("git diff against", err)
 
     def test_not_a_git_repo_is_usage_error(self):
         write(self.root, "context/a.md", VALID)
-        self.assertEqual(run(self.root, "--base", "HEAD")[0], 2)
+        code, _, err = run(self.root, "--base", "HEAD")
+        self.assertEqual(code, 2)
+        self.assertIn("git diff against", err)
 
 
 if __name__ == "__main__":

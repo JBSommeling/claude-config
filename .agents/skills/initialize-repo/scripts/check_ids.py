@@ -44,18 +44,24 @@ def main(argv=None) -> int:
 
     root = Path(arguments.root).resolve()
     profile = frontmatter.read_profile(root / "AGENTS.md")
-    decisions_file = find_decisions_file(root, profile)
+    try:
+        decisions_file = find_decisions_file(root, profile)
+    except frontmatter.ProfileError as error:
+        print(str(error), file=sys.stderr)
+        return 2
     if decisions_file is None:
         print("no DECISIONS.md found; nothing to check")
         return 0
 
     files = set((root / "context").rglob("*.md")) if (root / "context").is_dir() else set()
+    files = {path for path in files if not path.is_symlink()}
     files.add(decisions_file)
-    definitions, citations = {}, []
+    definitions, citations, failures = {}, [], []
     for path in sorted(files):
-        scan(path, root, definitions, citations)
-
-    failures = []
+        try:
+            scan(path, root, definitions, citations)
+        except UnicodeDecodeError:
+            failures.append(f"{path.relative_to(root).as_posix()}: not valid UTF-8")
     for decision_id, locations in sorted(definitions.items()):
         if len(locations) > 1:
             failures.append(f"{decision_id} is defined more than once: {' and '.join(locations)}")

@@ -98,7 +98,35 @@ class RequiredFieldsTest(unittest.TestCase):
         self.assertEqual(frontmatter.required_fields(profile), ("title", "summary", "status"))
 
 
+class QuotedListAndBomTest(unittest.TestCase):
+    def test_comma_inside_quotes_stays_one_item(self):
+        self.assertEqual(
+            frontmatter.parse_frontmatter('---\nk: [always, "when a, b"]\n---\n'),
+            {"k": ["always", "when a, b"]},
+        )
+
+    def test_brace_glob_stays_one_item(self):
+        self.assertEqual(
+            frontmatter.parse_frontmatter('---\ncovers: ["src/{a,b}/**"]\n---\n'),
+            {"covers": ["src/{a,b}/**"]},
+        )
+
+    def test_leading_bom_is_ignored(self):
+        self.assertEqual(
+            frontmatter.parse_frontmatter("\ufeff---\ntitle: A\n---\nbody\n"),
+            {"title": "A"},
+        )
+
+
 class SpecsDirTest(unittest.TestCase):
+    def test_absolute_specs_rejected(self):
+        with self.assertRaises(frontmatter.ProfileError):
+            frontmatter.specs_dir(Path("/repo"), {"specs": "/etc"})
+
+    def test_escaping_specs_rejected(self):
+        with self.assertRaises(frontmatter.ProfileError):
+            frontmatter.specs_dir(Path("/repo"), {"specs": "../outside"})
+
     def test_default(self):
         root = Path("/repo")
         self.assertEqual(frontmatter.specs_dir(root, None), root / "context/specs")

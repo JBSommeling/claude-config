@@ -3,6 +3,7 @@
 Stdlib only so it can be copied into any target repo's tools/ folder.
 """
 
+import csv
 from pathlib import Path
 
 DEFAULT_FIELDS = ("title", "summary", "read-when", "status", "covers")
@@ -12,6 +13,10 @@ FENCE = "---"
 
 class FrontmatterError(ValueError):
     """Raised when a frontmatter block uses syntax outside the supported subset."""
+
+
+class ProfileError(ValueError):
+    """Raised when the repo profile holds an unusable value."""
 
 
 def unquote(value):
@@ -24,7 +29,8 @@ def parse_flow_list(value):
     inner = value[1:-1].strip()
     if not inner:
         return []
-    return [unquote(item.strip()) for item in inner.split(",")]
+    items = next(csv.reader([inner], skipinitialspace=True))
+    return [unquote(item.strip()) for item in items]
 
 
 def parse_value(raw_value):
@@ -50,7 +56,7 @@ def parse_block(block_lines, first_line_number):
 
 def split_frontmatter(text):
     """Return (frontmatter dict or None, body text)."""
-    lines = text.splitlines(keepends=True)
+    lines = text.removeprefix("\ufeff").splitlines(keepends=True)
     if not lines or lines[0].rstrip("\r\n") != FENCE:
         return None, text
     for index in range(1, len(lines)):
@@ -92,6 +98,11 @@ def required_fields(profile):
 
 
 def specs_dir(root, profile):
-    if profile and profile.get("specs"):
-        return Path(root) / profile["specs"].rstrip("/")
-    return Path(root) / DEFAULT_SPECS_DIR
+    if not (profile and profile.get("specs")):
+        return Path(root) / DEFAULT_SPECS_DIR
+    declared = profile["specs"].rstrip("/")
+    resolved_root = Path(root).resolve()
+    candidate = resolved_root / declared
+    if Path(declared).is_absolute() or not candidate.resolve().is_relative_to(resolved_root):
+        raise ProfileError(f"Specs value {declared!r} must be a path inside the repo root")
+    return Path(root) / declared

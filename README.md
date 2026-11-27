@@ -90,7 +90,7 @@ On Claude, every agent uses the bare model alias (`haiku`, `sonnet`, `opus`), so
 ### Repository layout
 
 ```
-.agents/           shared content: 7 agent bodies, 28 workflows, 21 skills, hooks, conventions.md
+.agents/           shared content: 7 agent bodies, 29 workflows, 21 skills, hooks, conventions.md
 .claude/           Claude wiring: CLAUDE.md, settings.json, *.header.md
 .codex/            Codex wiring: AGENTS.md, config.toml, *.header.toml
 docs/adr/          11 architecture decision records
@@ -131,7 +131,7 @@ Run the `/initialize-repo` script tests with `python3 -m unittest discover -s .a
 Invoke as `/name` in Claude Code or `$name` in Codex. Pipelines chain several skills and subagents; every other command loads a single skill.
 
 **Plan**
-- `/spec` — write a spec before code, saved at the repo's `Specs:` path (e.g. `context/specs/`), else asking where, falling back to `SPEC.md`
+- `/spec` — write a spec before code, saved at the repo's `Specs:` path (e.g. `context/specs/`), else asking whether to adopt `context/specs/`, falling back to `SPEC.md`
 - `/plan` — break work into verifiable tasks with acceptance criteria
 - `/grill` — stress-test a plan against your domain model, updating `CONTEXT.md` and ADRs inline
 

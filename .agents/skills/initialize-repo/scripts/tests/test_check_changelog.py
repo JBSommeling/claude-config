@@ -63,10 +63,26 @@ class CheckChangelogTest(unittest.TestCase):
         self.assertIn("skipped", output)
 
     def test_bad_ref(self):
-        self.assertEqual(run(self.root, "--base", "nope")[0], 2)
+        code, output = run(self.root, "--base", "nope")
+        self.assertEqual(code, 2)
+        self.assertIn("git diff against", output)
 
     def test_base_required_without_skip(self):
-        self.assertEqual(run(self.root)[0], 2)
+        code, output = run(self.root)
+        self.assertEqual(code, 2)
+        self.assertIn("--base is required", output)
+
+    def test_root_in_subfolder_uses_subfolder_changelog(self):
+        sub_changelog = self.root / "sub" / "CHANGELOG.md"
+        sub_changelog.parent.mkdir()
+        sub_changelog.write_text("# Sub\n", encoding="utf-8")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-m", "sub base")
+        sub_changelog.write_text("# Sub\n- entry\n", encoding="utf-8")
+        git(self.root, "commit", "-am", "sub change")
+        self.assertEqual(run(self.root / "sub", "--base", "HEAD~1")[0], 0)
+        self.commit_change("CHANGELOG.md", "# Changelog\n- parent entry\n")
+        self.assertEqual(run(self.root / "sub", "--base", "HEAD~1")[0], 1)
 
 
 if __name__ == "__main__":

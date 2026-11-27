@@ -12,7 +12,7 @@ def changed_files(root, base_ref):
     try:
         result = subprocess.run(
             ["git", "-C", str(root), "diff", "--name-only", "--diff-filter=ACMR",
-             "--relative", f"{base_ref}...HEAD"],
+             "--relative", "--end-of-options", f"{base_ref}...HEAD"],
             capture_output=True, text=True,
         )
     except OSError as error:
