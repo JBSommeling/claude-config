@@ -90,6 +90,38 @@ class BuildIndexTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("README.md", out + err)
 
+    def test_hand_written_readme_is_never_overwritten(self):
+        readme = write(self.root, "context/README.md", "# hand written\n")
+        write(self.root, "context/a.md", DOC)
+        before = readme.read_bytes()
+        code, out, _ = run(self.root)
+        self.assertEqual(code, 1)
+        self.assertEqual(readme.read_bytes(), before)
+        self.assertIn(
+            f"hand-written index blocks generation: {readme} "
+            "(rename it, e.g. to overview.md, then re-run)",
+            out,
+        )
+
+    def test_check_reports_hand_written_readme(self):
+        readme = write(self.root, "context/README.md", "# hand written\n")
+        write(self.root, "context/a.md", DOC)
+        code, out, _ = run(self.root, "--check")
+        self.assertEqual(code, 1)
+        self.assertIn(f"hand-written index blocks generation: {readme}", out)
+        self.assertEqual(readme.read_text(encoding="utf-8"), "# hand written\n")
+
+    def test_sibling_generated_index_still_written(self):
+        write(self.root, "context/hand/README.md", "# hand written\n")
+        write(self.root, "context/hand/a.md", DOC)
+        write(self.root, "context/gen/b.md", DOC)
+        code, _, _ = run(self.root)
+        self.assertEqual(code, 1)
+        self.assertTrue(
+            self.read_index("context/gen/README.md").startswith(build_index.BANNER)
+        )
+        self.assertEqual(self.read_index("context/hand/README.md"), "# hand written\n")
+
     def test_no_context_directory(self):
         code, out, _ = run(self.root)
         self.assertEqual(code, 0)

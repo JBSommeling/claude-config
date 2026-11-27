@@ -87,21 +87,27 @@ def main(argv=None) -> int:
     indexes = {}
     collect_indexes(context_dir, indexes, is_root=True)
 
-    stale = []
+    stale, blocked = [], []
     for path, text in sorted(indexes.items()):
         current = path.read_text(encoding="utf-8") if path.is_file() else None
         if current == text:
             continue
+        first_line = current.splitlines()[0].strip() if current else ""
+        if current is not None and first_line != BANNER:
+            blocked.append(path)
+            continue
         stale.append(path)
         if not arguments.check:
             path.write_text(text, encoding="utf-8")
+    for path in blocked:
+        print(f"hand-written index blocks generation: {path} (rename it, e.g. to overview.md, then re-run)")
     if arguments.check:
         for path in stale:
             print(f"stale or missing index: {path}")
-        return 1 if stale else 0
+        return 1 if stale or blocked else 0
     for path in stale:
         print(f"wrote {path}")
-    return 0
+    return 1 if blocked else 0
 
 
 if __name__ == "__main__":
