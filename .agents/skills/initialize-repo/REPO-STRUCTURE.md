@@ -6,7 +6,7 @@ The standard layout and documentation rules for repositories that adopt our guid
 
 1. A repo's own convention wins when it is recorded in its Repo profile.
 2. Anything the profile does not list follows this standard.
-3. A repo without a Repo profile is not adopted: this file does not apply to it.
+3. A repo becomes adopted through `/initialize-repo`, which writes the profile. The skill applies this standard to a repo that is not yet adopted; once adopted, the standard applies to all work in it.
 
 ## Principles
 
@@ -41,7 +41,7 @@ context/
   standards/       UX-PRINCIPLES.md (UXP- IDs)
   design-system/   tokens, components, brands
   adr/             architectural decisions (in adopted repos)
-  process/         qa, links to project management
+  process/         how we work: QA, runbooks, guides, links to project management
   current/         brownfield only
 legacy/            migration only: old code, read-only
 <code>             framework layout, or target-system/ in a migration repo
@@ -134,12 +134,12 @@ covers: ["src/checkout/**"]
 | `title` | Document name shown in the index. |
 | `summary` | One sentence on what the document says. |
 | `read-when` | The situation in which an agent should open it. |
-| `status` | `draft`, `accepted`, `superseded` or `archived`. |
+| `status` | `draft`, `proposed`, `accepted`, `superseded` or `archived`. |
 | `covers` | Globs of the code the document describes. Used to detect drift. |
 
 A repo overrides the field set with the profile's `Frontmatter:` line. A document without frontmatter is listed as Unindexed and warned about.
 
-The check scripts read a small YAML subset: one `key: value` per line, with lists written inline as `[a, b]`. Nested maps and indented `- item` lists are rejected.
+The check scripts read a small YAML subset: one `key: value` per line, with lists written inline as `[a, b]`. Nested maps and indented `- item` lists are rejected. Quote values containing `: ` so other YAML parsers read them the same way.
 
 ## Keeping documentation current
 
@@ -181,8 +181,8 @@ The Repo profile is the section `## Repo profile` at the top of `AGENTS.md`:
 
 ```markdown
 ## Repo profile
-- Type: brownfield          # migration | greenfield | brownfield
-- Platforms: claude         # claude | codex | both
+- Type: brownfield          # migration | greenfield | brownfield; evidence
+- Platforms: claude         # claude | codex | both; evidence
 - Specs: context/specs/
 - Frontmatter: title, summary, read-when, status, covers
 - Overrides: none

@@ -4,6 +4,7 @@
 
 - A repo with a `## Repo profile` in `AGENTS.md` keeps ADRs in `context/adr/`.
 - Any other repo uses the folder where it already keeps ADRs, typically `docs/adr/`; detect existing numbered ADR files. Never create a second ADR folder next to an existing one.
+- An adopted repo whose ADRs still live in another folder keeps writing there until `/initialize-repo` moves them; never create a second ADR folder.
 - Only when the repo has no ADRs anywhere: `context/adr/` if adopted, else `docs/adr/`.
 
 Create the folder lazily — only when the first ADR is needed. Files are named `NNNN-kebab-title.md` (4-digit number).
